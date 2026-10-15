@@ -1,0 +1,346 @@
+/* ==========================================================================
+   Inkwell — component layer
+   --------------------------------------------------------------------------
+   Reusable class-based styling for controls that appear across features.
+   Everything here reads from the theme tokens in `themes.css`, so no rule in
+   this file needs to know which theme is active.
+   ========================================================================== */
+
+/* ---------- Buttons ---------- */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5 py-2;
+  @apply text-sm font-medium transition-colors duration-150;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.btn:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  border-color: var(--border-dark);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.btn-secondary {
+  background-color: var(--surface-secondary);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--surface-tertiary);
+  border-color: var(--border-dark);
+}
+
+.btn-sm {
+  @apply px-3 py-1.5 text-xs;
+}
+
+/* ---------- Badge ---------- */
+.badge {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  border: 1px solid var(--border);
+  background-color: var(--surface-secondary);
+  color: var(--foreground-secondary);
+}
+
+/* ---------- Keyboard hints ---------- */
+kbd {
+  @apply inline-flex items-center justify-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs;
+  border-color: var(--border);
+  background-color: var(--surface-secondary);
+  color: var(--foreground-secondary);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+/* ==========================================================================
+   Editor surfaces
+   ========================================================================== */
+
+/* Keep terminal glyphs on the pixel grid — ligatures would distort the cells. */
+.terminal-xterm,
+.terminal-xterm .xterm,
+.terminal-xterm .xterm-rows {
+  letter-spacing: 0;
+  font-kerning: none;
+  font-synthesis: none;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+
+/* Reverse-search / SyncTeX jump target in the editor gutter. */
+.synctex-line-highlight {
+  background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  transition: background-color 0.3s ease;
+}
+
+/* Momentary pulse used when revealing a file in the tree. */
+@keyframes file-highlight {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  25%,
+  75% {
+    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+
+.animate-highlight {
+  animation: file-highlight 1.5s ease-in-out;
+}
+
+/* ==========================================================================
+   Dockview layout overrides
+   ========================================================================== */
+
+.dockview-editor-layout {
+  --dv-group-view-background-color: var(--background);
+  --dv-tabs-and-actions-container-background-color: var(--background);
+  --dv-tab-divider-color: var(--border);
+  --dv-separator-border: var(--border);
+  --dv-sash-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --dv-active-sash-color: color-mix(in srgb, var(--foreground) 24%, transparent);
+}
+
+.dockview-editor-layout .dv-groupview > .dv-tabs-and-actions-container {
+  display: none;
+}
+
+.dockview-editor-layout .dv-groupview > .dv-content-container {
+  inset: 0;
+}
+
+.dockview-editor-layout .dv-resize-container {
+  border: 0;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   File tree (react-arborist drag & drop)
+   ========================================================================== */
+
+[data-react-arborist-dragging="true"] {
+  opacity: 0.5;
+}
+
+[data-react-arborist-drop-target="true"] {
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+}
+
+[data-react-arborist-drop-target="true"][data-react-arborist-drop-position="inside"] {
+  background-color: color-mix(in srgb, var(--accent) 16%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* Drop indicator line for reordering. */
+[data-react-arborist-drop-target="true"][data-react-arborist-drop-position="before"]::before,
+[data-react-arborist-drop-target="true"][data-react-arborist-drop-position="after"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--accent);
+  pointer-events: none;
+}
+
+[data-react-arborist-drop-target="true"][data-react-arborist-drop-position="before"]::before {
+  top: 0;
+}
+
+[data-react-arborist-drop-target="true"][data-react-arborist-drop-position="after"]::after {
+  bottom: 0;
+}
+
+/* Cursor is managed by JS during drag. */
+[role="treeitem"] {
+  cursor: default;
+}
+
+/* ==========================================================================
+   OverlayScrollbars theme
+   ========================================================================== */
+
+.os-theme-inkwell {
+  --os-size: 12px;
+  --os-padding-perpendicular: 3px;
+  --os-padding-axis: 3px;
+  --os-track-border-radius: 0;
+  --os-handle-border-radius: 999px;
+  --os-handle-bg: transparent;
+  --os-handle-bg-hover: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --os-handle-bg-active: color-mix(in srgb, var(--foreground) 26%, transparent);
+}
+
+.os-theme-inkwell .os-scrollbar {
+  padding: 0;
+}
+
+.os-theme-inkwell .os-scrollbar .os-scrollbar-track {
+  background: transparent;
+}
+
+.os-theme-inkwell .os-scrollbar-vertical .os-scrollbar-track {
+  border-left: none;
+}
+
+.os-theme-inkwell .os-scrollbar-horizontal .os-scrollbar-track {
+  border-top: none;
+}
+
+.os-theme-inkwell .os-scrollbar .os-scrollbar-handle {
+  border: none;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  transition: background-color 0.15s ease;
+}
+
+.os-theme-inkwell .os-scrollbar .os-scrollbar-handle:hover {
+  background: color-mix(in srgb, var(--foreground) 20%, transparent);
+}
+
+.os-theme-inkwell .os-scrollbar .os-scrollbar-handle:active,
+.os-theme-inkwell .os-scrollbar .os-scrollbar-handle.active {
+  background: color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+
+/* ==========================================================================
+   Motion
+   ========================================================================== */
+
+@keyframes wizard-step-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.wizard-step-enter {
+  animation: wizard-step-enter 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Radix UI ---------- */
+@keyframes radix-overlay-show {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes radix-overlay-hide {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes radix-content-show {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes radix-content-hide {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+@keyframes radix-select-show {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes radix-select-hide {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+[data-radix-dialog-overlay][data-state="open"] {
+  animation: radix-overlay-show 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-radix-dialog-overlay][data-state="closed"] {
+  animation: radix-overlay-hide 100ms ease-in;
+}
+
+[data-radix-dialog-content][data-state="open"] {
+  animation: radix-content-show 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-radix-dialog-content][data-state="closed"] {
+  animation: radix-content-hide 100ms ease-in;
+}
+
+[data-radix-select-content][data-state="open"] {
+  animation: radix-select-show 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-radix-select-content][data-state="closed"] {
+  animation: radix-select-hide 80ms ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-step-enter,
+  .animate-highlight {
+    animation: none;
+  }
+
+  .animate-pulse {
+    animation: none;
+  }
+}

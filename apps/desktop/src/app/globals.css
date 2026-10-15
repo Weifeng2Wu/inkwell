@@ -1,0 +1,149 @@
+@import "tailwindcss";
+@import "overlayscrollbars/overlayscrollbars.css";
+@import "@xterm/xterm/css/xterm.css";
+@import "dockview-react/dist/styles/dockview.css";
+@import "../styles/themes.css";
+@import "../styles/components.css";
+
+/* --------------------------------------------------------------------------
+   Dark variant
+   `light` is the neutral base theme. Every other theme in `themes.css` is a
+   dark theme, so the variant has to match all of them — not just `.dark`.
+   -------------------------------------------------------------------------- */
+@custom-variant dark (&:where(
+  .dark,
+  .dark *,
+  .caffeine,
+  .caffeine *,
+  .tokyo-night,
+  .tokyo-night *,
+  .catppuccin,
+  .catppuccin *,
+  .nord,
+  .nord *
+));
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-border: var(--border);
+  --color-border-dark: var(--border-dark);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-dark: var(--accent-dark);
+  --color-surface: var(--surface);
+  --color-surface-text: var(--surface-text);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-error: var(--error);
+  --color-shadow: var(--shadow);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --font-family-sans:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "Segoe UI",
+    var(--font-geist-sans),
+    Roboto,
+    system-ui,
+    "Helvetica Neue",
+    Arial,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei UI",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    sans-serif;
+
+  --font-family-mono:
+    "SF Mono",
+    SFMono-Regular,
+    "SF Pro Mono",
+    "JetBrains Mono",
+    var(--font-geist-mono),
+    ui-monospace,
+    Menlo,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    "Maple Mono NF CN",
+    "Maple Mono SC NF",
+    "Sarasa Mono SC",
+    "LXGW WenKai Mono",
+    "Noto Sans Mono CJK SC",
+    "Source Han Mono SC",
+    "WenQuanYi Zen Hei Mono",
+    monospace;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  min-height: 100%;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+/* The window chrome scrolls as a single surface — hide the document scrollbar. */
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Panels scroll individually; keep those scrollbars thin and unobtrusive. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

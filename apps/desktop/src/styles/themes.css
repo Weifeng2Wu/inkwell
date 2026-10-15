@@ -1,0 +1,229 @@
+/* ==========================================================================
+   Inkwell — theme tokens
+   --------------------------------------------------------------------------
+   Every theme defines the same token set, so components never branch on the
+   active theme. next-themes applies the theme name as a class on <html>.
+
+   `light` and `dark` are the neutral base themes. `caffeine`, `tokyo-night`,
+   `catppuccin` and `nord` are named palettes; each of them is a dark theme,
+   which is why the Tailwind `dark` variant matches all of them.
+
+   Token semantics
+     background / foreground      page surface and primary text
+     foreground-secondary         slightly de-emphasised text
+     muted / muted-foreground     secondary and tertiary text
+     border / border-dark         hairline and stronger separators
+     accent                       brand / primary action colour
+     accent-foreground            text and icons placed on `accent`
+     accent-hover                 subtle surface tint for hover and selection
+     accent-muted / accent-dark   accent variants for hover and emphasis
+     surface                      raised panel
+     surface-secondary/tertiary   nested panel levels
+     success / error              semantic feedback
+     shadow                       base colour for soft elevation shadows
+   ========================================================================== */
+
+/* ---------- Neutral light (default) ---------- */
+:root,
+.light {
+  color-scheme: light;
+
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --foreground-secondary: #334155;
+  --muted: #64748b;
+  --muted-foreground: #94a3b8;
+
+  --border: #e2e8f0;
+  --border-dark: #cbd5e1;
+
+  --accent: #4f46e5;
+  --accent-foreground: #ffffff;
+  --accent-hover: #f1f5f9;
+  --accent-muted: #6366f1;
+  --accent-dark: #4338ca;
+
+  --surface: #f8fafc;
+  --surface-text: #0f172a;
+  --surface-secondary: #f1f5f9;
+  --surface-tertiary: #e2e8f0;
+
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --info: #2563eb;
+  --info-foreground: #ffffff;
+  --error: #dc2626;
+  --shadow: #0f172a;
+}
+
+/* ---------- Neutral dark ---------- */
+.dark {
+  color-scheme: dark;
+
+  --background: #0b0f19;
+  --foreground: #e6e8ec;
+  --foreground-secondary: #b6bcc8;
+  --muted: #8b93a1;
+  --muted-foreground: #6b7280;
+
+  --border: #1f2531;
+  --border-dark: #2f3745;
+
+  --accent: #818cf8;
+  --accent-foreground: #0b0f19;
+  --accent-hover: #171c27;
+  --accent-muted: #6366f1;
+  --accent-dark: #a5b4fc;
+
+  --surface: #12161f;
+  --surface-text: #e6e8ec;
+  --surface-secondary: #171c27;
+  --surface-tertiary: #1f2531;
+
+  --success: #34d399;
+  --success-foreground: #0b0f19;
+  --warning: #fbbf24;
+  --warning-foreground: #0b0f19;
+  --info: #60a5fa;
+  --info-foreground: #0b0f19;
+  --error: #f87171;
+  --shadow: #000000;
+}
+
+/* ---------- Caffeine — warm, low-contrast, amber accent ---------- */
+.caffeine {
+  color-scheme: dark;
+
+  --background: #1c1714;
+  --foreground: #ece2d8;
+  --foreground-secondary: #cbb9a8;
+  --muted: #a08d7c;
+  --muted-foreground: #7a6a5c;
+
+  --border: #332a24;
+  --border-dark: #4a3d34;
+
+  --accent: #d98b4a;
+  --accent-foreground: #1c1714;
+  --accent-hover: #241d18;
+  --accent-muted: #b8733a;
+  --accent-dark: #e8a76b;
+
+  --surface: #221b17;
+  --surface-text: #ece2d8;
+  --surface-secondary: #2a211c;
+  --surface-tertiary: #332a24;
+
+  --success: #9ec07c;
+  --success-foreground: #1c1714;
+  --warning: #e0a458;
+  --warning-foreground: #1c1714;
+  --info: #8ab4d8;
+  --info-foreground: #1c1714;
+  --error: #e0786e;
+  --shadow: #0d0a08;
+}
+
+/* ---------- Tokyo Night ---------- */
+.tokyo-night {
+  color-scheme: dark;
+
+  --background: #1a1b26;
+  --foreground: #c0caf5;
+  --foreground-secondary: #a9b1d6;
+  --muted: #737aa2;
+  --muted-foreground: #565f89;
+
+  --border: #292e42;
+  --border-dark: #3b4261;
+
+  --accent: #7aa2f7;
+  --accent-foreground: #1a1b26;
+  --accent-hover: #1f2335;
+  --accent-muted: #bb9af7;
+  --accent-dark: #89ddff;
+
+  --surface: #1f2335;
+  --surface-text: #c0caf5;
+  --surface-secondary: #24283b;
+  --surface-tertiary: #292e42;
+
+  --success: #9ece6a;
+  --success-foreground: #1a1b26;
+  --warning: #e0af68;
+  --warning-foreground: #1a1b26;
+  --info: #7aa2f7;
+  --info-foreground: #1a1b26;
+  --error: #f7768e;
+  --shadow: #16161e;
+}
+
+/* ---------- Catppuccin Mocha ---------- */
+.catppuccin {
+  color-scheme: dark;
+
+  --background: #1e1e2e;
+  --foreground: #cdd6f4;
+  --foreground-secondary: #bac2de;
+  --muted: #a6adc8;
+  --muted-foreground: #7f849c;
+
+  --border: #313244;
+  --border-dark: #45475a;
+
+  --accent: #cba6f7;
+  --accent-foreground: #1e1e2e;
+  --accent-hover: #262637;
+  --accent-muted: #b4befe;
+  --accent-dark: #f5c2e7;
+
+  --surface: #181825;
+  --surface-text: #cdd6f4;
+  --surface-secondary: #262637;
+  --surface-tertiary: #313244;
+
+  --success: #a6e3a1;
+  --success-foreground: #1e1e2e;
+  --warning: #f9e2af;
+  --warning-foreground: #1e1e2e;
+  --info: #89b4fa;
+  --info-foreground: #1e1e2e;
+  --error: #f38ba8;
+  --shadow: #11111b;
+}
+
+/* ---------- Nord ---------- */
+.nord {
+  color-scheme: dark;
+
+  --background: #2e3440;
+  --foreground: #eceff4;
+  --foreground-secondary: #d8dee9;
+  --muted: #9aa5b5;
+  --muted-foreground: #7b8698;
+
+  --border: #3b4252;
+  --border-dark: #4c566a;
+
+  --accent: #88c0d0;
+  --accent-foreground: #2e3440;
+  --accent-hover: #353c4a;
+  --accent-muted: #81a1c1;
+  --accent-dark: #8fbcbb;
+
+  --surface: #292e39;
+  --surface-text: #eceff4;
+  --surface-secondary: #353c4a;
+  --surface-tertiary: #434c5e;
+
+  --success: #a3be8c;
+  --success-foreground: #2e3440;
+  --warning: #ebcb8b;
+  --warning-foreground: #2e3440;
+  --info: #81a1c1;
+  --info-foreground: #2e3440;
+  --error: #bf616a;
+  --shadow: #242933;
+}

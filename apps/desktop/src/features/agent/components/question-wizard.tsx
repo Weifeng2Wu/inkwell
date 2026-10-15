@@ -1,0 +1,359 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { CheckIcon } from "@/features/agent/components/icons";
+import type { AskUserQuestion } from "@/features/agent/components/types";
+import type { ToolPart } from "@/features/agent/lib/types";
+
+export function parseAskUserQuestions(input: Record<string, unknown>): AskUserQuestion[] | null {
+  let questions = input.questions;
+
+  // Handle stringified JSON
+  if (typeof questions === "string") {
+    try {
+      questions = JSON.parse(questions);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(questions)) return null;
+
+  return questions.filter(
+    (q): q is AskUserQuestion =>
+      q && typeof q === "object" && typeof q.question === "string" && Array.isArray(q.options),
+  );
+}
+
+export function AskUserQuestionDisplay({
+  part,
+  onAnswer,
+}: {
+  part: ToolPart;
+  onAnswer?: (questionID: string, answers: string[][]) => void;
+}) {
+  const questions = useMemo(() => parseAskUserQuestions(part.state.input), [part.state.input]);
+  const [selectedOptions, setSelectedOptions] = useState<Record<number, string[]>>({});
+  const [customInputs, setCustomInputs] = useState<Record<number, string>>({});
+  const [showCustom, setShowCustom] = useState<Record<number, boolean>>({});
+  const [currentStep, setCurrentStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  const isCompleted = part.state.status === "completed";
+  const isPending = part.state.status === "pending" || part.state.status === "running";
+
+  if (!questions || questions.length === 0) {
+    return null;
+  }
+
+  const isSummaryStep = currentStep === questions.length;
+  const stepIds = [...questions.map((q) => `question-${q.header}-${q.question}`), "summary"];
+
+  const handleOptionClick = (qIndex: number, option: string, multiSelect: boolean) => {
+    setSelectedOptions((prev) => {
+      const current = prev[qIndex] || [];
+      if (multiSelect) {
+        if (current.includes(option)) {
+          return { ...prev, [qIndex]: current.filter((o) => o !== option) };
+        } else {
+          return { ...prev, [qIndex]: [...current, option] };
+        }
+      } else {
+        setShowCustom((prevCustom) => ({ ...prevCustom, [qIndex]: false }));
+        return { ...prev, [qIndex]: [option] };
+      }
+    });
+  };
+
+  const toggleCustomInput = (qIndex: number, multiSelect: boolean) => {
+    setShowCustom((prev) => {
+      const willShow = !prev[qIndex];
+      if (willShow && !multiSelect) {
+        setSelectedOptions((opts) => ({ ...opts, [qIndex]: [] }));
+      }
+      return { ...prev, [qIndex]: willShow };
+    });
+  };
+
+  const handleSubmit = () => {
+    if (!onAnswer || submitting) return;
+
+    // Build positional string[][] — each inner array is selected labels for that question
+    const answers: string[][] = questions.map((_, i) => {
+      const selections = selectedOptions[i] || [];
+      const customAnswer = customInputs[i]?.trim();
+      const result = [...selections];
+      if (showCustom[i] && customAnswer) result.push(customAnswer);
+      return result;
+    });
+
+    // Check at least one question has an answer
+    if (answers.some((a) => a.length > 0)) {
+      setSubmitting(true);
+      onAnswer(part.id, answers);
+    }
+  };
+
+  const currentStepHasSelection = (() => {
+    if (isCompleted) return true;
+    if (isSummaryStep) return true;
+
+    const opts = selectedOptions[currentStep];
+    const hasOpts = opts && opts.length > 0;
+    const hasCust = showCustom[currentStep] && !!customInputs[currentStep]?.trim();
+
+    return hasOpts || hasCust;
+  })();
+
+  const hasAnySelection = questions.some((_, i) => {
+    const opts = selectedOptions[i];
+    const hasOpts = opts && opts.length > 0;
+    const hasCust = showCustom[i] && !!customInputs[i]?.trim();
+    return hasOpts || hasCust;
+  });
+
+  const getAnswerText = (qIndex: number) => {
+    const q = questions[qIndex];
+    if (!q) return null;
+    const selections = selectedOptions[qIndex] || [];
+    const customAnswer = showCustom[qIndex] ? customInputs[qIndex]?.trim() : undefined;
+
+    if (q.multiSelect) {
+      const parts = [...selections];
+      if (customAnswer) parts.push(customAnswer);
+      return parts.length > 0 ? parts.join(", ") : null;
+    } else {
+      if (customAnswer) return customAnswer;
+      if (selections.length && selections[0]) return selections[0];
+      return null;
+    }
+  };
+
+  // Completed state: compact summary
+  if (isCompleted) {
+    return (
+      <div className="border border-accent bg-background p-3 space-y-1 rounded-sm">
+        <div className="text-[10px] font-medium text-muted uppercase tracking-wider">Answered</div>
+        {questions.map((q, qIndex) => {
+          const answer = getAnswerText(qIndex);
+          return answer ? (
+            <div key={`${q.header}-${q.question}`} className="text-xs">
+              <span className="text-muted font-medium">{q.header}:</span> {answer}
+            </div>
+          ) : null;
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-accent bg-background p-3 flex flex-col max-h-[50vh] rounded-sm shadow-sm">
+      {/* Step indicator */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1">
+          {stepIds.map((stepId, i) => (
+            <button
+              key={stepId}
+              type="button"
+              onClick={() => {
+                if (i <= currentStep) setCurrentStep(i);
+              }}
+              className={`size-4 flex items-center justify-center text-[9px] font-mono border transition-all duration-150 rounded-full ${
+                i === currentStep
+                  ? "border-accent bg-accent text-accent-foreground"
+                  : i < currentStep
+                    ? "border-accent bg-background text-accent cursor-pointer hover:bg-accent/5"
+                    : "border-border text-border cursor-default"
+              }`}
+            >
+              {i < currentStep ? (
+                <CheckIcon className="size-2.5" />
+              ) : i === questions.length ? (
+                <span className="text-[8px]">&#x2713;</span>
+              ) : (
+                i + 1
+              )}
+            </button>
+          ))}
+        </div>
+        <span className="text-[9px] font-mono text-muted uppercase tracking-wider">
+          {isSummaryStep ? "Review" : `${currentStep + 1} / ${questions.length}`}
+        </span>
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Question step */}
+        {!isSummaryStep &&
+          (() => {
+            const q = questions[currentStep];
+            if (!q) return null;
+            const qIndex = currentStep;
+            const isRadio = !q.multiSelect;
+
+            return (
+              <div key={`step-${q.header}-${q.question}`} className="wizard-step-enter space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-accent text-accent-foreground rounded-sm uppercase tracking-wide">
+                    {q.header}
+                  </span>
+                  {q.multiSelect && <span className="text-[10px] text-muted">(Multi-select)</span>}
+                </div>
+                <p className="text-xs font-medium text-foreground-secondary leading-relaxed">
+                  {q.question}
+                </p>
+
+                <div className="space-y-1.5">
+                  {q.options.map((opt) => {
+                    const isSelected = selectedOptions[qIndex]?.includes(opt.label);
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => handleOptionClick(qIndex, opt.label, q.multiSelect || false)}
+                        className={`w-full text-left p-2 border rounded transition-colors ${
+                          isSelected
+                            ? "border-accent bg-accent/5"
+                            : "border-border hover:border-border-dark"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div
+                            className={`size-3.5 flex-shrink-0 mt-0.5 border ${isSelected ? "border-accent bg-accent" : "border-border"} flex items-center justify-center ${isRadio ? "rounded-full" : "rounded-sm"}`}
+                          >
+                            {isSelected && (
+                              <CheckIcon className="size-2.5 text-accent-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-foreground-secondary">
+                              {opt.label}
+                            </div>
+                            {opt.description && (
+                              <div className="text-[10px] text-muted mt-0.5 leading-tight">
+                                {opt.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* Custom input option */}
+                  {isPending && (
+                    <div className="space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleCustomInput(qIndex, q.multiSelect || false)}
+                        className={`w-full text-left p-2 border rounded transition-colors ${
+                          showCustom[qIndex]
+                            ? "border-accent bg-accent/5"
+                            : "border-border hover:border-border-dark"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div
+                            className={`size-3.5 flex-shrink-0 mt-0.5 border ${showCustom[qIndex] ? "border-accent bg-accent" : "border-border"} flex items-center justify-center ${isRadio ? "rounded-full" : "rounded-sm"}`}
+                          >
+                            {showCustom[qIndex] && (
+                              <CheckIcon className="size-2.5 text-accent-foreground" />
+                            )}
+                          </div>
+                          <div className="text-xs font-medium text-foreground-secondary">Other</div>
+                        </div>
+                      </button>
+
+                      {showCustom[qIndex] && (
+                        <input
+                          type="text"
+                          value={customInputs[qIndex] || ""}
+                          onChange={(e) =>
+                            setCustomInputs((prev) => ({ ...prev, [qIndex]: e.target.value }))
+                          }
+                          placeholder="Enter custom answer..."
+                          className="w-full px-2 py-1.5 text-xs border border-border focus:border-accent focus:outline-none rounded"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+        {/* Summary step */}
+        {isSummaryStep && (
+          <div key="step-summary" className="wizard-step-enter space-y-2">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-muted mb-1">
+              Review Answers
+            </div>
+            {questions.map((q, qIndex) => {
+              const answer = getAnswerText(qIndex);
+              const hasAnswer = !!answer;
+              return (
+                <button
+                  key={`${q.header}-${q.question}`}
+                  type="button"
+                  onClick={() => setCurrentStep(qIndex)}
+                  className={`w-full text-left p-2 border rounded transition-colors group ${
+                    hasAnswer ? "border-border hover:border-accent" : "border-error/40 bg-error/10"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[9px] font-mono uppercase tracking-wider text-muted">
+                        {q.header}
+                      </div>
+                      <div className="text-xs mt-0.5 truncate text-foreground-secondary">
+                        {hasAnswer ? answer : "Not answered"}
+                      </div>
+                    </div>
+                    <span className="text-[9px] text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      Edit
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      {isPending && onAnswer && (
+        <div className="flex items-center justify-between pt-2 border-t border-border mt-2">
+          <button
+            type="button"
+            onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+            className={`text-[10px] font-mono px-2 py-1 border border-border rounded transition-colors hover:bg-surface-secondary ${
+              currentStep === 0 ? "opacity-0 pointer-events-none" : ""
+            }`}
+          >
+            Back
+          </button>
+
+          {isSummaryStep ? (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!hasAnySelection || submitting}
+              className="px-3 py-1 bg-accent text-accent-foreground text-[10px] font-medium uppercase tracking-wider hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {submitting ? "Submitting..." : "Submit"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCurrentStep(currentStep + 1)}
+              disabled={!currentStepHasSelection}
+              className="px-3 py-1 bg-accent text-accent-foreground text-[10px] font-medium uppercase tracking-wider hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {currentStep === questions.length - 1 ? "Review" : "Next"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

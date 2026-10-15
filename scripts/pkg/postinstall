@@ -1,0 +1,11 @@
+#!/bin/bash
+# Post-install script for Inkwell
+# Removes quarantine attribute to prevent "damaged app" error on unsigned apps
+
+APP_PATH="/Applications/Inkwell.app"
+
+if [ -d "$APP_PATH" ]; then
+    /usr/bin/xattr -cr "$APP_PATH"
+fi
+
+exit 0

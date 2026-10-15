@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+
+overrides:
+  baseline-browser-mapping: 2.10.32
+  react-dnd: ^16.0.1
+  react-dnd-html5-backend: ^16.0.1
+  tinyglobby: 0.2.16
