@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 import TerserPlugin from "terser-webpack-plugin";
 import type { Configuration } from "webpack";
-import WebpackObfuscator from "webpack-obfuscator";
 
 const isProd = process.env.NODE_ENV === "production";
 const internalHost = process.env.TAURI_DEV_HOST || "localhost";
@@ -55,44 +54,6 @@ const nextConfig: NextConfig = {
           }),
         ],
       };
-
-      config.plugins = config.plugins || [];
-      config.plugins.push(
-        new WebpackObfuscator(
-          {
-            compact: true,
-            controlFlowFlattening: true,
-            controlFlowFlatteningThreshold: 0.75,
-            deadCodeInjection: true,
-            deadCodeInjectionThreshold: 0.4,
-            debugProtection: false,
-            disableConsoleOutput: true,
-            identifierNamesGenerator: "hexadecimal",
-            log: false,
-            numbersToExpressions: true,
-            renameGlobals: false,
-            selfDefending: true,
-            simplify: true,
-            splitStrings: true,
-            splitStringsChunkLength: 10,
-            stringArray: true,
-            stringArrayCallsTransform: true,
-            stringArrayCallsTransformThreshold: 0.75,
-            stringArrayEncoding: ["base64"],
-            stringArrayIndexShift: true,
-            stringArrayRotate: true,
-            stringArrayShuffle: true,
-            stringArrayWrappersCount: 2,
-            stringArrayWrappersChainedCalls: true,
-            stringArrayWrappersParametersMaxCount: 4,
-            stringArrayWrappersType: "function",
-            stringArrayThreshold: 0.75,
-            transformObjectKeys: true,
-            unicodeEscapeSequence: false,
-          },
-          ["**/node_modules/**", "**/*.min.js"],
-        ),
-      );
     }
 
     return config;

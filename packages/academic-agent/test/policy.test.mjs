@@ -103,3 +103,23 @@ test("an aborted approval does not write", async () => {
   await assert.rejects(policy.edit("paper.tex", "Replacement", controller.signal));
   assert.equal(await readFile(path.join(directory, "paper.tex"), "utf8"), "Original");
 });
+
+test("canonicalizes project-root aliases for reads, approvals and edits", async () => {
+  const { directory } = await fixture();
+  const parent = await mkdtemp(path.join(os.tmpdir(), "inkwell-policy-alias-"));
+  directories.push(parent);
+  const alias = path.join(parent, "project");
+  await symlink(directory, alias, "junction");
+  let proposal;
+  const policy = new ProjectPolicy(alias, async (change) => {
+    proposal = change;
+  });
+  assert.equal((await policy.read("paper.tex")).toString(), "Original");
+  assert.equal((await policy.read(path.join(alias, "paper.tex"))).toString(), "Original");
+  await policy.edit("paper.tex", "Reviewed");
+  assert.deepEqual(proposal, { path: "paper.tex", before: "Original", after: "Reviewed" });
+  assert.equal(await readFile(path.join(directory, "paper.tex"), "utf8"), "Reviewed");
+  await assert.rejects(policy.read("../outside.tex"));
+  await symlink(path.join(directory, "paper.tex"), path.join(directory, "linked.tex"));
+  await assert.rejects(policy.read("linked.tex"), /Symlinks/);
+});

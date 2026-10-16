@@ -2,6 +2,10 @@
 node_modules/
 .cache/
 
+# Local-only project documentation
+/docs/
+/AGENTS.md
+
 # Next.js
 .next/
 out/

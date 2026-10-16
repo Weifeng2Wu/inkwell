@@ -9,6 +9,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -18,6 +19,48 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const tauriDirectory = path.join(root, "apps/desktop/src-tauri");
+
+export function runtimeResources(environment = process.env, platform = process.platform) {
+  if (platform === "win32" && environment.INKWELL_RUNTIME_RESOURCES) {
+    if (!path.win32.isAbsolute(environment.INKWELL_RUNTIME_RESOURCES))
+      throw new Error("Windows runtime resource staging must use an absolute path.");
+    return environment.INKWELL_RUNTIME_RESOURCES;
+  }
+  return path.join(tauriDirectory, "resources/agent");
+}
+
+export async function withRuntimeBundleConfig(
+  build,
+  environment = process.env,
+  platform = process.platform,
+) {
+  const configuration = JSON.parse(
+    await readFile(path.join(tauriDirectory, "tauri.bundle.conf.json"), "utf8"),
+  );
+  if (platform === "win32" && environment.INKWELL_RUNTIME_RESOURCES)
+    configuration.bundle.resources = {
+      [windowsResourcePattern(tauriDirectory, runtimeResources(environment, platform))]: "agent/",
+    };
+  const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell-bundle-config-"));
+  try {
+    const filename = path.join(directory, "tauri.bundle.conf.json");
+    await writeFile(filename, JSON.stringify(configuration));
+    return await build(filename);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+export function windowsResourcePattern(projectDirectory, resources) {
+  const relative = path.win32.relative(projectDirectory, resources);
+  if (path.win32.isAbsolute(relative))
+    throw new Error("Windows runtime resources must be staged on the same drive as the project.");
+  const absolute = path.win32.resolve(projectDirectory, resources);
+  const resourceRoot = path.win32.parse(absolute).root;
+  if (resourceRoot.startsWith("\\\\"))
+    throw new Error("Windows runtime resources must be staged on a local drive.");
+  return `/${absolute.slice(resourceRoot.length).replaceAll("\\", "/")}`;
+}
 
 export function run(program, args, cwd = root) {
   const result = spawnSync(program, args, {
@@ -40,6 +83,15 @@ export function runtimeTarget(platform, arch) {
   const target = targets[`${platform}-${arch}`];
   if (!target) throw new Error(`Unsupported desktop runtime: ${platform}-${arch}`);
   return target;
+}
+
+export function nodeDistribution(version, platform, arch) {
+  runtimeTarget(platform, arch);
+  const directory = `node-${version}-${platform === "win32" ? "win" : platform}-${arch}`;
+  return {
+    directory,
+    filename: `${directory}.${platform === "win32" ? "zip" : "tar.gz"}`,
+  };
 }
 
 export function validateTarget(args, target) {
@@ -89,6 +141,129 @@ export async function assertNoSymlinks(directory) {
   }
 }
 
+export async function materializeDeployment(deployed, destination) {
+  const packages = new Map();
+  let copied = 0;
+  let phase = "scanning dependencies";
+  const started = Date.now();
+  const progress = () =>
+    console.log(
+      `Agent SDK: ${phase}; ${packages.size} unique packages, ${copied} copies (${Math.round((Date.now() - started) / 1000)}s).`,
+    );
+  async function resolveDependency(source, name) {
+    let directory = source;
+    while (true) {
+      try {
+        return await realpath(path.join(directory, "node_modules", name));
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      const parent = path.dirname(directory);
+      if (parent === directory) {
+        const error = new Error(`Missing runtime dependency: ${name} from ${source}`);
+        error.code = "ENOENT";
+        throw error;
+      }
+      directory = parent;
+    }
+  }
+  async function scanPackage(source) {
+    const canonical = await realpath(source);
+    if (packages.has(canonical)) return canonical;
+    const manifest = JSON.parse(await readFile(path.join(canonical, "package.json"), "utf8"));
+    if (
+      typeof manifest.name !== "string" ||
+      !/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(manifest.name)
+    )
+      throw new Error("Invalid deployed runtime package name.");
+    const entry = { name: manifest.name, dependencies: new Map() };
+    packages.set(canonical, entry);
+    const optional = manifest.optionalDependencies ?? {};
+    for (const name of Object.keys({ ...manifest.dependencies, ...optional })) {
+      if (!/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(name))
+        throw new Error(`Invalid runtime dependency name: ${name}`);
+      let dependency;
+      try {
+        dependency = await resolveDependency(canonical, name);
+      } catch (error) {
+        if (Object.hasOwn(optional, name) && error.code === "ENOENT") continue;
+        throw error;
+      }
+      entry.dependencies.set(name, await scanPackage(dependency));
+    }
+    return canonical;
+  }
+  const heartbeat = setInterval(progress, 10_000);
+  heartbeat.unref();
+  try {
+    progress();
+    const canonicalRoot = await scanPackage(deployed);
+    const rootPlacement = {
+      canonical: canonicalRoot,
+      target: destination,
+      parent: undefined,
+      children: new Map(),
+    };
+    const placements = [rootPlacement];
+    function place(owner, name, canonical) {
+      const placement = {
+        canonical,
+        target: path.join(owner.target, "node_modules", name),
+        parent: owner,
+        children: new Map(),
+      };
+      owner.children.set(name, placement);
+      placements.push(placement);
+    }
+    const candidates = new Map();
+    for (const entry of packages.values()) {
+      for (const [name, canonical] of entry.dependencies) {
+        if (!candidates.has(name)) candidates.set(name, new Map());
+        const counts = candidates.get(name);
+        counts.set(canonical, (counts.get(canonical) ?? 0) + 1);
+      }
+    }
+    for (const [name, canonical] of packages.get(canonicalRoot).dependencies)
+      place(rootPlacement, name, canonical);
+    for (const [name, counts] of candidates) {
+      if (rootPlacement.children.has(name)) continue;
+      const preferred = [...counts].sort((first, second) => second[1] - first[1])[0][0];
+      place(rootPlacement, name, preferred);
+    }
+    phase = "planning dependency layout";
+    for (const owner of placements) {
+      for (const [name, canonical] of packages.get(owner.canonical).dependencies) {
+        let scope = owner;
+        while (scope && !scope.children.has(name)) scope = scope.parent;
+        if (scope?.children.get(name).canonical === canonical) continue;
+        if (placements.length >= Math.max(1024, packages.size * 8))
+          throw new Error(
+            "Agent dependency layout expanded unexpectedly; refusing excessive copies.",
+          );
+        place(owner, name, canonical);
+      }
+    }
+    phase = "copying dependencies";
+    progress();
+    for (const placement of placements) {
+      await cp(placement.canonical, placement.target, {
+        recursive: true,
+        dereference: true,
+        filter: (filename) => path.basename(filename) !== "node_modules",
+      });
+      copied += 1;
+    }
+    phase = "checking portable files";
+    progress();
+    await assertNoSymlinks(destination);
+    phase = "complete";
+    progress();
+    return { uniquePackages: packages.size, copies: copied };
+  } finally {
+    clearInterval(heartbeat);
+  }
+}
+
 export function verifySdk(node, sdk, cwd) {
   run(
     node,
@@ -129,7 +304,7 @@ export async function prepareRuntime() {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "inkwell-package-"));
   try {
     const deployed = path.join(temporary, "deployed");
-    const sdk = path.join(temporary, "sdk");
+    console.log("Deploying production Agent dependencies...");
     run(
       "pnpm",
       [
@@ -144,14 +319,20 @@ export async function prepareRuntime() {
       ],
       checkout,
     );
-    await cp(deployed, sdk, {
-      recursive: true,
-      dereference: true,
-      filter: (filename) => path.basename(filename) !== ".bin",
-    });
-    await assertNoSymlinks(sdk);
-    const filename = `node-${process.version}-${process.platform}-${process.arch}.${process.platform === "win32" ? "zip" : "tar.gz"}`;
+    const resources = runtimeResources();
+    const binaries = path.join(tauriDirectory, "binaries");
+    await mkdir(resources, { recursive: true });
+    await mkdir(binaries, { recursive: true });
+    const bundledSdk = path.join(resources, "sdk");
+    await rm(bundledSdk, { recursive: true, force: true });
+    await materializeDeployment(deployed, bundledSdk);
+    const { filename, directory } = nodeDistribution(
+      process.version,
+      process.platform,
+      process.arch,
+    );
     const base = `https://nodejs.org/dist/${process.version}/`;
+    console.log(`Downloading and verifying Node.js runtime: ${filename}`);
     const [archive, checksums] = await Promise.all([
       download(base + filename),
       download(`${base}SHASUMS256.txt`),
@@ -159,19 +340,13 @@ export async function prepareRuntime() {
     const archiveSha256 = verifyArchive(archive, checksums.toString("utf8"), filename);
     const archivePath = path.join(temporary, filename);
     await writeFile(archivePath, archive);
+    console.log("Extracting Node.js runtime...");
     run("tar", ["-xf", archivePath, "-C", temporary]);
-    const distribution = path.join(
-      temporary,
-      `node-${process.version}-${process.platform}-${process.arch}`,
-    );
+    const distribution = path.join(temporary, directory);
     const node = path.join(distribution, process.platform === "win32" ? "node.exe" : "bin/node");
-    verifySdk(node, path.join(sdk, "dist/index.js"), temporary);
-    const resources = path.join(tauriDirectory, "resources/agent");
-    const binaries = path.join(tauriDirectory, "binaries");
-    await mkdir(resources, { recursive: true });
-    await mkdir(binaries, { recursive: true });
-    await rm(path.join(resources, "sdk"), { recursive: true, force: true });
-    await cp(sdk, path.join(resources, "sdk"), { recursive: true });
+    console.log("Verifying relocated Agent SDK with the bundled Node.js runtime...");
+    verifySdk(node, path.join(bundledSdk, "dist/index.js"), temporary);
+    console.log("Installing verified Node.js runtime and licenses...");
     await copyFile(path.join(distribution, "LICENSE"), path.join(resources, "NODE-LICENSE"));
     await copyFile(path.join(checkout, "LICENSE"), path.join(resources, "AGENT-LICENSE"));
     await copyFile(

@@ -38,15 +38,12 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bundles: deb,appimage
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
     env:
       MACOSX_DEPLOYMENT_TARGET: "13.5"
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.5.0
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: "24.17.0"
           cache: pnpm
@@ -71,10 +68,34 @@ jobs:
       - name: Rust tests
         working-directory: apps/desktop/src-tauri
         run: cargo test --locked
+      - name: Configure short Windows runtime staging
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $drive = [System.IO.Path]::GetPathRoot($env:GITHUB_WORKSPACE)
+          "INKWELL_RUNTIME_RESOURCES=$($drive)iw-agent" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build portable desktop installers
-        run: pnpm tauri:build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        run: pnpm tauri:build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Preserve macOS application if DMG packaging fails
+        if: failure() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          bundle="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          if [ -d "$bundle/Inkwell.app" ]; then
+            ditto -c -k --sequesterRsrc --keepParent "$bundle/Inkwell.app" "$RUNNER_TEMP/Inkwell-${{ matrix.name }}.app.zip"
+          fi
+      - name: Upload macOS packaging diagnostics and fallback application
+        if: failure() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Inkwell-${{ matrix.name }}-packaging-diagnostics
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/Inkwell-${{ matrix.name }}.app.zip
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.sh
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Inkwell-${{ matrix.name }}
           if-no-files-found: error

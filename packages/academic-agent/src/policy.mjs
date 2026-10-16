@@ -17,17 +17,21 @@ export class ProjectPolicy {
   }
 
   async resolve(filename) {
-    const target = path.resolve(this.root, filename);
-    const relative = path.relative(this.root, target);
+    const root = await realpath(this.root);
+    const requested = path.resolve(this.root, filename);
+    const target = isWithin(this.root, requested)
+      ? path.resolve(root, path.relative(this.root, requested))
+      : requested;
+    const relative = path.relative(root, target);
     if (
-      !isWithin(this.root, target) ||
+      !isWithin(root, target) ||
       !relative ||
       relative.split(path.sep).some((part) => part.startsWith(".") || part === "node_modules") ||
       !DOCUMENT_EXTENSIONS.has(path.extname(target).toLowerCase())
     ) {
       throw new Error("Only non-hidden manuscript text files inside the project are accessible.");
     }
-    let current = this.root;
+    let current = root;
     for (const segment of relative.split(path.sep)) {
       current = path.join(current, segment);
       if ((await lstat(current)).isSymbolicLink())
@@ -36,7 +40,7 @@ export class ProjectPolicy {
     const canonical = await realpath(target);
     const metadata = await stat(canonical);
     if (
-      !isWithin(this.root, canonical) ||
+      !isWithin(root, canonical) ||
       !metadata.isFile() ||
       metadata.nlink !== 1 ||
       metadata.size > MAX_DOCUMENT_BYTES
@@ -70,7 +74,11 @@ export class ProjectPolicy {
     const before = await this.read(target);
     if (this.permissionMode === "ask")
       await this.approve(
-        { path: path.relative(this.root, target), before: before.toString("utf8"), after: content },
+        {
+          path: path.relative(await realpath(this.root), target),
+          before: before.toString("utf8"),
+          after: content,
+        },
         signal,
       );
     signal?.throwIfAborted();
