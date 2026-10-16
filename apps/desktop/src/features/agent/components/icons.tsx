@@ -34,7 +34,7 @@ export function ToolIcon({ tool }: { tool: string }) {
 
     // File reading - eye/book icon in blue
     case "read":
-      return <BookOpenTextIcon className={`${baseClassName} text-sky-500`} />;
+      return <BookOpenTextIcon className={`${baseClassName} text-info`} />;
 
     // File writing - file plus icon in green
     case "write":
@@ -46,9 +46,9 @@ export function ToolIcon({ tool }: { tool: string }) {
 
     // Search operations
     case "glob":
-      return <FolderOpenIcon className={`${baseClassName} text-violet-500`} />;
+      return <FolderOpenIcon className={`${baseClassName} text-accent`} />;
     case "grep":
-      return <TextTIcon className={`${baseClassName} text-violet-500`} />;
+      return <TextTIcon className={`${baseClassName} text-accent`} />;
 
     // Web operations
     case "webfetch":
@@ -57,7 +57,7 @@ export function ToolIcon({ tool }: { tool: string }) {
 
     // Agent/Task operations
     case "task":
-      return <RobotIcon className={`${baseClassName} text-purple-500`} />;
+      return <RobotIcon className={`${baseClassName} text-accent`} />;
 
     // Todo/Task list operations
     case "todowrite":
@@ -65,7 +65,7 @@ export function ToolIcon({ tool }: { tool: string }) {
     case "todoread":
     case "todolist":
     case "todoupdate":
-      return <ListChecksIcon className={`${baseClassName} text-teal-500`} />;
+      return <ListChecksIcon className={`${baseClassName} text-success`} />;
 
     // MCP/Plugin operations
     case "mcp":
@@ -74,7 +74,7 @@ export function ToolIcon({ tool }: { tool: string }) {
     // Question/User input
     case "question":
     case "askuserquestion":
-      return <QuestionIcon className={`${baseClassName} text-pink-500`} />;
+      return <QuestionIcon className={`${baseClassName} text-info`} />;
 
     // List directory
     case "list":

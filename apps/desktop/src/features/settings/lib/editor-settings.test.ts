@@ -15,6 +15,10 @@ describe("DEFAULT_MINIMAP_SETTINGS", () => {
 });
 
 describe("DEFAULT_EDITOR_SETTINGS", () => {
+  it("enables word wrap by default", () => {
+    expect(DEFAULT_EDITOR_SETTINGS.wordWrap).toBe("on");
+  });
+
   it("has vim mode off by default", () => {
     expect(DEFAULT_EDITOR_SETTINGS.vimMode).toBe(false);
   });

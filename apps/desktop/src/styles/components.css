@@ -56,6 +56,130 @@
   @apply px-3 py-1.5 text-xs;
 }
 
+.agent-review-toolbar {
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-family-sans);
+  pointer-events: auto;
+}
+
+.agent-review-toolbar .agent-review-action {
+  min-height: 32px;
+  gap: 6px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.agent-inline-review .monaco-editor .line-insert,
+.agent-inline-review .monaco-editor .char-insert {
+  border: none;
+}
+
+.agent-inline-review .monaco-editor .char-insert {
+  background-color: transparent;
+}
+
+.settings-control,
+.settings-number-stepper {
+  @apply h-9 min-w-0 max-w-full rounded-md border border-border bg-background text-sm text-foreground transition-colors duration-150;
+}
+
+.settings-control {
+  @apply px-3 py-1.5 outline-none;
+}
+
+.settings-control.settings-search-control {
+  @apply px-8;
+}
+
+.settings-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.settings-control:hover:not(:disabled),
+.settings-number-stepper:hover {
+  border-color: var(--border-dark);
+}
+
+.settings-control:focus-visible,
+.settings-control[data-state="open"],
+.settings-number-stepper:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  outline-offset: 2px;
+}
+
+.settings-control:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.settings-select {
+  @apply w-64 text-left;
+}
+
+textarea.settings-control {
+  @apply h-auto min-h-32 resize-y;
+}
+
+.settings-number-stepper {
+  @apply inline-flex items-center overflow-hidden;
+}
+
+.settings-number-stepper > :is(button, input, span) {
+  height: 100%;
+}
+
+.settings-number-stepper > span {
+  @apply inline-flex items-center justify-center;
+}
+
+.settings-number-stepper > input {
+  @apply text-sm;
+  appearance: textfield;
+}
+
+.settings-number-stepper > input::-webkit-inner-spin-button,
+.settings-number-stepper > input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.settings-select-content {
+  @apply rounded-lg;
+}
+
+.settings-select-content [role="option"] {
+  @apply rounded-sm text-sm;
+}
+
+.toolbar-icon-button {
+  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-transparent text-muted-foreground transition-colors duration-150;
+}
+
+.toolbar-icon-button:hover:not(:disabled) {
+  @apply border-border bg-surface-secondary text-foreground;
+}
+
+.toolbar-icon-button[aria-pressed="true"],
+.toolbar-icon-button[data-state="open"] {
+  @apply border-accent/20 bg-accent/10 text-accent;
+}
+
+.toolbar-icon-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toolbar-icon-button:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
 /* ---------- Badge ---------- */
 .badge {
   @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;

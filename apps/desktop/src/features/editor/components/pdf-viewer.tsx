@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import { useI18n } from "@/features/i18n";
+import { pdfNavigationPoint } from "../lib/pdf-navigation";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -17,9 +19,11 @@ type Props = {
 };
 
 export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
+  const { t } = useI18n();
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState(1.0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pressedPage = useRef<number | null>(null);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -31,17 +35,16 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
 
       const target = e.currentTarget;
       const rect = target.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left;
-      const offsetY = e.clientY - rect.top;
-
-      // Convert pixel coordinates to PDF points (1/72 inch)
-      // react-pdf renders at 72 DPI * scale, so divide by scale to get PDF coords
-      const xPdf = offsetX / scale;
-      // PDF coordinate system has origin at bottom-left, so flip Y
-      const pageHeightPdf = rect.height / scale;
-      const yPdf = pageHeightPdf - offsetY / scale;
-
-      onSynctexClick(pageNumber, xPdf, yPdf);
+      const point = pdfNavigationPoint({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        rect,
+        scale,
+        pointerStartedOnPage: pressedPage.current === pageNumber,
+        keyboard: e.detail === 0,
+      });
+      pressedPage.current = null;
+      if (point) onSynctexClick(pageNumber, point.x, point.y);
     },
     [onSynctexClick, scale],
   );
@@ -67,14 +70,16 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-2 py-1 border-b border-border bg-surface-secondary shrink-0">
         <span className="text-xs text-muted">
-          {numPages > 0 ? `${numPages} page${numPages !== 1 ? "s" : ""}` : "Loading..."}
+          {numPages > 0
+            ? t("editor.pdfPages", { count: numPages, s: numPages !== 1 ? "s" : "" })
+            : t("common.loading")}
         </span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={zoomOut}
             className="px-1.5 py-0.5 text-xs text-muted hover:text-foreground hover:bg-surface-tertiary rounded transition-colors"
-            title="Zoom out"
+            title={t("editor.zoomOut")}
           >
             -
           </button>
@@ -82,7 +87,7 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
             type="button"
             onClick={zoomReset}
             className="px-1.5 py-0.5 text-xs text-muted hover:text-foreground hover:bg-surface-tertiary rounded transition-colors min-w-[3.5rem] text-center"
-            title="Reset zoom"
+            title={t("editor.resetZoom")}
           >
             {Math.round(scale * 100)}%
           </button>
@@ -90,7 +95,7 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
             type="button"
             onClick={zoomIn}
             className="px-1.5 py-0.5 text-xs text-muted hover:text-foreground hover:bg-surface-tertiary rounded transition-colors"
-            title="Zoom in"
+            title={t("editor.zoomIn")}
           >
             +
           </button>
@@ -99,16 +104,22 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
       <div ref={containerRef} className="flex-1 overflow-auto bg-accent-hover p-4">
         <Document
           key={refreshKey}
-          file={src}
+          file={
+            refreshKey > 0
+              ? src.includes("?")
+                ? `${src}&v=${refreshKey}`
+                : `${src}?v=${refreshKey}`
+              : src
+          }
           onLoadSuccess={onDocumentLoadSuccess}
           loading={
             <div className="flex items-center justify-center h-32 text-sm text-muted">
-              Loading PDF...
+              {t("editor.loadingPdf")}
             </div>
           }
           error={
             <div className="flex items-center justify-center h-32 text-sm text-muted">
-              Failed to load PDF.
+              {t("editor.failedToLoadPdf")}
             </div>
           }
         >
@@ -117,8 +128,14 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
               type="button"
               key={`pdf-page-${pageNumber}`}
               className="mb-4 block cursor-crosshair border-0 bg-transparent p-0 text-left"
+              onPointerDown={(event) => {
+                pressedPage.current = event.button === 0 ? pageNumber : null;
+              }}
+              onPointerCancel={() => {
+                pressedPage.current = null;
+              }}
               onClick={(e) => handlePageClick(e, pageNumber)}
-              aria-label={`Sync PDF page ${pageNumber}`}
+              aria-label={t("editor.syncPdfPage", { page: pageNumber })}
             >
               <Page
                 pageNumber={pageNumber}

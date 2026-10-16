@@ -1,6 +1,6 @@
 "use client";
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pathSync } from "@/lib/path";
 import type { FileNode } from "@/types/files";
@@ -728,7 +728,7 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
   const isAutoFetchingRemoteRef = useRef(false);
 
   useEffect(() => {
-    if (!projectState.projectPath) return;
+    if (!projectState.projectPath || !isTauri()) return;
 
     let isCleanedUp = false;
     let watcherStarted = false;
@@ -770,38 +770,42 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
 
       if (isCleanedUp) return;
 
-      unlistenFiles = await listen<FileNode[]>("files-changed", (event) => {
-        if (!isCleanedUp) {
-          setProjectState((s) => ({ ...s, files: event.payload }));
-        }
-      });
+      try {
+        unlistenFiles = await listen<FileNode[]>("files-changed", (event) => {
+          if (!isCleanedUp) {
+            setProjectState((s) => ({ ...s, files: event.payload }));
+          }
+        });
 
-      if (isCleanedUp) {
-        unlistenFiles?.();
-        return;
+        if (isCleanedUp) {
+          unlistenFiles?.();
+          return;
+        }
+
+        unlistenFileChanged = await listen<FileChangeEvent>("file-changed", (event) => {
+          if (isCleanedUp) return;
+
+          const { kind } = event.payload;
+
+          setLastFileChange(event.payload);
+
+          const currentPath = projectPathRef.current;
+          if (!currentPath) return;
+
+          // Different OS/file managers emit slightly different watcher kinds
+          // for equivalent operations (e.g. external delete/rename). Refresh
+          // tree for every meaningful change event to avoid stale explorer state.
+          if (kind !== "access") {
+            debouncedRefreshFileTree(currentPath);
+          }
+
+          if (kind !== "access") {
+            debouncedRefreshGit(currentPath);
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to attach Tauri event listeners:", err);
       }
-
-      unlistenFileChanged = await listen<FileChangeEvent>("file-changed", (event) => {
-        if (isCleanedUp) return;
-
-        const { kind } = event.payload;
-
-        setLastFileChange(event.payload);
-
-        const currentPath = projectPathRef.current;
-        if (!currentPath) return;
-
-        // Different OS/file managers emit slightly different watcher kinds
-        // for equivalent operations (e.g. external delete/rename). Refresh
-        // tree for every meaningful change event to avoid stale explorer state.
-        if (kind !== "access") {
-          debouncedRefreshFileTree(currentPath);
-        }
-
-        if (kind !== "access") {
-          debouncedRefreshGit(currentPath);
-        }
-      });
 
       if (isCleanedUp) {
         unlistenFiles?.();

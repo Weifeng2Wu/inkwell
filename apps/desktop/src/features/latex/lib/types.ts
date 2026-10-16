@@ -14,11 +14,27 @@ export interface LaTeXCompilersStatus {
 
 export interface LaTeXSettings {
   mainFile: string | null;
+  compiler?: "pdflatex" | "xelatex" | "lualatex" | "latexmk" | "auto";
 }
 
 export const DEFAULT_LATEX_SETTINGS: LaTeXSettings = {
   mainFile: null,
+  compiler: "auto",
 };
+
+export interface CompilationResult {
+  success: boolean;
+  exit_code: number | null;
+  pdf_path: string | null;
+  error: string | null;
+}
+
+export interface CompileOutputEvent {
+  line: string;
+  is_error: boolean;
+  is_warning: boolean;
+}
+
 
 export const COMPILE_PROMPT = `Please compile the LaTeX document.
 

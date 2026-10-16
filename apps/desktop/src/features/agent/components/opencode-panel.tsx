@@ -11,6 +11,7 @@ import { CollapsibleTasksBar, parseTasks } from "@/features/agent/components/tas
 import type { Props } from "@/features/agent/components/types";
 import type { ToolPart } from "@/features/agent/lib/types";
 import { useOpenCode } from "@/features/agent/lib/use-opencode";
+import { useI18n } from "@/features/i18n";
 
 export const OpenCodePanel = memo(function OpenCodePanel({
   className = "",
@@ -24,6 +25,7 @@ export const OpenCodePanel = memo(function OpenCodePanel({
   pendingMessage,
   onPendingMessageSent,
 }: Props) {
+  const { t } = useI18n();
   const opencode = useOpenCode({ baseUrl, directory, autoConnect });
   const [input, setInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<
@@ -198,14 +200,16 @@ export const OpenCodePanel = memo(function OpenCodePanel({
     return (
       <div className={`flex h-full flex-col ${className}`}>
         <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-          <h2 className="text-xs font-mono font-medium uppercase tracking-wider">Chats</h2>
+          <h2 className="text-xs font-mono font-medium uppercase tracking-wider">
+            {t("agent.chats")}
+          </h2>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleNewSession}
               className="text-[10px] font-mono px-2 py-1 border border-border hover:border-accent transition-colors"
             >
-              + New
+              + {t("agent.newChat")}
             </button>
             {opencode.currentSessionId && (
               <button
@@ -213,7 +217,7 @@ export const OpenCodePanel = memo(function OpenCodePanel({
                 onClick={() => setShowSessionList(false)}
                 className="text-[10px] font-mono text-muted hover:text-foreground transition-colors"
               >
-                Back
+                {t("common.back")}
               </button>
             )}
           </div>
@@ -252,17 +256,19 @@ export const OpenCodePanel = memo(function OpenCodePanel({
             <ChevronIcon className="size-4 rotate-90" />
           </button>
           <div className="flex flex-col min-w-0">
-            <h2 className="text-xs font-medium truncate">{currentSession?.title || "New Chat"}</h2>
+            <h2 className="text-xs font-medium truncate">
+              {currentSession?.title || t("agent.newChat")}
+            </h2>
             <div className="flex items-center gap-1.5 text-[10px] text-muted font-mono">
               <span
                 className={`inline-block size-1.5 rounded-full transition-colors ${isWorking ? "bg-accent animate-pulse" : "bg-border"}`}
               />
               <span className={isWorking ? "text-accent" : ""}>
                 {opencode.status.type === "running"
-                  ? "writing"
+                  ? t("agent.writing")
                   : opencode.status.type === "busy"
-                    ? "busy"
-                    : "ready"}
+                    ? t("agent.busy")
+                    : t("agent.ready")}
               </span>
               {baseUrl && (
                 <a
@@ -282,7 +288,7 @@ export const OpenCodePanel = memo(function OpenCodePanel({
             type="button"
             onClick={handleNewSession}
             className="flex-shrink-0 text-muted-foreground hover:text-muted transition-colors"
-            title="New Chat"
+            title={t("agent.newChat")}
           >
             <PlusIcon className="size-5" />
           </button>

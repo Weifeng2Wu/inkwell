@@ -1,6 +1,13 @@
+pub mod academic_agent;
+pub mod agent_credentials;
+pub mod agent_review;
+mod agent_runtime;
+pub mod external_agent;
 pub mod fs;
+pub mod fonts;
 pub mod git;
 pub mod latex;
+pub mod layout_parser;
 pub mod opencode;
 pub mod terminal;
 pub mod util;

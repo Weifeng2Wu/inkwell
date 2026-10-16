@@ -1,12 +1,11 @@
 "use client";
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { memo, useEffect, useRef, useState } from "react";
-import { resolveTerminalFontFamily } from "@/features/settings/lib/font-stacks";
-import { useThemeMode } from "@/features/settings/lib/theme";
+import { readThemePalette, resolveTerminalFontFamily, useThemeMode } from "@/features/settings";
 
 // GitHub Light terminal colors
 const LIGHT_TERMINAL_THEME = {
@@ -100,28 +99,65 @@ export const Terminal = memo(function Terminal({
 
   // Reactively update terminal theme when app mode changes
   useEffect(() => {
-    const nextTheme = themeMode === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME;
-    themeRef.current = nextTheme;
-
-    if (termRef.current) {
-      termRef.current.options.theme = nextTheme;
-    }
+    const update = () => {
+      const palette = readThemePalette();
+      const base = themeMode === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME;
+      const nextTheme =
+        palette.background && palette.foreground
+          ? {
+              ...base,
+              background: palette.background,
+              foreground: palette.foreground,
+              cursor: palette.foreground,
+              cursorAccent: palette.background,
+              selectionBackground: palette.selection,
+              black: palette.background,
+              white: palette.foreground,
+              brightBlack: palette.muted,
+              brightWhite: palette.foreground,
+            }
+          : base;
+      themeRef.current = nextTheme;
+      if (termRef.current) termRef.current.options.theme = nextTheme;
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    return () => observer.disconnect();
   }, [themeMode]);
 
   useEffect(() => {
     const nextFont = {
-      fontFamily: resolveTerminalFontFamily(fontFamily),
+      fontFamily: resolveTerminalFontFamily(
+        fontFamily,
+        getComputedStyle(document.body).getPropertyValue("--font-geist-mono").trim() || undefined,
+      ),
       fontSize,
       lineHeight,
     };
-    fontRef.current = nextFont;
+    let cancelled = false;
+    const applyFont = () => {
+      if (cancelled) return;
+      fontRef.current = nextFont;
+      if (termRef.current) {
+        termRef.current.options.fontFamily = nextFont.fontFamily;
+        termRef.current.options.fontSize = nextFont.fontSize;
+        termRef.current.options.lineHeight = nextFont.lineHeight;
+        fitAddonRef.current?.fit();
+      }
+    };
 
-    if (termRef.current) {
-      termRef.current.options.fontFamily = nextFont.fontFamily;
-      termRef.current.options.fontSize = nextFont.fontSize;
-      termRef.current.options.lineHeight = nextFont.lineHeight;
-      fitAddonRef.current?.fit();
+    if (fontFamily === "geist-mono" && document.fonts) {
+      void document.fonts.load(`${fontSize}px ${nextFont.fontFamily}`).then(applyFont, applyFont);
+    } else {
+      applyFont();
     }
+    return () => {
+      cancelled = true;
+    };
   }, [fontFamily, fontSize, lineHeight]);
 
   useEffect(() => {
@@ -163,6 +199,11 @@ export const Terminal = memo(function Terminal({
 
     const setup = async () => {
       try {
+        if (!isTauri()) {
+          term.writeln("\r\nTerminal PTY is only supported inside the Tauri desktop app.\r\n");
+          return;
+        }
+
         // Check if already cleaned up before spawning
         if (isCleanedUp) return;
 

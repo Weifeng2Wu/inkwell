@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { TrashIcon } from "@/features/agent/components/icons";
 import { formatRelativeTime } from "@/features/agent/components/utils";
 import type { SessionInfo } from "@/features/agent/lib/types";
+import { useI18n } from "@/features/i18n";
 
 export function SessionList({
   sessions,
@@ -19,6 +20,7 @@ export function SessionList({
   onNewSession: () => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [listParent] = useAutoAnimate({ duration: 200 });
   const sortedSessions = useMemo(
@@ -30,9 +32,9 @@ export function SessionList({
     return (
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="text-center space-y-3">
-          <p className="text-sm text-muted">No sessions yet</p>
+          <p className="text-sm text-muted">{t("agent.noSessionsYet")}</p>
           <button type="button" onClick={onNewSession} className="btn btn-sm">
-            Create First Session
+            {t("agent.createFirstSession")}
           </button>
         </div>
       </div>
@@ -57,11 +59,13 @@ export function SessionList({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm truncate">{session.title || "Untitled"}</p>
+                  <p className="text-sm truncate">{session.title || t("agent.newChat")}</p>
                   {session.summary?.files !== undefined && (
                     <p className="text-xs text-muted mt-0.5">
-                      {session.summary.files} file
-                      {session.summary.files !== 1 ? "s" : ""} modified
+                      {t("agent.filesModified", {
+                        count: session.summary.files,
+                        s: session.summary.files !== 1 ? "s" : "",
+                      })}
                     </p>
                   )}
                 </div>
@@ -75,7 +79,7 @@ export function SessionList({
                 setDeleteConfirmId(session.id);
               }}
               className="px-3 py-2 text-muted hover:text-error transition-colors"
-              title="Delete session"
+              title={t("common.delete")}
             >
               <TrashIcon className="size-4" />
             </button>
@@ -85,7 +89,7 @@ export function SessionList({
 
       {deleteConfirmId && (
         <ConfirmDialog
-          message="Delete this session? This cannot be undone."
+          message={t("agent.deleteSessionConfirm")}
           onConfirm={() => {
             onDelete(deleteConfirmId);
             setDeleteConfirmId(null);
@@ -98,9 +102,10 @@ export function SessionList({
 }
 
 export function EmptyState() {
+  const { t } = useI18n();
   return (
     <div className="flex-1 flex items-center justify-center p-4">
-      <p className="text-sm text-muted">Send a message to get started</p>
+      <p className="text-sm text-muted">{t("agent.emptyState")}</p>
     </div>
   );
 }
@@ -114,6 +119,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45">
       <div className="bg-background border border-border rounded-lg p-4 max-w-xs w-full mx-4 shadow-2xl">
@@ -124,10 +130,10 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="px-3 py-1.5 text-sm border border-border hover:bg-surface-secondary transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="button" onClick={onConfirm} className="btn btn-sm">
-            Delete
+            {t("common.delete")}
           </button>
         </div>
       </div>

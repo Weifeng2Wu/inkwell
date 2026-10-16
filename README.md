@@ -65,3 +65,4 @@ pnpm --filter @inkwell/desktop dev
 - [`AGENTS.md`](./AGENTS.md) — repository conventions and invariants for contributors
 - [`docs/dev.md`](./docs/dev.md) — development setup, commands, and architecture
 - [`docs/DESIGN.md`](./docs/DESIGN.md) — design system and UI conventions
+- [`docs/AGENT_FRAMEWORK.md`](./docs/AGENT_FRAMEWORK.md) — Inkwell Agent runtime and progressive-disclosure Skills framework

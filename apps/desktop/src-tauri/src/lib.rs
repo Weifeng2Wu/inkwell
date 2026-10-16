@@ -1,12 +1,15 @@
 mod commands;
 
+use commands::academic_agent::AcademicAgentState;
+use commands::agent_credentials::AgentCredentialState;
+use commands::external_agent::ExternalAgentState;
 use commands::fs::{ProjectState, WatcherState};
 use commands::latex::LaTeXCompilationState;
 use commands::opencode::OpenCodeState;
 use commands::terminal::PtyState;
 use std::sync::Mutex;
 use tauri::webview::WebviewWindowBuilder;
-use tauri::WebviewUrl;
+use tauri::{Manager, WebviewUrl};
 use tauri_plugin_opener::OpenerExt;
 
 fn is_external_url(url: &url::Url, dev_port: u16) -> bool {
@@ -41,10 +44,30 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .manage(PtyState::default())
         .manage(OpenCodeState::default())
+        .manage(AcademicAgentState::default())
+        .manage(AgentCredentialState::default())
+        .manage(commands::agent_review::AgentReviewState::default())
+        .manage(ExternalAgentState::default())
         .manage(LaTeXCompilationState::default())
         .manage(Mutex::new(WatcherState::default()))
         .manage(Mutex::new(ProjectState::default()))
         .invoke_handler(tauri::generate_handler![
+            commands::agent_review::agent_review_prepare,
+            commands::agent_review::agent_review_changes,
+            commands::agent_review::agent_review_resolve,
+            commands::fonts::list_system_fonts,
+            commands::layout_parser::layout_parser_request,
+            commands::external_agent::external_agent_detect,
+            commands::external_agent::external_agent_install,
+            commands::external_agent::external_agent_start,
+            commands::external_agent::external_agent_send,
+            commands::external_agent::external_agent_stop,
+            commands::external_agent::agent_shared_skills,
+            commands::agent_credentials::agent_api_key_read,
+            commands::agent_credentials::agent_api_key_write,
+            commands::academic_agent::academic_agent_start,
+            commands::academic_agent::academic_agent_command,
+            commands::academic_agent::academic_agent_stop,
             commands::fs::set_project_path,
             commands::fs::read_file,
             commands::fs::write_file,
@@ -129,8 +152,24 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+                let state = app.state::<ExternalAgentState>();
+                if !state.shutdown_complete() {
+                    api.prevent_exit();
+                    if state.begin_shutdown() {
+                        let app = app.clone();
+                        let exit_code = code.unwrap_or(0);
+                        tauri::async_runtime::spawn(async move {
+                            app.state::<ExternalAgentState>().stop_all().await;
+                            app.exit(exit_code);
+                        });
+                    }
+                }
+            }
+        });
 }
 
 #[cfg(test)]

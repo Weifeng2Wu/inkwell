@@ -126,6 +126,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/context-menu";
 import { InputDialog } from "@/components/ui/input-dialog";
+import { useI18n } from "@/features/i18n";
 import type { FileNode } from "@/types/files";
 
 export interface FileOperations {
@@ -523,6 +524,7 @@ function FileTreeInner({
   projectPath,
   onRefresh,
 }: Props) {
+  const { t } = useI18n();
   const treeRef = useRef<TreeApi<ArboristFileNode>>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -936,12 +938,12 @@ function FileTreeInner({
       // --- Create actions (for directories) ---
       if (isDirectory) {
         items.push({
-          label: "New File",
+          label: t("files.newFile"),
           onClick: () => setDialog({ type: "create-file", parentPath: node.path }),
           icon: <FilePlusIcon size={16} />,
         });
         items.push({
-          label: "New Folder",
+          label: t("files.newFolder"),
           onClick: () => setDialog({ type: "create-directory", parentPath: node.path }),
           icon: <FolderPlusIcon size={16} />,
         });
@@ -949,14 +951,14 @@ function FileTreeInner({
 
       // --- Copy actions ---
       items.push({
-        label: "Copy Path",
+        label: t("files.copyPath"),
         onClick: () => copyToClipboard(node.path),
         icon: <ClipboardTextIcon size={16} />,
       });
 
       if (projectPath) {
         items.push({
-          label: "Copy Absolute Path",
+          label: t("files.copyAbsolutePath"),
           onClick: () => copyNormalizedAbsolutePath(pathSync.join(projectPath, node.path)),
           icon: <CopyIcon size={16} />,
         });
@@ -964,7 +966,7 @@ function FileTreeInner({
 
       // --- Edit actions ---
       items.push({
-        label: "Rename",
+        label: t("files.rename"),
         onClick: () => setDialog({ type: "rename", node }),
         icon: <PencilLineIcon size={16} />,
       });
@@ -972,7 +974,7 @@ function FileTreeInner({
       // Duplicate (for files only)
       if (!isDirectory && fileOperations) {
         items.push({
-          label: "Duplicate",
+          label: t("files.duplicate"),
           onClick: async () => {
             const ext = node.name.includes(".")
               ? node.name.substring(node.name.lastIndexOf("."))
@@ -1004,19 +1006,21 @@ function FileTreeInner({
       }
 
       items.push({
-        label: "Delete",
+        label: t("common.delete"),
         onClick: async () => {
           const confirmed = await requestConfirm({
-            title: "Confirm Delete",
-            message: `Are you sure you want to delete "${node.name}"?${isDirectory ? "\nThis will delete all files inside." : ""}`,
-            confirmLabel: "Delete",
-            cancelLabel: "Cancel",
+            title: t("files.deleteConfirmTitle"),
+            message: isDirectory
+              ? t("files.deleteDirConfirmMessage", { name: node.name })
+              : t("files.deleteConfirmMessage", { name: node.name }),
+            confirmLabel: t("common.delete"),
+            cancelLabel: t("common.cancel"),
           });
           if (confirmed) {
             try {
               await fileOperations?.deletePath(node.path);
             } catch (error) {
-              alert(`Failed to delete: ${error}`);
+              alert(t("files.failedToDelete", { error: String(error) }));
             }
           }
         },
@@ -1029,10 +1033,10 @@ function FileTreeInner({
         const os = platform();
         const revealLabel =
           os === "macos"
-            ? "Reveal in Finder"
+            ? t("files.revealInFinder")
             : os === "windows"
-              ? "Reveal in Explorer"
-              : "Reveal in File Manager";
+              ? t("files.revealInExplorer")
+              : t("files.revealInFileManager");
         items.push({
           label: revealLabel,
           onClick: async () => {
@@ -1049,7 +1053,7 @@ function FileTreeInner({
         // Open in Terminal (for directories)
         if (isDirectory) {
           items.push({
-            label: "Open in Terminal",
+            label: t("files.openInTerminal"),
             onClick: async () => {
               const fullPath = pathSync.join(projectPath, node.path);
               try {
@@ -1065,7 +1069,7 @@ function FileTreeInner({
 
       if (onRefresh) {
         items.push({
-          label: "Refresh",
+          label: t("common.refresh"),
           onClick: onRefresh,
           icon: <ArrowClockwiseIcon size={16} />,
         });
@@ -1073,7 +1077,7 @@ function FileTreeInner({
 
       return items;
     },
-    [fileOperations, projectPath, onRefresh, requestConfirm],
+    [fileOperations, projectPath, onRefresh, requestConfirm, t],
   );
 
   // Context menu items for empty area (root level)
@@ -1082,12 +1086,12 @@ function FileTreeInner({
 
     if (fileOperations) {
       items.push({
-        label: "New File",
+        label: t("files.newFile"),
         onClick: () => setDialog({ type: "create-file", parentPath: "" }),
         icon: <FilePlusIcon size={16} />,
       });
       items.push({
-        label: "New Folder",
+        label: t("files.newFolder"),
         onClick: () => setDialog({ type: "create-directory", parentPath: "" }),
         icon: <FolderPlusIcon size={16} />,
       });
@@ -1095,7 +1099,7 @@ function FileTreeInner({
 
     if (projectPath) {
       items.push({
-        label: "Copy Project Path",
+        label: t("files.copyProjectPath"),
         onClick: () => copyNormalizedAbsolutePath(projectPath),
         icon: <ClipboardTextIcon size={16} />,
       });
@@ -1103,10 +1107,10 @@ function FileTreeInner({
       const os = platform();
       const revealLabel =
         os === "macos"
-          ? "Reveal in Finder"
+          ? t("files.revealInFinder")
           : os === "windows"
-            ? "Reveal in Explorer"
-            : "Reveal in File Manager";
+            ? t("files.revealInExplorer")
+            : t("files.revealInFileManager");
       items.push({
         label: revealLabel,
         onClick: async () => {
@@ -1120,7 +1124,7 @@ function FileTreeInner({
       });
 
       items.push({
-        label: "Open in Terminal",
+        label: t("files.openInTerminal"),
         onClick: async () => {
           try {
             await openInTerminal(projectPath);
@@ -1134,27 +1138,27 @@ function FileTreeInner({
 
     if (onRefresh) {
       items.push({
-        label: "Refresh",
+        label: t("common.refresh"),
         onClick: onRefresh,
         icon: <ArrowClockwiseIcon size={16} />,
       });
     }
 
     return items;
-  }, [fileOperations, projectPath, onRefresh]);
+  }, [fileOperations, projectPath, onRefresh, t]);
 
-  const validateFileName = useCallback((name: string): string | null => {
-    if (!name.trim()) {
-      return "Name cannot be empty";
-    }
-    if (name.includes("/") || name.includes("\\")) {
-      return "Name cannot contain / or \\";
-    }
-    if (name.startsWith(".")) {
-      return "Name cannot start with .";
-    }
-    return null;
-  }, []);
+  const validateFileName = useCallback(
+    (name: string): string | null => {
+      if (!name.trim()) {
+        return t("files.invalidName");
+      }
+      if (name.includes("/") || name.includes("\\") || name.startsWith(".")) {
+        return t("files.invalidName");
+      }
+      return null;
+    },
+    [t],
+  );
 
   const handleDialogConfirm = useCallback(
     async (value: string) => {
@@ -1201,7 +1205,7 @@ function FileTreeInner({
   );
 
   if (files.length === 0) {
-    return <div className={`p-4 text-sm text-muted ${className}`}>No files</div>;
+    return <div className={`p-4 text-sm text-muted ${className}`}>{t("interface.noFiles")}</div>;
   }
 
   return (
@@ -1210,7 +1214,7 @@ function FileTreeInner({
         ref={containerRef}
         className={className}
         role="tree"
-        aria-label="File explorer"
+        aria-label={t("interface.fileExplorer")}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onContextMenu={handleRootContextMenu}
@@ -1264,17 +1268,17 @@ function FileTreeInner({
         <InputDialog
           title={
             dialog.type === "create-file"
-              ? "New File"
+              ? t("files.newFileTitle")
               : dialog.type === "create-directory"
-                ? "New Folder"
-                : "Rename"
+                ? t("files.newFolderTitle")
+                : t("files.rename")
           }
           placeholder={
             dialog.type === "rename"
               ? dialog.node?.name
               : dialog.type === "create-file"
-                ? "file.tex"
-                : "folder"
+                ? t("files.newFilePlaceholder")
+                : t("files.newFolderPlaceholder")
           }
           defaultValue={dialog.type === "rename" ? dialog.node?.name : ""}
           onConfirm={handleDialogConfirm}
@@ -1295,9 +1299,9 @@ function FileTreeInner({
             }}
           >
             {dragState.draggedType === "directory" ? (
-              <FolderIcon className="w-4 h-4 text-gray-600" size={16} />
+              <FolderIcon className="w-4 h-4 text-muted" size={16} />
             ) : (
-              <FileIconSymbol className="w-4 h-4 text-gray-600" size={16} />
+              <FileIconSymbol className="w-4 h-4 text-muted" size={16} />
             )}
             <span className="truncate max-w-[200px]">{dragState.draggedName}</span>
             {dragState.dragOverPath && (

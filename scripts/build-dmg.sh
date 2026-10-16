@@ -4,17 +4,19 @@
 
 set -euo pipefail
 
+[ "$(uname -s)" = "Darwin" ] || { echo "DMG packaging requires macOS."; exit 1; }
+
 APP_NAME="Inkwell"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TAURI_DIR="$PROJECT_ROOT/apps/desktop/src-tauri"
-BUNDLE_DIR="$TAURI_DIR/target/release/bundle"
+BUNDLE_DIR="$TAURI_DIR/target/${TAURI_TARGET_TRIPLE:+$TAURI_TARGET_TRIPLE/}release/bundle"
 APP_PATH="$BUNDLE_DIR/macos/$APP_NAME.app"
 OUTPUT_DIR="$BUNDLE_DIR/dmg"
 VERSION=$(node -p "JSON.parse(require('fs').readFileSync('$TAURI_DIR/tauri.conf.json','utf8')).version")
 
-ARCH="$(uname -m)"
-if [ "$ARCH" = "arm64" ]; then
+ARCH="${TAURI_TARGET_TRIPLE:-$(uname -m)}"
+if [[ "$ARCH" = arm64* || "$ARCH" = aarch64* ]]; then
   ARCH_SUFFIX="aarch64"
 else
   ARCH_SUFFIX="x64"
@@ -36,8 +38,9 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-echo "Signing app bundle (ad-hoc)..."
-codesign --force --deep --sign - "$APP_PATH"
+if ! codesign --verify --deep --strict "$APP_PATH" >/dev/null 2>&1; then
+  codesign --deep --sign - "$APP_PATH"
+fi
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" >/dev/null
 echo "[OK] App signature verified"
 

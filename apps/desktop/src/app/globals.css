@@ -7,8 +7,8 @@
 
 /* --------------------------------------------------------------------------
    Dark variant
-   `light` is the neutral base theme. Every other theme in `themes.css` is a
-   dark theme, so the variant has to match all of them — not just `.dark`.
+   Match only the dark palettes. Named light counterparts must not activate
+   dark utilities, even when their names share a dark palette's prefix.
    -------------------------------------------------------------------------- */
 @custom-variant dark (&:where(
   .dark,

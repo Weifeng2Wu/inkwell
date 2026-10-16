@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import {
   DEFAULT_LATEX_SETTINGS,
@@ -56,7 +56,7 @@ export function useLatexSettings() {
   // Detect main file in the project directory
   const detectMainFile = useCallback(
     async (projectPath: string): Promise<MainFileDetectionResult | null> => {
-      if (!projectPath) return null;
+      if (!projectPath || !isTauri()) return null;
 
       setIsDetecting(true);
       try {

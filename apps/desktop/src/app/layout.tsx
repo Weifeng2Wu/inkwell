@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
-import { Roboto, Roboto_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ExternalLinkHandler } from "@/components/external-link-handler";
 import { ToastProvider } from "@/components/ui/toast";
+import { I18nProvider } from "@/features/i18n";
 import { DEFAULT_THEME, THEME_IDS } from "@/features/settings/lib/theme";
 import "./globals.css";
 
-const modernSans = Roboto({
+const modernSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "500", "700"],
 });
 
-const modernMono = Roboto_Mono({
+const modernMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
@@ -36,10 +37,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           enableSystem={false}
           disableTransitionOnChange
         >
-          <ToastProvider>
-            <ExternalLinkHandler />
-            {children}
-          </ToastProvider>
+          <I18nProvider>
+            <ToastProvider>
+              <ExternalLinkHandler />
+              {children}
+            </ToastProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

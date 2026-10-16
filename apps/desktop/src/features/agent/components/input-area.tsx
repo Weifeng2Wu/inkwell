@@ -6,6 +6,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import { ChevronIcon, ImageIcon, SendIcon, StopIcon } from "@/features/agent/components/icons";
 import type { AttachedFile } from "@/features/agent/components/types";
+import { useI18n } from "@/features/i18n";
+import { matchesShortcut, useKeyboardShortcuts } from "@/features/settings";
 
 interface SelectOption {
   value: string;
@@ -310,6 +312,8 @@ export function InputArea({
   onSelectAgent: (agentId: string | null) => void;
   onSelectModel: (m: { providerId: string; modelId: string } | null) => void;
 }) {
+  const { t } = useI18n();
+  const { bindings: keyboardShortcuts } = useKeyboardShortcuts();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -393,7 +397,7 @@ export function InputArea({
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (matchesShortcut(e.nativeEvent, keyboardShortcuts.send)) {
       e.preventDefault();
       onSend();
     }
@@ -460,7 +464,7 @@ export function InputArea({
                 type="button"
                 onClick={() => setPreviewIndex(index)}
                 className="block focus:outline-none focus:ring-2 focus:ring-accent rounded"
-                title="Click to preview"
+                title={t("agent.clickToPreview")}
               >
                 <Image
                   unoptimized
@@ -475,7 +479,7 @@ export function InputArea({
                 type="button"
                 onClick={() => handleRemoveFile(index)}
                 className="absolute -top-1.5 -right-1.5 size-5 bg-accent text-accent-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Remove"
+                title={t("common.remove")}
               >
                 <XIcon className="size-3" />
               </button>
@@ -490,7 +494,7 @@ export function InputArea({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        placeholder='Ask anything... "Add unit tests for the user service"'
+        placeholder={t("agent.askAnythingPlaceholder")}
         disabled={isWorking}
         className={`w-full min-h-[44px] max-h-[200px] px-4 py-3 resize-none focus:outline-none text-sm bg-transparent placeholder:text-muted-foreground ${attachedFiles.length > 0 ? "pt-2" : ""}`}
         rows={1}
@@ -551,7 +555,7 @@ export function InputArea({
           className={`p-1.5 transition-colors flex-shrink-0 ${
             attachedFiles.length > 0 ? "text-accent" : "text-muted-foreground hover:text-muted"
           } ${isWorking ? "opacity-50 cursor-not-allowed" : ""}`}
-          title="Attach image"
+          title={t("agent.attachImage")}
         >
           <ImageIcon className="size-4" />
           {attachedFiles.length > 0 && (
@@ -564,7 +568,7 @@ export function InputArea({
             type="button"
             onClick={onAbort}
             className="p-1.5 text-muted hover:text-foreground transition-colors"
-            title="Stop"
+            title={t("agent.stop")}
           >
             <StopIcon className="size-5" />
           </button>
@@ -574,7 +578,7 @@ export function InputArea({
             onClick={onSend}
             disabled={!input.trim() && attachedFiles.length === 0}
             className="p-1.5 bg-surface-tertiary hover:bg-border rounded-full transition-colors disabled:opacity-30 disabled:hover:bg-surface-tertiary"
-            title="Send"
+            title={t("agent.send")}
           >
             <SendIcon className="size-4 text-muted" />
           </button>
@@ -583,10 +587,10 @@ export function InputArea({
 
       {/* Image preview modal */}
       {previewIndex !== null && attachedFiles[previewIndex] && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45">
           <button
             type="button"
-            aria-label="Close image preview"
+            aria-label={t("agent.closeImagePreview")}
             className="absolute inset-0 cursor-zoom-out"
             onClick={() => setPreviewIndex(null)}
           />
@@ -594,7 +598,7 @@ export function InputArea({
             <Image
               unoptimized
               src={attachedFiles[previewIndex].url}
-              alt="Preview"
+              alt={attachedFiles[previewIndex].filename}
               width={1600}
               height={1200}
               className="max-w-full max-h-[90vh] object-contain rounded-lg"
@@ -602,10 +606,11 @@ export function InputArea({
             <button
               type="button"
               onClick={() => setPreviewIndex(null)}
-              className="absolute top-2 right-2 size-8 bg-black/55 hover:bg-accent text-white rounded-full flex items-center justify-center transition-colors"
-              title="Close"
+              className="toolbar-icon-button absolute top-2 right-2 bg-background/90"
+              title={t("common.close")}
+              aria-label={t("common.close")}
             >
-              <XIcon className="size-5" />
+              <XIcon className="size-4" aria-hidden="true" />
             </button>
             {/* Navigation arrows */}
             {attachedFiles.length > 1 && (
@@ -618,10 +623,11 @@ export function InputArea({
                       (previewIndex - 1 + attachedFiles.length) % attachedFiles.length,
                     );
                   }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 size-10 bg-black/55 hover:bg-accent text-white rounded-full flex items-center justify-center transition-colors"
-                  title="Previous"
+                  className="toolbar-icon-button absolute left-2 top-1/2 -translate-y-1/2 bg-background/90"
+                  title={t("common.previous")}
+                  aria-label={t("common.previous")}
                 >
-                  <CaretLeftIcon className="size-6" />
+                  <CaretLeftIcon className="size-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -629,10 +635,11 @@ export function InputArea({
                     e.stopPropagation();
                     setPreviewIndex((previewIndex + 1) % attachedFiles.length);
                   }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 size-10 bg-black/55 hover:bg-accent text-white rounded-full flex items-center justify-center transition-colors"
-                  title="Next"
+                  className="toolbar-icon-button absolute right-2 top-1/2 -translate-y-1/2 bg-background/90"
+                  title={t("common.next")}
+                  aria-label={t("common.next")}
                 >
-                  <CaretRightIcon className="size-6" />
+                  <CaretRightIcon className="size-4" aria-hidden="true" />
                 </button>
               </>
             )}

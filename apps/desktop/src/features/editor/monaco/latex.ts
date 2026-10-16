@@ -2,9 +2,16 @@
 
 import type { Monaco } from "@monaco-editor/react";
 import type { editor, languages } from "monaco-editor";
+import { CITATION_COMMANDS } from "../lib/bibliography";
+import { registerCitationCompletion } from "./citation-completion";
+
+const registered = new WeakSet<Monaco>();
 
 // Register LaTeX language support
 export const registerLaTeXLanguage = (monaco: Monaco) => {
+  if (registered.has(monaco)) return;
+  registered.add(monaco);
+  registerCitationCompletion(monaco);
   // Register the LaTeX language
   monaco.languages.register({
     id: "latex",
@@ -278,7 +285,7 @@ export const registerLaTeXLanguage = (monaco: Monaco) => {
 
       const suggestions: languages.CompletionItem[] = [];
 
-      if (charBefore === "\\") {
+      if (charBefore === "\\" || /\\[a-zA-Z]+$/.test(lineContent.slice(0, position.column - 1))) {
         // Command completions
         const commands = [
           // Document structure
@@ -365,7 +372,11 @@ export const registerLaTeXLanguage = (monaco: Monaco) => {
           // References
           { label: "label", insertText: `label{\${1:key}}`, detail: "Label" },
           { label: "ref", insertText: `ref{\${1:key}}`, detail: "Reference" },
-          { label: "cite", insertText: `cite{\${1:key}}`, detail: "Citation" },
+          ...["cite", "citep", "citet", "parencite", "textcite", "autocite"].map((label) => ({
+            label,
+            insertText: `${label}{$1}$0`,
+            detail: "Citation",
+          })),
           {
             label: "footnote",
             insertText: `footnote{\${1:text}}`,
@@ -451,6 +462,9 @@ export const registerLaTeXLanguage = (monaco: Monaco) => {
             insertText: cmd.insertText,
             insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
             detail: cmd.detail,
+            ...(CITATION_COMMANDS.has(cmd.label)
+              ? { command: { id: "editor.action.triggerSuggest", title: "Choose a reference" } }
+              : {}),
             range,
           });
         });

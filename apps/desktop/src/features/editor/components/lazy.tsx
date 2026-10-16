@@ -13,6 +13,16 @@ export const PdfViewer = dynamic(
   { ssr: false },
 );
 
+export const DraftEditor = dynamic(
+  () => import("./draft-editor").then((module) => module.DraftEditor),
+  { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
+);
+
+export const DocumentEditor = dynamic(
+  () => import("./document-editor").then((module) => module.DocumentEditor),
+  { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
+);
+
 export const MonacoEditor = dynamic(
   () => import("@/features/editor/components/monaco-editor").then((mod) => mod.MonacoEditor),
   { ssr: false },

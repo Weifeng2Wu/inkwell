@@ -3,11 +3,14 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/features/i18n";
 
 interface InputDialogProps {
   title: string;
   placeholder?: string;
   defaultValue?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
   onConfirm: (value: string) => void;
   onCancel: () => void;
   validator?: (value: string) => string | null; // Returns error message or null
@@ -17,10 +20,15 @@ export function InputDialog({
   title,
   placeholder = "",
   defaultValue = "",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   validator,
 }: InputDialogProps) {
+  const { t } = useI18n();
+  const resolvedConfirmLabel = confirmLabel ?? t("common.confirm");
+  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -124,10 +132,10 @@ export function InputDialog({
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
             <button type="button" onClick={onCancel} className="btn btn-sm btn-secondary">
-              Cancel
+              {resolvedCancelLabel}
             </button>
             <button type="button" onClick={handleConfirm} className="btn btn-sm btn-primary">
-              Confirm
+              {resolvedConfirmLabel}
             </button>
           </div>
         </motion.div>

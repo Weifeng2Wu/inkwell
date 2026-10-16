@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { MainFileDetectionResult } from "@/features/latex/lib/types";
+import { useI18n } from "@/features/i18n";
 import { pathSync } from "@/lib/path";
 
 interface MainFileSelectionDialogProps {
@@ -20,6 +21,7 @@ export function MainFileSelectionDialog({
   onSelect,
   onCancel,
 }: MainFileSelectionDialogProps) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<string | null>(
     detectionResult.main_file || detectionResult.tex_files[0] || null,
   );
@@ -71,7 +73,7 @@ export function MainFileSelectionDialog({
         >
           {/* Header */}
           <div className="px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-medium">Select Main File</h3>
+            <h3 className="text-sm font-medium">{t("latex.selectMainTitle")}</h3>
             <p className="mt-1 text-sm text-muted">{detectionResult.message}</p>
           </div>
 
@@ -79,7 +81,7 @@ export function MainFileSelectionDialog({
           <div className="px-5 py-4 max-h-64 overflow-y-auto">
             {detectionResult.tex_files.length === 0 ? (
               <p className="text-sm text-muted py-4 text-center">
-                No .tex files found in the project.
+                {t("latex.noTexFiles")}
               </p>
             ) : (
               <div className="space-y-1">
@@ -114,7 +116,7 @@ export function MainFileSelectionDialog({
                                 : "bg-success/15 text-success"
                             }`}
                           >
-                            Recommended
+                            {t("latex.recommended")}
                           </span>
                         )}
                         {isSelected && <CheckIcon className="size-4" />}
@@ -129,12 +131,11 @@ export function MainFileSelectionDialog({
           {/* Footer */}
           <div className="flex items-center justify-between px-5 py-4 border-t border-border">
             <p className="text-xs text-muted">
-              {detectionResult.tex_files.length} file
-              {detectionResult.tex_files.length !== 1 ? "s" : ""} found
+              {t("latex.filesFound", { count: detectionResult.tex_files.length })}
             </p>
             <div className="flex items-center gap-2">
               <button type="button" onClick={onCancel} className="btn btn-sm btn-secondary">
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -142,7 +143,7 @@ export function MainFileSelectionDialog({
                 disabled={!selected}
                 className="btn btn-sm btn-primary"
               >
-                Compile
+                {t("header.compile")}
               </button>
             </div>
           </div>

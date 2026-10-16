@@ -10,6 +10,8 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "agent:setup": "node scripts/setup-agent-runtime.mjs",
+    "agent:test": "node --test packages/academic-agent/test/*.test.mjs",
     "build": "turbo build",
     "dev": "turbo dev",
     "clean": "turbo clean && rm -rf node_modules apps/desktop/node_modules",

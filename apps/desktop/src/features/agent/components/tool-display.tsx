@@ -7,6 +7,7 @@ import { parseTasks, TasksDisplay } from "@/features/agent/components/tasks-disp
 import { formatValue } from "@/features/agent/components/utils";
 import type { ToolPart } from "@/features/agent/lib/types";
 import { getToolInfo } from "@/features/agent/lib/types";
+import { useI18n } from "@/features/i18n";
 
 export function ToolDisplay({
   part,
@@ -15,6 +16,7 @@ export function ToolDisplay({
   part: ToolPart;
   onFileClick?: (path: string) => void;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const info = getToolInfo(part.tool, part.state.input);
   const isRunning = part.state.status === "running";
@@ -112,7 +114,7 @@ export function ToolDisplay({
             type="button"
             onClick={toggleExpanded}
             className="flex-shrink-0 text-muted-foreground"
-            aria-label={expanded ? "Collapse tool details" : "Expand tool details"}
+            aria-label={expanded ? t("agent.collapseToolDetails") : t("agent.expandToolDetails")}
             aria-expanded={expanded}
           >
             <ChevronIcon
@@ -135,7 +137,7 @@ export function ToolDisplay({
           {!tasksToDisplay && Object.keys(part.state.input).length > 0 && (
             <div className="px-3 py-2 space-y-1">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                Input
+                {t("agent.inputLabel")}
               </div>
               {Object.entries(part.state.input).map(([key, value]) => (
                 <div key={key} className="font-mono text-xs">
@@ -152,7 +154,7 @@ export function ToolDisplay({
           {!tasksToDisplay && output && (
             <div className="px-3 py-2 border-t border-border">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">
-                Output
+                {t("agent.outputLabel")}
               </div>
               <pre className="text-xs text-muted whitespace-pre-wrap break-all font-mono max-h-48 overflow-auto">
                 {output.length > 2000 ? `${output.slice(0, 2000)}...` : output}

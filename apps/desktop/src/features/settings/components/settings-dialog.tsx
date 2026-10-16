@@ -14,22 +14,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { DEFAULT_LATEX_SETTINGS, type LaTeXSettings } from "@/features/latex/lib/types";
+import { type Locale, useI18n } from "@/features/i18n";
 import {
   DEFAULT_EDITOR_SETTINGS,
   type EditorSettings,
   type MinimapSettings,
 } from "@/features/settings/lib/editor-settings";
-import { THEMES } from "@/features/settings/lib/theme";
+import { FontSettings } from "./font-settings";
+import { TerminalFontSettings } from "./terminal-font-settings";
+import { ThemeGrid } from "./theme-grid";
 
 interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
-  settings: LaTeXSettings;
-  onUpdateSettings: (updates: Partial<LaTeXSettings>) => void;
   editorSettings: EditorSettings;
   onUpdateEditorSettings: (updates: Partial<EditorSettings>) => void;
-  texFiles: string[];
+  initialTab?: "general" | "editor";
 }
 
 // Section header component for visual grouping - editorial style
@@ -94,10 +94,10 @@ function SelectField({
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <Select value={String(value)} onValueChange={onChange}>
-        <SelectTrigger aria-label={label}>
+        <SelectTrigger aria-label={label} className="settings-control settings-select">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="settings-select-content">
           {options.map((opt) => (
             <SelectItem key={opt.value} value={String(opt.value)}>
               {opt.label}
@@ -111,46 +111,15 @@ function SelectField({
 
 function ThemePicker() {
   const { theme, setTheme } = useTheme();
+  const { t } = useI18n();
 
   return (
     <div className="py-2">
-      <span className="text-sm font-medium block mb-2 text-foreground-secondary">Theme</span>
-      <div className="grid grid-cols-3 gap-2">
-        {THEMES.map((option) => {
-          const isActive = theme === option.id;
-          return (
-            <button
-              type="button"
-              key={option.id}
-              onClick={() => setTheme(option.id)}
-              aria-pressed={isActive}
-              className={`flex flex-col gap-2 rounded-md border p-2 text-left transition-colors ${
-                isActive
-                  ? "border-accent bg-accent/10"
-                  : "border-border hover:border-border-dark hover:bg-accent-hover"
-              }`}
-            >
-              <span
-                className="flex h-7 w-full items-center gap-1 rounded border border-border px-1.5"
-                style={{ backgroundColor: option.swatch[0] }}
-              >
-                <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: option.swatch[2] }}
-                />
-                <span
-                  className="h-3.5 flex-1 rounded-sm"
-                  style={{ backgroundColor: option.swatch[1] }}
-                />
-              </span>
-              <span className="truncate text-xs font-medium text-foreground-secondary">
-                {option.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-xs text-muted mt-1.5">Applies to the app, editor and terminal</p>
+      <span className="text-sm font-medium block mb-2 text-foreground-secondary">
+        {t("settings.general.theme")}
+      </span>
+      <ThemeGrid theme={theme} onSelect={setTheme} label={t("settings.general.theme")} />
+      <p className="text-xs text-muted mt-1.5">{t("settings.general.themeDesc")}</p>
     </div>
   );
 }
@@ -158,17 +127,14 @@ function ThemePicker() {
 export function SettingsDialog({
   open,
   onClose,
-  settings,
-  onUpdateSettings,
   editorSettings,
   onUpdateEditorSettings,
-  texFiles,
+  initialTab = "general",
 }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<string>("build");
-
-  const handleResetLatexSettings = useCallback(() => {
-    onUpdateSettings(DEFAULT_LATEX_SETTINGS);
-  }, [onUpdateSettings]);
+  const { t, locale, setLocale, locales } = useI18n();
+  const [activeTab, setActiveTab] = useState<string>(
+    initialTab === "editor" ? "general" : initialTab,
+  );
 
   const handleResetEditorSettings = useCallback(() => {
     onUpdateEditorSettings(DEFAULT_EDITOR_SETTINGS);
@@ -185,15 +151,14 @@ export function SettingsDialog({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div className="flex items-center gap-3">
-              <Dialog.Title className="text-lg font-bold tracking-tight">Settings</Dialog.Title>
+              <Dialog.Title className="text-lg font-bold tracking-tight">
+                {t("settings.title")}
+              </Dialog.Title>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                Auto-saved
+                {t("settings.autoSaved")}
               </span>
             </div>
-            <Dialog.Close
-              className="p-1.5 hover:bg-accent-hover transition-colors border border-transparent hover:border-border"
-              aria-label="Close"
-            >
+            <Dialog.Close className="toolbar-icon-button" aria-label={t("common.close")}>
               <XIcon className="size-4" />
             </Dialog.Close>
           </div>
@@ -206,721 +171,32 @@ export function SettingsDialog({
             {/* Tabs */}
             <Tabs.List className="flex border-b border-border shrink-0">
               <Tabs.Trigger
-                value="build"
+                value="general"
                 className="flex-1 px-4 py-3 text-sm font-medium transition-colors relative text-muted-foreground hover:text-foreground data-[state=active]:text-foreground"
               >
-                Build
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent transition-opacity opacity-0 data-[state=active]:opacity-100" />
-              </Tabs.Trigger>
-              <Tabs.Trigger
-                value="editor"
-                className="flex-1 px-4 py-3 text-sm font-medium transition-colors relative text-muted-foreground hover:text-foreground data-[state=active]:text-foreground"
-              >
-                Editor
+                {t("settings.tabs.general")}
                 <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent transition-opacity opacity-0 data-[state=active]:opacity-100" />
               </Tabs.Trigger>
             </Tabs.List>
 
-            {/* ===== EDITOR TAB ===== */}
-            <Tabs.Content value="editor" className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
-              <SectionHeader>Appearance</SectionHeader>
+            {/* ===== GENERAL TAB ===== */}
+            <Tabs.Content value="general" className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
+              <SectionHeader>{t("settings.general.language")}</SectionHeader>
+              <SelectField
+                label={t("settings.general.language")}
+                description={t("settings.general.languageDesc")}
+                value={locale}
+                onChange={(val) => setLocale(val as Locale)}
+                options={locales.map((loc) => ({
+                  value: loc.id,
+                  label: `${loc.label} (${loc.nativeName})`,
+                }))}
+              />
 
-              {/* Light/Dark Mode Toggle */}
+              <SectionHeader>{t("settings.general.appearance")}</SectionHeader>
               <ThemePicker />
 
-              <SectionHeader>Keybindings</SectionHeader>
-
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 border flex items-center justify-center font-mono text-xs font-bold tracking-tight transition-colors ${
-                      editorSettings.vimMode
-                        ? "bg-accent border-accent text-accent-foreground"
-                        : "bg-accent-hover border-border text-muted-foreground"
-                    }`}
-                  >
-                    Vi
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground-secondary">
-                        Vim Mode
-                      </span>
-                      {editorSettings.vimMode && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-accent text-accent-foreground font-mono font-bold tracking-wider">
-                          NORMAL
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted mt-0.5">
-                      Modal Vim-style keybindings in editor
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={editorSettings.vimMode}
-                  onCheckedChange={(v) => onUpdateEditorSettings({ vimMode: v })}
-                />
-              </div>
-
-              <SectionHeader>Display</SectionHeader>
-
-              <div className="flex items-center justify-between py-2 gap-4">
-                <label
-                  htmlFor="editor-font-family"
-                  className="text-sm font-medium text-foreground-secondary shrink-0"
-                >
-                  Font Family
-                </label>
-                <input
-                  id="editor-font-family"
-                  type="text"
-                  value={editorSettings.fontFamily}
-                  onChange={(e) =>
-                    onUpdateEditorSettings({
-                      fontFamily: e.target.value,
-                    })
-                  }
-                  placeholder="Default monospace stack"
-                  className="w-full max-w-sm px-3 py-2 text-sm border border-border hover:border-border-dark focus:outline-none focus:border-accent font-mono bg-background"
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <label
-                  htmlFor="editor-font-size"
-                  className="text-sm font-medium text-foreground-secondary"
-                >
-                  Font Size
-                </label>
-                <div className="flex items-center border border-border hover:border-border-dark transition-colors">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        fontSize: Math.max(8, editorSettings.fontSize - 1),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
-                    aria-label="Decrease font size"
-                  >
-                    <MinusIcon className="size-3" />
-                  </button>
-                  <input
-                    id="editor-font-size"
-                    type="number"
-                    min="8"
-                    max="32"
-                    value={editorSettings.fontSize}
-                    onChange={(e) =>
-                      onUpdateEditorSettings({
-                        fontSize: Math.min(32, Math.max(8, parseInt(e.target.value, 10) || 14)),
-                      })
-                    }
-                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 font-mono bg-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        fontSize: Math.min(32, editorSettings.fontSize + 1),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
-                    aria-label="Increase font size"
-                  >
-                    <PlusIcon className="size-3" />
-                  </button>
-                  <span className="text-xs text-muted-foreground px-2 border-l border-border">
-                    px
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <label
-                  htmlFor="editor-line-height"
-                  className="text-sm font-medium text-foreground-secondary"
-                >
-                  Line Height
-                </label>
-                <div className="flex items-center border border-border hover:border-border-dark transition-colors">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        lineHeight: Math.max(
-                          1.0,
-                          Math.round((editorSettings.lineHeight - 0.1) * 10) / 10,
-                        ),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
-                    aria-label="Decrease line height"
-                  >
-                    <MinusIcon className="size-3" />
-                  </button>
-                  <input
-                    id="editor-line-height"
-                    type="number"
-                    min="1.0"
-                    max="3.0"
-                    step="0.1"
-                    value={editorSettings.lineHeight.toFixed(1)}
-                    onChange={(e) =>
-                      onUpdateEditorSettings({
-                        lineHeight: Math.min(3.0, Math.max(1.0, parseFloat(e.target.value) || 1.6)),
-                      })
-                    }
-                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 font-mono bg-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        lineHeight: Math.min(
-                          3.0,
-                          Math.round((editorSettings.lineHeight + 0.1) * 10) / 10,
-                        ),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
-                    aria-label="Increase line height"
-                  >
-                    <PlusIcon className="size-3" />
-                  </button>
-                </div>
-              </div>
-
-              <SelectField
-                label="Line Numbers"
-                value={editorSettings.lineNumbers}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    lineNumbers: v as EditorSettings["lineNumbers"],
-                  })
-                }
-                options={[
-                  { value: "on", label: "On" },
-                  { value: "off", label: "Off" },
-                  { value: "relative", label: "Relative" },
-                  { value: "interval", label: "Interval (every 10)" },
-                ]}
-              />
-
-              <SelectField
-                label="Render Whitespace"
-                value={editorSettings.renderWhitespace}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    renderWhitespace: v as EditorSettings["renderWhitespace"],
-                  })
-                }
-                options={[
-                  { value: "none", label: "None" },
-                  { value: "boundary", label: "Boundary" },
-                  { value: "selection", label: "Selection" },
-                  { value: "trailing", label: "Trailing" },
-                  { value: "all", label: "All" },
-                ]}
-              />
-
-              <div className="space-y-3 pt-1">
-                <CheckboxItem
-                  checked={editorSettings.smoothScrolling}
-                  onChange={(v) => onUpdateEditorSettings({ smoothScrolling: v })}
-                  label="Smooth Scrolling"
-                  description="Enable smooth scroll animation"
-                />
-              </div>
-
-              <SectionHeader>Minimap</SectionHeader>
-
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground-secondary">
-                      Enable Minimap
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 border border-border text-muted font-medium uppercase tracking-wider">
-                      Preview
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted mt-0.5">Code overview panel</p>
-                </div>
-                <Switch
-                  checked={editorSettings.minimap.enabled}
-                  onCheckedChange={(v) =>
-                    onUpdateEditorSettings({
-                      minimap: {
-                        ...editorSettings.minimap,
-                        enabled: v,
-                      },
-                    })
-                  }
-                />
-              </div>
-
-              {editorSettings.minimap.enabled && (
-                <div className="space-y-1 pl-4 border-l-2 border-border ml-1">
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm font-medium text-foreground-secondary">Position</span>
-                    <div className="flex">
-                      {(["left", "right"] as const).map((side, index) => (
-                        <button
-                          type="button"
-                          key={side}
-                          onClick={() =>
-                            onUpdateEditorSettings({
-                              minimap: {
-                                ...editorSettings.minimap,
-                                side,
-                              },
-                            })
-                          }
-                          className={`px-4 py-1.5 text-sm border transition-all ${
-                            editorSettings.minimap.side === side
-                              ? "bg-accent text-accent-foreground border-accent"
-                              : "bg-background text-muted border-border hover:border-border-dark"
-                          } ${index === 0 ? "" : "-ml-px"}`}
-                        >
-                          {side === "left" ? "Left" : "Right"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Size Mode */}
-                  <SelectField
-                    label="Size Mode"
-                    value={editorSettings.minimap.size}
-                    onChange={(v) =>
-                      onUpdateEditorSettings({
-                        minimap: {
-                          ...editorSettings.minimap,
-                          size: v as MinimapSettings["size"],
-                        },
-                      })
-                    }
-                    options={[
-                      { value: "proportional", label: "Proportional" },
-                      { value: "fill", label: "Fill" },
-                      { value: "fit", label: "Fit" },
-                    ]}
-                    description="How the minimap scales relative to content"
-                  />
-
-                  {/* Show Slider */}
-                  <SelectField
-                    label="Show Slider"
-                    value={editorSettings.minimap.showSlider}
-                    onChange={(v) =>
-                      onUpdateEditorSettings({
-                        minimap: {
-                          ...editorSettings.minimap,
-                          showSlider: v as MinimapSettings["showSlider"],
-                        },
-                      })
-                    }
-                    options={[
-                      { value: "mouseover", label: "On Hover" },
-                      { value: "always", label: "Always" },
-                    ]}
-                    description="When to show the viewport indicator"
-                  />
-
-                  {/* Render Characters */}
-                  <div className="pt-2">
-                    <CheckboxItem
-                      checked={editorSettings.minimap.renderCharacters}
-                      onChange={(v) =>
-                        onUpdateEditorSettings({
-                          minimap: {
-                            ...editorSettings.minimap,
-                            renderCharacters: v,
-                          },
-                        })
-                      }
-                      label="Render Characters"
-                      description="Show actual characters instead of blocks"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <SectionHeader>Cursor</SectionHeader>
-
-              <SelectField
-                label="Cursor Style"
-                value={editorSettings.cursorStyle}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    cursorStyle: v as EditorSettings["cursorStyle"],
-                  })
-                }
-                options={[
-                  { value: "line", label: "Line" },
-                  { value: "line-thin", label: "Line (Thin)" },
-                  { value: "block", label: "Block" },
-                  { value: "block-outline", label: "Block Outline" },
-                  { value: "underline", label: "Underline" },
-                  { value: "underline-thin", label: "Underline (Thin)" },
-                ]}
-              />
-
-              <SelectField
-                label="Cursor Blinking"
-                value={editorSettings.cursorBlinking}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    cursorBlinking: v as EditorSettings["cursorBlinking"],
-                  })
-                }
-                options={[
-                  { value: "blink", label: "Blink" },
-                  { value: "smooth", label: "Smooth" },
-                  { value: "phase", label: "Phase" },
-                  { value: "expand", label: "Expand" },
-                  { value: "solid", label: "Solid" },
-                ]}
-              />
-
-              <SectionHeader>Editing</SectionHeader>
-
-              <SelectField
-                label="Tab Size"
-                value={editorSettings.tabSize}
-                onChange={(v) => onUpdateEditorSettings({ tabSize: parseInt(v, 10) })}
-                options={[
-                  { value: 2, label: "2 spaces" },
-                  { value: 4, label: "4 spaces" },
-                  { value: 8, label: "8 spaces" },
-                ]}
-              />
-
-              <SelectField
-                label="Word Wrap"
-                value={editorSettings.wordWrap}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    wordWrap: v as EditorSettings["wordWrap"],
-                  })
-                }
-                options={[
-                  { value: "off", label: "Off" },
-                  { value: "on", label: "On" },
-                  { value: "wordWrapColumn", label: "Wrap at Column" },
-                  { value: "bounded", label: "Bounded" },
-                ]}
-              />
-
-              {editorSettings.wordWrap === "wordWrapColumn" && (
-                <div className="pl-4 border-l-2 border-border ml-1 py-2">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="editor-word-wrap-column"
-                      className="text-sm font-medium text-foreground-secondary"
-                    >
-                      Wrap Column
-                    </label>
-                    <input
-                      id="editor-word-wrap-column"
-                      type="number"
-                      min="40"
-                      max="200"
-                      value={editorSettings.wordWrapColumn}
-                      onChange={(e) =>
-                        onUpdateEditorSettings({
-                          wordWrapColumn: parseInt(e.target.value, 10) || 80,
-                        })
-                      }
-                      className="w-20 px-3 py-2 text-sm text-center border border-border hover:border-border-dark focus:outline-none focus:border-accent font-mono"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <SelectField
-                label="Auto-close Brackets"
-                value={editorSettings.autoClosingBrackets}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    autoClosingBrackets: v as EditorSettings["autoClosingBrackets"],
-                  })
-                }
-                options={[
-                  { value: "always", label: "Always" },
-                  { value: "languageDefined", label: "Language Defined" },
-                  {
-                    value: "beforeWhitespace",
-                    label: "Before Whitespace",
-                  },
-                  { value: "never", label: "Never" },
-                ]}
-              />
-
-              <SelectField
-                label="Auto-close Quotes"
-                value={editorSettings.autoClosingQuotes}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    autoClosingQuotes: v as EditorSettings["autoClosingQuotes"],
-                  })
-                }
-                options={[
-                  { value: "always", label: "Always" },
-                  { value: "languageDefined", label: "Language Defined" },
-                  {
-                    value: "beforeWhitespace",
-                    label: "Before Whitespace",
-                  },
-                  { value: "never", label: "Never" },
-                ]}
-              />
-
-              <div className="space-y-3 pt-1">
-                <CheckboxItem
-                  checked={editorSettings.insertSpaces}
-                  onChange={(v) => onUpdateEditorSettings({ insertSpaces: v })}
-                  label="Insert Spaces"
-                  description="Use spaces instead of tabs for indentation"
-                />
-              </div>
-
-              <SectionHeader>Formatting</SectionHeader>
-
-              <div className="space-y-3">
-                <CheckboxItem
-                  checked={editorSettings.formatOnSave}
-                  onChange={(v) => onUpdateEditorSettings({ formatOnSave: v })}
-                  label="Format on Save"
-                  description="Automatically format code when saving"
-                />
-                <CheckboxItem
-                  checked={editorSettings.formatOnPaste}
-                  onChange={(v) => onUpdateEditorSettings({ formatOnPaste: v })}
-                  label="Format on Paste"
-                  description="Automatically format pasted code"
-                />
-              </div>
-
-              <SectionHeader>Terminal</SectionHeader>
-
-              <div className="flex items-center justify-between py-2 gap-4">
-                <label
-                  htmlFor="editor-terminal-font-family"
-                  className="text-sm font-medium text-foreground-secondary shrink-0"
-                >
-                  Font Family
-                </label>
-                <input
-                  id="editor-terminal-font-family"
-                  type="text"
-                  value={editorSettings.terminalFontFamily}
-                  onChange={(e) =>
-                    onUpdateEditorSettings({
-                      terminalFontFamily: e.target.value,
-                    })
-                  }
-                  placeholder="Default monospace stack"
-                  className="w-full max-w-sm px-3 py-2 text-sm border border-border hover:border-border-dark focus:outline-none focus:border-accent font-mono bg-background"
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <label
-                  htmlFor="editor-terminal-font-size"
-                  className="text-sm font-medium text-foreground-secondary"
-                >
-                  Font Size
-                </label>
-                <div className="flex items-center border border-border hover:border-border-dark transition-colors">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        terminalFontSize: Math.max(8, editorSettings.terminalFontSize - 1),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
-                    aria-label="Decrease terminal font size"
-                  >
-                    <MinusIcon className="size-3" />
-                  </button>
-                  <input
-                    id="editor-terminal-font-size"
-                    type="number"
-                    min="8"
-                    max="32"
-                    value={editorSettings.terminalFontSize}
-                    onChange={(e) =>
-                      onUpdateEditorSettings({
-                        terminalFontSize: Math.min(
-                          32,
-                          Math.max(8, parseInt(e.target.value, 10) || 13),
-                        ),
-                      })
-                    }
-                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 font-mono bg-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        terminalFontSize: Math.min(32, editorSettings.terminalFontSize + 1),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
-                    aria-label="Increase terminal font size"
-                  >
-                    <PlusIcon className="size-3" />
-                  </button>
-                  <span className="text-xs text-muted-foreground px-2 border-l border-border">
-                    px
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <label
-                  htmlFor="editor-terminal-line-height"
-                  className="text-sm font-medium text-foreground-secondary"
-                >
-                  Line Height
-                </label>
-                <div className="flex items-center border border-border hover:border-border-dark transition-colors">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        terminalLineHeight: Math.max(
-                          1.0,
-                          Math.round((editorSettings.terminalLineHeight - 0.1) * 10) / 10,
-                        ),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
-                    aria-label="Decrease terminal line height"
-                  >
-                    <MinusIcon className="size-3" />
-                  </button>
-                  <input
-                    id="editor-terminal-line-height"
-                    type="number"
-                    min="1.0"
-                    max="3.0"
-                    step="0.1"
-                    value={editorSettings.terminalLineHeight.toFixed(1)}
-                    onChange={(e) =>
-                      onUpdateEditorSettings({
-                        terminalLineHeight: Math.min(
-                          3.0,
-                          Math.max(1.0, parseFloat(e.target.value) || 1.4),
-                        ),
-                      })
-                    }
-                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 font-mono bg-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateEditorSettings({
-                        terminalLineHeight: Math.min(
-                          3.0,
-                          Math.round((editorSettings.terminalLineHeight + 0.1) * 10) / 10,
-                        ),
-                      })
-                    }
-                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
-                    aria-label="Increase terminal line height"
-                  >
-                    <PlusIcon className="size-3" />
-                  </button>
-                </div>
-              </div>
-
-              <SelectField
-                label="Shell Selection"
-                value={editorSettings.terminalShellMode}
-                onChange={(v) =>
-                  onUpdateEditorSettings({
-                    terminalShellMode: v as EditorSettings["terminalShellMode"],
-                  })
-                }
-                options={[
-                  { value: "auto", label: "Auto Detect" },
-                  { value: "custom", label: "Custom" },
-                ]}
-                description="Auto mode chooses shell per OS fallback rules"
-              />
-
-              {editorSettings.terminalShellMode === "custom" && (
-                <div className="pl-4 border-l-2 border-border ml-1 py-2">
-                  <div className="flex items-center justify-between gap-4">
-                    <label
-                      htmlFor="editor-terminal-shell-path"
-                      className="text-sm font-medium text-foreground-secondary shrink-0"
-                    >
-                      Shell Command
-                    </label>
-                    <input
-                      id="editor-terminal-shell-path"
-                      type="text"
-                      value={editorSettings.terminalShellPath}
-                      onChange={(e) =>
-                        onUpdateEditorSettings({
-                          terminalShellPath: e.target.value,
-                        })
-                      }
-                      placeholder="powershell.exe / pwsh / /bin/zsh"
-                      className="w-full px-3 py-2 text-sm border border-border hover:border-border-dark focus:outline-none focus:border-accent font-mono bg-background"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    Leave empty to fall back to auto detection.
-                  </p>
-                </div>
-              )}
-            </Tabs.Content>
-
-            {/* ===== BUILD TAB ===== */}
-            <Tabs.Content value="build" className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
-              <SectionHeader>Main File</SectionHeader>
-
-              <div className="py-2">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground-secondary">
-                    Main .tex File
-                  </span>
-                </div>
-                {texFiles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">
-                    No .tex files found in project
-                  </p>
-                ) : (
-                  <Select
-                    value={settings.mainFile || ""}
-                    onValueChange={(v) => onUpdateSettings({ mainFile: v || null })}
-                  >
-                    <SelectTrigger className="w-full" aria-label="Main .tex file">
-                      <SelectValue placeholder="Select main .tex file..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {texFiles.map((file) => (
-                        <SelectItem key={file} value={file}>
-                          {file}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  The entry point for LaTeX compilation
-                </p>
-              </div>
-
-              <SectionHeader>Git</SectionHeader>
-
+              <SectionHeader>{t("settings.gitSection.title")}</SectionHeader>
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-3">
                   <div
@@ -958,16 +234,16 @@ export function SettingsDialog({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground-secondary">
-                        Auto Fetch
+                        {t("settings.gitSection.autoFetch")}
                       </span>
                       {editorSettings.gitAutoFetchEnabled && (
                         <span className="text-[10px] px-1.5 py-0.5 border border-success/30 text-success font-medium uppercase tracking-wider bg-success/10">
-                          Active
+                          {t("common.active")}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-muted mt-0.5">
-                      Periodically sync remote refs in background
+                      {t("settings.gitSection.autoFetchDesc")}
                     </p>
                   </div>
                 </div>
@@ -980,7 +256,7 @@ export function SettingsDialog({
               {editorSettings.gitAutoFetchEnabled && (
                 <div className="pl-4 border-l-2 border-border ml-1">
                   <SelectField
-                    label="Interval"
+                    label={t("settings.gitSection.interval")}
                     value={editorSettings.gitAutoFetchIntervalSeconds}
                     onChange={(v) =>
                       onUpdateEditorSettings({
@@ -991,13 +267,728 @@ export function SettingsDialog({
                       })
                     }
                     options={[
-                      { value: 30, label: "30 seconds" },
-                      { value: 60, label: "1 minute" },
-                      { value: 120, label: "2 minutes" },
-                      { value: 300, label: "5 minutes" },
-                      { value: 600, label: "10 minutes" },
+                      { value: 30, label: t("git.secondsUnit", { count: 30 }) },
+                      { value: 60, label: t("git.minutesUnit", { count: 1, s: "" }) },
+                      { value: 120, label: t("git.minutesUnit", { count: 2, s: "s" }) },
+                      { value: 300, label: t("git.minutesUnit", { count: 5, s: "s" }) },
+                      { value: 600, label: t("git.minutesUnit", { count: 10, s: "s" }) },
                     ]}
                   />
+                </div>
+              )}
+              <SectionHeader>{t("settings.keybindings.title")}</SectionHeader>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 border flex items-center justify-center tabular-nums text-xs font-bold tracking-tight transition-colors ${
+                      editorSettings.vimMode
+                        ? "bg-accent border-accent text-accent-foreground"
+                        : "bg-accent-hover border-border text-muted-foreground"
+                    }`}
+                  >
+                    Vi
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground-secondary">
+                        {t("settings.keybindings.vimMode")}
+                      </span>
+                      {editorSettings.vimMode && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-accent text-accent-foreground tabular-nums font-bold tracking-wider">
+                          {t("settings.keybindings.normal")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted mt-0.5">
+                      {t("settings.keybindings.vimModeDesc")}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={editorSettings.vimMode}
+                  onCheckedChange={(v) => onUpdateEditorSettings({ vimMode: v })}
+                />
+              </div>
+
+              <SectionHeader>{t("settings.display.title")}</SectionHeader>
+
+              <FontSettings settings={editorSettings} onChange={onUpdateEditorSettings} />
+
+              <div className="flex items-center justify-between py-2">
+                <label
+                  htmlFor="editor-font-size"
+                  className="text-sm font-medium text-foreground-secondary"
+                >
+                  {t("settings.display.fontSize")}
+                </label>
+                <div className="settings-number-stepper">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        fontSize: Math.max(8, editorSettings.fontSize - 1),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                    aria-label={t("interface.decrease", {
+                      setting: t("settings.display.fontSize"),
+                    })}
+                  >
+                    <MinusIcon className="size-3" />
+                  </button>
+                  <input
+                    id="editor-font-size"
+                    type="number"
+                    min="8"
+                    max="32"
+                    value={editorSettings.fontSize}
+                    onChange={(e) =>
+                      onUpdateEditorSettings({
+                        fontSize: Math.min(32, Math.max(8, parseInt(e.target.value, 10) || 14)),
+                      })
+                    }
+                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 tabular-nums bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        fontSize: Math.min(32, editorSettings.fontSize + 1),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                    aria-label={t("interface.increase", {
+                      setting: t("settings.display.fontSize"),
+                    })}
+                  >
+                    <PlusIcon className="size-3" />
+                  </button>
+                  <span className="text-xs text-muted-foreground px-2 border-l border-border">
+                    px
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <label
+                  htmlFor="editor-line-height"
+                  className="text-sm font-medium text-foreground-secondary"
+                >
+                  {t("settings.display.lineHeight")}
+                </label>
+                <div className="settings-number-stepper">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        lineHeight: Math.max(
+                          1.0,
+                          Math.round((editorSettings.lineHeight - 0.1) * 10) / 10,
+                        ),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                    aria-label={t("interface.decrease", {
+                      setting: t("settings.display.lineHeight"),
+                    })}
+                  >
+                    <MinusIcon className="size-3" />
+                  </button>
+                  <input
+                    id="editor-line-height"
+                    type="number"
+                    min="1.0"
+                    max="3.0"
+                    step="0.1"
+                    value={editorSettings.lineHeight.toFixed(1)}
+                    onChange={(e) =>
+                      onUpdateEditorSettings({
+                        lineHeight: Math.min(3.0, Math.max(1.0, parseFloat(e.target.value) || 1.6)),
+                      })
+                    }
+                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 tabular-nums bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        lineHeight: Math.min(
+                          3.0,
+                          Math.round((editorSettings.lineHeight + 0.1) * 10) / 10,
+                        ),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                    aria-label={t("interface.increase", {
+                      setting: t("settings.display.lineHeight"),
+                    })}
+                  >
+                    <PlusIcon className="size-3" />
+                  </button>
+                </div>
+              </div>
+
+              <SelectField
+                label={t("settings.display.lineNumbers")}
+                value={editorSettings.lineNumbers}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    lineNumbers: v as EditorSettings["lineNumbers"],
+                  })
+                }
+                options={[
+                  { value: "on", label: t("settings.options.on") },
+                  { value: "off", label: t("settings.options.off") },
+                  { value: "relative", label: t("settings.options.relative") },
+                  { value: "interval", label: t("settings.options.interval") },
+                ]}
+              />
+
+              <SelectField
+                label={t("settings.display.renderWhitespace")}
+                value={editorSettings.renderWhitespace}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    renderWhitespace: v as EditorSettings["renderWhitespace"],
+                  })
+                }
+                options={[
+                  { value: "none", label: t("common.none") },
+                  { value: "boundary", label: t("settings.options.boundary") },
+                  { value: "selection", label: t("settings.options.selection") },
+                  { value: "trailing", label: t("settings.options.trailing") },
+                  { value: "all", label: t("settings.options.all") },
+                ]}
+              />
+
+              <div className="space-y-3 pt-1">
+                <CheckboxItem
+                  checked={editorSettings.smoothScrolling}
+                  onChange={(v) => onUpdateEditorSettings({ smoothScrolling: v })}
+                  label={t("settings.display.smoothScrolling")}
+                  description={t("settings.display.smoothScrollingDesc")}
+                />
+              </div>
+
+              <SectionHeader>{t("settings.minimap.title")}</SectionHeader>
+
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground-secondary">
+                      {t("settings.minimap.enableMinimap")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted mt-0.5">
+                    {t("settings.minimap.enableMinimapDesc")}
+                  </p>
+                </div>
+                <Switch
+                  checked={editorSettings.minimap.enabled}
+                  onCheckedChange={(v) =>
+                    onUpdateEditorSettings({
+                      minimap: { ...editorSettings.minimap, enabled: v },
+                    })
+                  }
+                />
+              </div>
+
+              {editorSettings.minimap.enabled && (
+                <div className="pl-4 border-l-2 border-border ml-1 space-y-1">
+                  <SelectField
+                    label={t("settings.minimap.side")}
+                    value={editorSettings.minimap.side}
+                    onChange={(v) =>
+                      onUpdateEditorSettings({
+                        minimap: {
+                          ...editorSettings.minimap,
+                          side: v as MinimapSettings["side"],
+                        },
+                      })
+                    }
+                    options={[
+                      { value: "right", label: t("settings.options.right") },
+                      { value: "left", label: t("settings.options.left") },
+                    ]}
+                  />
+
+                  <SelectField
+                    label={t("settings.minimap.showSlider")}
+                    value={editorSettings.minimap.showSlider}
+                    onChange={(v) =>
+                      onUpdateEditorSettings({
+                        minimap: {
+                          ...editorSettings.minimap,
+                          showSlider: v as MinimapSettings["showSlider"],
+                        },
+                      })
+                    }
+                    options={[
+                      { value: "mouseover", label: t("settings.options.mouseover") },
+                      { value: "always", label: t("settings.options.always") },
+                    ]}
+                  />
+
+                  <div className="pt-2">
+                    <CheckboxItem
+                      checked={editorSettings.minimap.renderCharacters}
+                      onChange={(v) =>
+                        onUpdateEditorSettings({
+                          minimap: {
+                            ...editorSettings.minimap,
+                            renderCharacters: v,
+                          },
+                        })
+                      }
+                      label={t("settings.minimap.renderCharacters")}
+                      description={t("settings.minimap.renderCharactersDesc")}
+                    />
+                  </div>
+
+                  <SelectField
+                    label={t("settings.minimap.size")}
+                    value={editorSettings.minimap.size}
+                    onChange={(v) =>
+                      onUpdateEditorSettings({
+                        minimap: {
+                          ...editorSettings.minimap,
+                          size: v as MinimapSettings["size"],
+                        },
+                      })
+                    }
+                    options={[
+                      { value: "proportional", label: t("settings.options.proportional") },
+                      { value: "fill", label: t("settings.options.fill") },
+                      { value: "fit", label: t("settings.options.fit") },
+                    ]}
+                  />
+
+                  <div className="flex items-center justify-between py-2">
+                    <label
+                      htmlFor="editor-minimap-scale"
+                      className="text-sm font-medium text-foreground-secondary"
+                    >
+                      {t("settings.minimap.scale")}
+                    </label>
+                    <div className="settings-number-stepper">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateEditorSettings({
+                            minimap: {
+                              ...editorSettings.minimap,
+                              scale: Math.max(1, editorSettings.minimap.scale - 1),
+                            },
+                          })
+                        }
+                        className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                        aria-label={t("interface.decrease", {
+                          setting: t("settings.minimap.scale"),
+                        })}
+                      >
+                        <MinusIcon className="size-3" />
+                      </button>
+                      <span className="w-10 text-center tabular-nums text-sm">
+                        {editorSettings.minimap.scale}x
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateEditorSettings({
+                            minimap: {
+                              ...editorSettings.minimap,
+                              scale: Math.min(3, editorSettings.minimap.scale + 1),
+                            },
+                          })
+                        }
+                        className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                        aria-label={t("interface.increase", {
+                          setting: t("settings.minimap.scale"),
+                        })}
+                      >
+                        <PlusIcon className="size-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <SectionHeader>{t("settings.editing.title")}</SectionHeader>
+
+              <div className="flex items-center justify-between py-2">
+                <label
+                  htmlFor="editor-tab-size"
+                  className="text-sm font-medium text-foreground-secondary"
+                >
+                  {t("settings.editing.tabSize")}
+                </label>
+                <div className="settings-number-stepper">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        tabSize: Math.max(1, editorSettings.tabSize - 1),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                    aria-label={t("interface.decrease", { setting: t("settings.editing.tabSize") })}
+                  >
+                    <MinusIcon className="size-3" />
+                  </button>
+                  <span className="w-10 text-center tabular-nums text-sm">
+                    {editorSettings.tabSize}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        tabSize: Math.min(8, editorSettings.tabSize + 1),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                    aria-label={t("interface.increase", { setting: t("settings.editing.tabSize") })}
+                  >
+                    <PlusIcon className="size-3" />
+                  </button>
+                  <span className="text-xs text-muted-foreground px-2 border-l border-border">
+                    spaces
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                <CheckboxItem
+                  checked={editorSettings.insertSpaces}
+                  onChange={(v) => onUpdateEditorSettings({ insertSpaces: v })}
+                  label={t("settings.editing.insertSpaces")}
+                  description={t("settings.editing.insertSpacesDesc")}
+                />
+              </div>
+
+              <SelectField
+                label={t("settings.display.wordWrap")}
+                value={editorSettings.wordWrap}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    wordWrap: v as EditorSettings["wordWrap"],
+                  })
+                }
+                options={[
+                  { value: "off", label: t("settings.options.off") },
+                  { value: "on", label: t("settings.options.on") },
+                  { value: "wordWrapColumn", label: t("settings.options.wordWrapColumn") },
+                  { value: "bounded", label: t("settings.options.bounded") },
+                ]}
+              />
+
+              {editorSettings.wordWrap === "wordWrapColumn" && (
+                <div className="pl-4 border-l-2 border-border ml-1">
+                  <div className="flex items-center justify-between py-2">
+                    <label
+                      htmlFor="editor-wrap-column"
+                      className="text-sm font-medium text-foreground-secondary"
+                    >
+                      {t("settings.display.wordWrapColumn")}
+                    </label>
+                    <div className="settings-number-stepper">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateEditorSettings({
+                            wordWrapColumn: Math.max(20, editorSettings.wordWrapColumn - 10),
+                          })
+                        }
+                        className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                        aria-label={t("interface.decrease", {
+                          setting: t("settings.display.wordWrapColumn"),
+                        })}
+                      >
+                        <MinusIcon className="size-3" />
+                      </button>
+                      <input
+                        id="editor-wrap-column"
+                        type="number"
+                        min="20"
+                        max="200"
+                        value={editorSettings.wordWrapColumn}
+                        onChange={(e) =>
+                          onUpdateEditorSettings({
+                            wordWrapColumn: Math.min(
+                              200,
+                              Math.max(20, parseInt(e.target.value, 10) || 80),
+                            ),
+                          })
+                        }
+                        className="w-14 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 tabular-nums bg-transparent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateEditorSettings({
+                            wordWrapColumn: Math.min(200, editorSettings.wordWrapColumn + 10),
+                          })
+                        }
+                        className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                        aria-label={t("interface.increase", {
+                          setting: t("settings.display.wordWrapColumn"),
+                        })}
+                      >
+                        <PlusIcon className="size-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <SelectField
+                label={t("settings.editing.autoClosingBrackets")}
+                value={editorSettings.autoClosingBrackets}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    autoClosingBrackets: v as EditorSettings["autoClosingBrackets"],
+                  })
+                }
+                options={[
+                  { value: "always", label: t("settings.options.always") },
+                  { value: "languageDefined", label: t("settings.options.languageDefined") },
+                  { value: "beforeWhitespace", label: t("settings.options.beforeWhitespace") },
+                  { value: "never", label: t("settings.options.never") },
+                ]}
+              />
+
+              <SelectField
+                label={t("settings.editing.autoClosingQuotes")}
+                value={editorSettings.autoClosingQuotes}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    autoClosingQuotes: v as EditorSettings["autoClosingQuotes"],
+                  })
+                }
+                options={[
+                  { value: "always", label: t("settings.options.always") },
+                  { value: "languageDefined", label: t("settings.options.languageDefined") },
+                  { value: "beforeWhitespace", label: t("settings.options.beforeWhitespace") },
+                  { value: "never", label: t("settings.options.never") },
+                ]}
+              />
+
+              <SelectField
+                label={t("settings.display.cursorBlinking")}
+                value={editorSettings.cursorBlinking}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    cursorBlinking: v as EditorSettings["cursorBlinking"],
+                  })
+                }
+                options={[
+                  { value: "blink", label: t("settings.options.blink") },
+                  { value: "smooth", label: t("settings.options.smooth") },
+                  { value: "phase", label: t("settings.options.phase") },
+                  { value: "expand", label: t("settings.options.expand") },
+                  { value: "solid", label: t("settings.options.solid") },
+                ]}
+              />
+
+              <SelectField
+                label={t("settings.display.cursorStyle")}
+                value={editorSettings.cursorStyle}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    cursorStyle: v as EditorSettings["cursorStyle"],
+                  })
+                }
+                options={[
+                  { value: "line", label: t("settings.options.line") },
+                  { value: "block", label: t("settings.options.block") },
+                  { value: "underline", label: t("settings.options.underline") },
+                  { value: "line-thin", label: t("settings.options.lineThin") },
+                  { value: "block-outline", label: t("settings.options.blockOutline") },
+                  { value: "underline-thin", label: t("settings.options.underlineThin") },
+                ]}
+              />
+
+              <SectionHeader>{t("settings.formatting.title")}</SectionHeader>
+
+              <div className="space-y-3 pt-1">
+                <CheckboxItem
+                  checked={editorSettings.formatOnSave}
+                  onChange={(v) => onUpdateEditorSettings({ formatOnSave: v })}
+                  label={t("settings.formatting.formatOnSave")}
+                  description={t("settings.formatting.formatOnSaveDesc")}
+                />
+
+                <CheckboxItem
+                  checked={editorSettings.formatOnPaste}
+                  onChange={(v) => onUpdateEditorSettings({ formatOnPaste: v })}
+                  label={t("settings.formatting.formatOnPaste")}
+                  description={t("settings.formatting.formatOnPasteDesc")}
+                />
+              </div>
+
+              <SectionHeader>{t("settings.terminalSection.title")}</SectionHeader>
+
+              <TerminalFontSettings
+                value={editorSettings.terminalFontFamily}
+                onChange={(font) => onUpdateEditorSettings({ terminalFontFamily: font })}
+              />
+
+              <div className="flex items-center justify-between py-2">
+                <label
+                  htmlFor="editor-terminal-font-size"
+                  className="text-sm font-medium text-foreground-secondary"
+                >
+                  {t("settings.terminalSection.fontSize")}
+                </label>
+                <div className="settings-number-stepper">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        terminalFontSize: Math.max(8, editorSettings.terminalFontSize - 1),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                    aria-label={t("interface.decrease", {
+                      setting: t("settings.terminalSection.fontSize"),
+                    })}
+                  >
+                    <MinusIcon className="size-3" />
+                  </button>
+                  <input
+                    id="editor-terminal-font-size"
+                    type="number"
+                    min="8"
+                    max="32"
+                    value={editorSettings.terminalFontSize}
+                    onChange={(e) =>
+                      onUpdateEditorSettings({
+                        terminalFontSize: Math.min(
+                          32,
+                          Math.max(8, parseInt(e.target.value, 10) || 13),
+                        ),
+                      })
+                    }
+                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 tabular-nums bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        terminalFontSize: Math.min(32, editorSettings.terminalFontSize + 1),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                    aria-label={t("interface.increase", {
+                      setting: t("settings.terminalSection.fontSize"),
+                    })}
+                  >
+                    <PlusIcon className="size-3" />
+                  </button>
+                  <span className="text-xs text-muted-foreground px-2 border-l border-border">
+                    px
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <label
+                  htmlFor="editor-terminal-line-height"
+                  className="text-sm font-medium text-foreground-secondary"
+                >
+                  {t("settings.terminalSection.lineHeight")}
+                </label>
+                <div className="settings-number-stepper">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        terminalLineHeight: Math.max(
+                          1.0,
+                          Math.round((editorSettings.terminalLineHeight - 0.1) * 10) / 10,
+                        ),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
+                    aria-label={t("interface.decrease", {
+                      setting: t("settings.terminalSection.lineHeight"),
+                    })}
+                  >
+                    <MinusIcon className="size-3" />
+                  </button>
+                  <input
+                    id="editor-terminal-line-height"
+                    type="number"
+                    min="1.0"
+                    max="3.0"
+                    step="0.1"
+                    value={editorSettings.terminalLineHeight.toFixed(1)}
+                    onChange={(e) =>
+                      onUpdateEditorSettings({
+                        terminalLineHeight: Math.min(
+                          3.0,
+                          Math.max(1.0, parseFloat(e.target.value) || 1.4),
+                        ),
+                      })
+                    }
+                    className="w-12 h-8 text-sm text-center border-0 focus:outline-none focus:ring-0 tabular-nums bg-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateEditorSettings({
+                        terminalLineHeight: Math.min(
+                          3.0,
+                          Math.round((editorSettings.terminalLineHeight + 0.1) * 10) / 10,
+                        ),
+                      })
+                    }
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
+                    aria-label={t("interface.increase", {
+                      setting: t("settings.terminalSection.lineHeight"),
+                    })}
+                  >
+                    <PlusIcon className="size-3" />
+                  </button>
+                </div>
+              </div>
+
+              <SelectField
+                label={t("settings.terminalSection.shellMode")}
+                value={editorSettings.terminalShellMode}
+                onChange={(v) =>
+                  onUpdateEditorSettings({
+                    terminalShellMode: v as EditorSettings["terminalShellMode"],
+                  })
+                }
+                options={[
+                  { value: "auto", label: t("settings.options.auto") },
+                  { value: "custom", label: t("settings.options.custom") },
+                ]}
+              />
+
+              {editorSettings.terminalShellMode === "custom" && (
+                <div className="pl-4 border-l-2 border-border ml-1 py-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <label
+                      htmlFor="editor-terminal-shell-path"
+                      className="text-sm font-medium text-foreground-secondary shrink-0"
+                    >
+                      {t("settings.terminalSection.shellPath")}
+                    </label>
+                    <input
+                      id="editor-terminal-shell-path"
+                      type="text"
+                      value={editorSettings.terminalShellPath}
+                      onChange={(e) =>
+                        onUpdateEditorSettings({
+                          terminalShellPath: e.target.value,
+                        })
+                      }
+                      placeholder={t("settings.terminalSection.shellPathPlaceholder")}
+                      className="settings-control w-64 font-mono"
+                    />
+                  </div>
                 </div>
               )}
             </Tabs.Content>
@@ -1007,17 +998,13 @@ export function SettingsDialog({
           <div className="flex items-center justify-between px-5 py-4 border-t border-border">
             <button
               type="button"
-              onClick={
-                activeTab === "editor" ? handleResetEditorSettings : handleResetLatexSettings
-              }
+              onClick={handleResetEditorSettings}
               className="text-xs text-muted hover:text-foreground transition-colors flex items-center gap-1.5 group"
             >
               <ArrowCounterClockwiseIcon className="size-3.5 group-hover:rotate-[-45deg] transition-transform" />
-              Reset to Defaults
+              {t("settings.resetDefaults")}
             </button>
-            <Dialog.Close className="px-6 py-2 text-sm font-medium bg-background text-foreground border border-border rounded-md">
-              Done
-            </Dialog.Close>
+            <Dialog.Close className="btn btn-primary">{t("settings.done")}</Dialog.Close>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

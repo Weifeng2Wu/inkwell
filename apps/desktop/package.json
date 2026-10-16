@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "clean": "rm -rf .next out",
     "lint": "biome lint .",
@@ -12,7 +12,7 @@
     "test": "vitest run",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:build": "node ../../scripts/build-desktop.mjs",
     "tauri:build:nice": "nice -n 10 tauri build"
   },
   "dependencies": {

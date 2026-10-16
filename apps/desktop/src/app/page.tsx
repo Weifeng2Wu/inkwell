@@ -1,16 +1,23 @@
 "use client";
 
 import {
+  CircleNotchIcon,
   GearIcon,
-  PlayCircleIcon,
-  RobotIcon,
+  PlayIcon,
   SidebarSimpleIcon,
+  SparkleIcon,
   TerminalIcon,
 } from "@phosphor-icons/react";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { AnimatePresence, motion, type PanInfo, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+function safeConvertFileSrc(filePath: string, protocol = "asset"): string {
+  if (!isTauri()) return filePath;
+  return convertFileSrc(filePath, protocol);
+}
+
 import { Logo } from "@/components/logo";
 import { InputDialog } from "@/components/ui/input-dialog";
 import {
@@ -22,53 +29,66 @@ import {
 } from "@/components/ui/tab-bar";
 import { useToast } from "@/components/ui/toast";
 import {
-  OpenCodeDisconnectedDialog,
-  OpenCodeErrorBoundary,
-  OpenCodeErrorDialog,
-  OpenCodePanel,
-} from "@/features/agent/components/lazy";
-import type { OpenCodeDaemonStatus, OpenCodeStatus } from "@/features/agent/lib/daemon";
-import {
-  extractTextParts,
-  type OpenCodeMessageItem,
-  parseOpenCodeMessageResponse,
-} from "@/features/agent/lib/messages";
-import { getPreferredOpenCodeConfig } from "@/features/agent/lib/preferences";
+  AcademicAgentPanel,
+  AgentReviewPanel,
+  ExternalAgentPanel,
+  useAcademicAgent,
+  useAgentReview,
+  useAgentSelection,
+  useExternalAgent,
+} from "@/features/agent";
 import {
   type DockviewPanelItem,
   DockviewPanelLayout,
 } from "@/features/editor/components/dockview-panel-layout";
 import { EditorErrorBoundary } from "@/features/editor/components/editor-error-boundary";
 import { EditorSkeleton } from "@/features/editor/components/editor-skeleton";
-import { GitMonacoDiffEditor, MonacoEditor, PdfViewer } from "@/features/editor/components/lazy";
+import {
+  DocumentEditor,
+  GitMonacoDiffEditor,
+  MonacoEditor,
+  PdfViewer,
+} from "@/features/editor/components/lazy";
 import { parseUnifiedDiffContent } from "@/features/editor/lib/diff";
+import {
+  placeSynctexPdfOnRight,
+  type SplitPaneSide,
+  type SplitPaneState,
+} from "@/features/editor/lib/synctex-layout";
+import { useProjectBibliography } from "@/features/editor/lib/use-project-bibliography";
 import { GitHubPublishDialog } from "@/features/git/components/github-publish-dialog";
 import { GitSidebarPanel } from "@/features/git/components/sidebar-git-panel";
 import {
   AI_COMMIT_DIFF_LIMIT,
-  AI_COMMIT_TIMEOUT_MS,
   buildAiCommitPrompt,
   sanitizeAiCommitMessage,
 } from "@/features/git/lib/ai-commit";
+import { useI18n } from "@/features/i18n";
 import {
-  COMPILE_PROMPT,
   findMainTexFile,
   findTexFiles,
+  isMissingSynctexData,
   LaTeXInstallPrompt,
   type MainFileDetectionResult,
   MainFileSelectionDialog,
+  MainFileSwitcher,
   SynctexInstallDialog,
   type SynctexResult,
   useLatexCompiler,
   useLatexSettings,
 } from "@/features/latex";
-import { SettingsDialog, useEditorSettings } from "@/features/settings";
+import {
+  matchesShortcut,
+  SettingsPage,
+  useEditorSettings,
+  useKeyboardShortcuts,
+} from "@/features/settings";
 import { TerminalPanel } from "@/features/terminal/components/terminal-panel";
 import { RecentProjects } from "@/features/workspace/components/recent-projects";
 import { FileSidebarPanel } from "@/features/workspace/components/sidebar-file-panel";
 import { useRecentProjects } from "@/features/workspace/lib/recent-projects";
 import { buildBasenameIndex, type TreeNode } from "@/features/workspace/lib/tree-index";
-import { sleep, throttle } from "@/lib/async";
+import { throttle } from "@/lib/async";
 import { INSTANT_TRANSITION, MAX_SIDEBAR_WIDTH, MIN_PANEL_WIDTH, PANEL_SPRING } from "@/lib/layout";
 import { pathSync } from "@/lib/path";
 import { useTauriDaemon } from "@/lib/tauri";
@@ -82,28 +102,18 @@ type GitDiffPreviewState = {
   error: string | null;
 };
 
-type SplitPaneSide = "left" | "right";
 type DragSourcePane = "primary" | "split";
-
-type SplitPaneState = {
-  side: SplitPaneSide;
-  openTabs: string[];
-  selectedFile?: string;
-  content: string;
-  isLoading: boolean;
-  error: string | null;
-  binaryPreviewUrl: string | null;
-  pdfRefreshKey: number;
-};
 
 export default function EditorPage() {
   const editorSettings = useEditorSettings();
+  const { bindings: keyboardShortcuts } = useKeyboardShortcuts();
   const daemon = useTauriDaemon({
     gitAutoFetchEnabled: editorSettings.settings.gitAutoFetchEnabled,
     gitAutoFetchIntervalMs: editorSettings.settings.gitAutoFetchIntervalSeconds * 1000,
   });
   const prefersReducedMotion = useReducedMotion();
   const { toast } = useToast();
+  const { t, locale } = useI18n();
   const recentProjects = useRecentProjects();
 
   const [selectedFile, setSelectedFile] = useState<string>();
@@ -111,34 +121,57 @@ export default function EditorPage() {
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>("file");
   const [gitDiffPreview, setGitDiffPreview] = useState<GitDiffPreviewState | null>(null);
   const [splitPane, setSplitPane] = useState<SplitPaneState | null>(null);
+  const bibliography = useProjectBibliography({
+    projectPath: daemon.projectPath,
+    files: daemon.files,
+    readFile: daemon.readFile,
+    change: daemon.lastFileChange,
+    primaryPath: selectedFile,
+    primaryContent: selectedFile && /\.bib$/i.test(selectedFile) ? fileContent : "",
+    secondaryPath: splitPane?.selectedFile,
+    secondaryContent:
+      splitPane?.selectedFile && /\.bib$/i.test(splitPane.selectedFile) ? splitPane.content : "",
+  });
   const [splitDropHint, setSplitDropHint] = useState<SplitPaneSide | null>(null);
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [binaryPreviewUrl, setBinaryPreviewUrl] = useState<string | null>(null);
-  const [pdfRefreshKey, _setPdfRefreshKey] = useState(0);
+  const [pdfRefreshKey, setPdfRefreshKey] = useState(0);
   const [pendingGoToLine, setPendingGoToLine] = useState(0);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sidebarWidth");
-      return saved ? parseInt(saved, 10) : 280;
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [rightPanelWidth, setRightPanelWidth] = useState(280);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedSidebar = localStorage.getItem("sidebarWidth");
+      if (savedSidebar) {
+        const parsed = parseInt(savedSidebar, 10);
+        if (!Number.isNaN(parsed) && parsed >= 150 && parsed <= 600) {
+          setSidebarWidth(parsed);
+        }
+      }
+      const savedRight = localStorage.getItem("rightPanelWidth");
+      if (savedRight) {
+        const parsed = parseInt(savedRight, 10);
+        if (!Number.isNaN(parsed) && parsed >= 280 && parsed <= 700) {
+          setRightPanelWidth(parsed);
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
     }
-    return 280;
-  });
-  const [rightPanelWidth, setRightPanelWidth] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("rightPanelWidth");
-      return saved ? parseInt(saved, 10) : 280;
-    }
-    return 280;
-  });
+  }, []);
   const [resizing, setResizing] = useState<"sidebar" | "right" | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"files" | "git">("files");
   const [highlightedFile, _setHighlightedFile] = useState<string | null>(null);
 
   const [commitMessage, setCommitMessage] = useState("");
   const [showCommitInput, setShowCommitInput] = useState(false);
+  const activeProjectPathRef = useRef(daemon.projectPath);
+  activeProjectPathRef.current = daemon.projectPath;
   const [isGeneratingCommitMessageAI, setIsGeneratingCommitMessageAI] = useState(false);
   const [showRemoteInput, setShowRemoteInput] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
@@ -146,12 +179,64 @@ export default function EditorPage() {
     type: "file" | "directory";
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [opencodeDaemonStatus, setOpencodeDaemonStatus] = useState<OpenCodeDaemonStatus>("stopped");
-  const [opencodePort, setOpencodePort] = useState(4096);
-  const [showDisconnectedDialog, setShowDisconnectedDialog] = useState(false);
-  const [showLatexSettings, setShowLatexSettings] = useState(false);
-  const [pendingOpenCodeMessage, setPendingOpenCodeMessage] = useState<string | null>(null);
-  const [opencodeError, setOpencodeError] = useState<string | null>(null);
+  const [showSettingsPage, setShowSettingsPage] = useState(false);
+  const [pendingAcademicMessage, setPendingAcademicMessage] = useState<string | null>(null);
+  const agentSelection = useAgentSelection();
+  const reviewBuffers = useRef<{ path: string; content: string }[]>([]);
+  reviewBuffers.current = [
+    ...(selectedFile && !binaryPreviewUrl && editorViewMode === "file"
+      ? [{ path: selectedFile, content: fileContent }]
+      : []),
+    ...(splitPane?.selectedFile && !splitPane.binaryPreviewUrl
+      ? [{ path: splitPane.selectedFile, content: splitPane.content }]
+      : []),
+  ].filter((buffer) => /\.(tex|bib|cls|sty|md|txt|csv)$/i.test(buffer.path));
+  const agentReview = useAgentReview({
+    directory: daemon.projectPath ?? undefined,
+    buffers: () => reviewBuffers.current,
+    onApplied: (path, content) => {
+      if (selectedFile === path && contentSaveTimeoutRef.current) {
+        clearTimeout(contentSaveTimeoutRef.current);
+        contentSaveTimeoutRef.current = null;
+      }
+      if (splitPane?.selectedFile === path && splitContentSaveTimeoutRef.current) {
+        clearTimeout(splitContentSaveTimeoutRef.current);
+        splitContentSaveTimeoutRef.current = null;
+      }
+      if (selectedFile === path) {
+        setFileContent(content ?? "");
+        if (content === null) setSelectedFile(undefined);
+      }
+      setSplitPane((current) =>
+        current?.selectedFile === path
+          ? {
+              ...current,
+              content: content ?? "",
+              selectedFile: content === null ? undefined : path,
+            }
+          : current,
+      );
+      void daemon.refreshFiles();
+    },
+  });
+  const academicAgent = useAcademicAgent({
+    directory: daemon.projectPath ?? undefined,
+    pendingMessage: pendingAcademicMessage,
+    onPendingMessageSent: () => setPendingAcademicMessage(null),
+    enabled: agentSelection.ready && agentSelection.selected === "builtin",
+    beforeTurn: agentReview.beforeTurn,
+    afterTurn: agentReview.afterTurn,
+  });
+  const externalAgent = useExternalAgent({
+    beforeTurn: agentReview.beforeTurn,
+    afterTurn: agentReview.afterTurn,
+    selection: agentSelection,
+    directory: daemon.projectPath ?? undefined,
+    config: academicAgent.config,
+    configReady: academicAgent.configReady,
+    pendingMessage: pendingAcademicMessage,
+    onPendingMessageSent: () => setPendingAcademicMessage(null),
+  });
 
   const [showMainFileDialog, setShowMainFileDialog] = useState(false);
   const [mainFileDetectionResult, setMainFileDetectionResult] =
@@ -168,7 +253,6 @@ export default function EditorPage() {
 
   const contentSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const splitContentSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const opencodeStartedForPathRef = useRef<string | null>(null);
   const savingVisualTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSaveTimeRef = useRef<{ path: string; time: number } | null>(null);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
@@ -251,198 +335,14 @@ The AI assistant will read and update this file during compilation.
     }
   }, [daemon]);
 
-  // Handle compile with main file detection
-  const handleCompileWithDetection = useCallback(async () => {
-    if (!daemon.projectPath) return;
-
-    // Ensure COMPILE_NOTES.md file exists before compilation
-    await ensureCompileNotesFile();
-
-    // Run detection
-    const result = await latexSettings.detectMainFile(daemon.projectPath);
-
-    if (!result) {
-      toast("Failed to detect main file", "error");
-      return;
-    }
-
-    // If detection found a main file and doesn't need user input, proceed
-    if (result.main_file && !result.needs_user_input) {
-      setShowRightPanel(true);
-      setPendingOpenCodeMessage(COMPILE_PROMPT.replace("{mainFile}", result.main_file));
-      return;
-    }
-
-    // If we need user input (ambiguous case), show the dialog
-    if (result.needs_user_input && result.tex_files.length > 0) {
-      setMainFileDetectionResult(result);
-      setShowMainFileDialog(true);
-      return;
-    }
-
-    // No tex files found
-    toast("No .tex files found in the project", "error");
-  }, [daemon.projectPath, latexSettings, toast, ensureCompileNotesFile]);
-
-  // Handle main file selection from dialog
-  const handleMainFileSelect = useCallback(
-    (mainFile: string) => {
-      latexSettings.setMainFile(mainFile);
-      setShowMainFileDialog(false);
-      setMainFileDetectionResult(null);
-
-      // Proceed with compilation
-      setShowRightPanel(true);
-      setPendingOpenCodeMessage(COMPILE_PROMPT.replace("{mainFile}", mainFile));
-    },
-    [latexSettings],
-  );
-
   const handleMainFileDialogCancel = useCallback(() => {
     setShowMainFileDialog(false);
     setMainFileDetectionResult(null);
   }, []);
 
-  const checkOpencodeStatus = useCallback(async () => {
-    try {
-      const status = await invoke<OpenCodeStatus>("opencode_status");
-      if (!status.installed) {
-        setOpencodeDaemonStatus("unavailable");
-      } else if (status.running) {
-        setOpencodeDaemonStatus("running");
-        setOpencodePort(status.port);
-      } else {
-        setOpencodeDaemonStatus("stopped");
-      }
-      return status;
-    } catch {
-      setOpencodeDaemonStatus("unavailable");
-      return null;
-    }
+  const handleToggleRightPanel = useCallback(() => {
+    setShowRightPanel((current) => !current);
   }, []);
-
-  const startOpencode = useCallback(
-    async (directory: string) => {
-      if (opencodeDaemonStatus === "unavailable") return null;
-      try {
-        setOpencodeDaemonStatus("starting");
-        const status = await invoke<OpenCodeStatus>("opencode_start", {
-          directory,
-          port: 4096,
-        });
-        setOpencodeDaemonStatus("running");
-        setOpencodePort(status.port);
-        opencodeStartedForPathRef.current = directory;
-        return status;
-      } catch (err) {
-        console.error("Failed to start OpenCode:", err);
-        setOpencodeDaemonStatus("unavailable");
-        toast(
-          "OpenCode is not installed or configured correctly. Please install it from https://opencode.ai/ or run: npm i -g opencode-ai@latest",
-          "error",
-        );
-        return null;
-      }
-    },
-    [opencodeDaemonStatus, toast],
-  );
-
-  const restartOpencode = useCallback(async () => {
-    if (!daemon.projectPath) {
-      toast("Please open a project first.", "error");
-      return;
-    }
-
-    // If status is "unavailable", re-check if OpenCode is now installed
-    if (opencodeDaemonStatus === "unavailable") {
-      const status = await checkOpencodeStatus();
-      if (!status?.installed) {
-        toast(
-          "OpenCode is still not installed. Please install it first:\nnpm i -g opencode-ai@latest\nor\nbrew install sst/tap/opencode",
-          "error",
-        );
-        return;
-      }
-      // OpenCode is now installed, proceed to start it
-      if (!status.running) {
-        await startOpencode(daemon.projectPath);
-        toast("OpenCode started successfully!", "success");
-      }
-      return;
-    }
-
-    try {
-      setOpencodeDaemonStatus("starting");
-      setOpencodeError(null);
-      const currentStatus = await invoke<OpenCodeStatus>("opencode_status");
-
-      if (!currentStatus.installed) {
-        setOpencodeDaemonStatus("unavailable");
-        setOpencodeError(
-          "OpenCode is not installed. Please install it first using npm or Homebrew.",
-        );
-        return;
-      }
-
-      const status = await invoke<OpenCodeStatus>("opencode_restart", {
-        directory: daemon.projectPath,
-      });
-      setOpencodeDaemonStatus("running");
-      setOpencodePort(status.port);
-      toast("OpenCode started successfully!", "success");
-    } catch (err) {
-      console.error("Failed to start OpenCode:", err);
-      setOpencodeDaemonStatus("stopped");
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setOpencodeError(errorMessage);
-    }
-  }, [daemon.projectPath, opencodeDaemonStatus, toast, checkOpencodeStatus, startOpencode]);
-
-  const handleMaxReconnectFailed = useCallback(() => {
-    setShowDisconnectedDialog(true);
-  }, []);
-
-  const handleCloseDisconnectedDialog = useCallback(() => {
-    setShowDisconnectedDialog(false);
-  }, []);
-
-  const handleRestartFromDialog = useCallback(() => {
-    setShowDisconnectedDialog(false);
-    restartOpencode();
-  }, [restartOpencode]);
-
-  const handleCloseErrorDialog = useCallback(() => {
-    setOpencodeError(null);
-  }, []);
-
-  const handleKillPort = useCallback(
-    async (port: number) => {
-      await invoke("kill_port_process", { port });
-      setOpencodeError(null);
-      await restartOpencode();
-    },
-    [restartOpencode],
-  );
-
-  const handleToggleRightPanel = useCallback(async () => {
-    const willOpen = !showRightPanel;
-    setShowRightPanel(willOpen);
-
-    if (willOpen && daemon.projectPath && opencodeDaemonStatus === "stopped") {
-      const status = await checkOpencodeStatus();
-      if (status?.installed && !status.running) {
-        await startOpencode(daemon.projectPath);
-      } else if (status?.running) {
-        opencodeStartedForPathRef.current = daemon.projectPath;
-      }
-    }
-  }, [
-    showRightPanel,
-    daemon.projectPath,
-    opencodeDaemonStatus,
-    checkOpencodeStatus,
-    startOpencode,
-  ]);
 
   useEffect(() => {
     localStorage.setItem("sidebarWidth", String(sidebarWidth));
@@ -451,10 +351,6 @@ The AI assistant will read and update this file during compilation.
   useEffect(() => {
     localStorage.setItem("rightPanelWidth", String(rightPanelWidth));
   }, [rightPanelWidth]);
-
-  useEffect(() => {
-    checkOpencodeStatus();
-  }, [checkOpencodeStatus]);
 
   useEffect(() => {
     if (pendingGoToLine > 0) {
@@ -466,7 +362,6 @@ The AI assistant will read and update this file during compilation.
 
   useEffect(() => {
     if (!daemon.projectPath) {
-      opencodeStartedForPathRef.current = null;
       if (splitContentSaveTimeoutRef.current) {
         clearTimeout(splitContentSaveTimeoutRef.current);
         splitContentSaveTimeoutRef.current = null;
@@ -476,7 +371,7 @@ The AI assistant will read and update this file during compilation.
   }, [daemon.projectPath]);
 
   useEffect(() => {
-    setShowTerminal(Boolean(daemon.projectPath));
+    setShowTerminal(false);
   }, [daemon.projectPath]);
 
   useEffect(() => {
@@ -485,26 +380,6 @@ The AI assistant will read and update this file during compilation.
         clearTimeout(splitContentSaveTimeoutRef.current);
         splitContentSaveTimeoutRef.current = null;
       }
-    };
-  }, []);
-
-  // Listen for opencode logs from Tauri backend
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen<{ type: string; message: string }>("opencode-log", (event) => {
-        const { type, message } = event.payload;
-        if (type === "stderr") {
-          console.error("[OpenCode]", message);
-        }
-      }).then((fn) => {
-        unlisten = fn;
-      });
-    });
-
-    return () => {
-      unlisten?.();
     };
   }, []);
 
@@ -524,7 +399,9 @@ The AI assistant will read and update this file during compilation.
 
     rafIdRef.current = requestAnimationFrame(() => {
       if (panel === "sidebar") {
-        const newWidth = Math.min(Math.max(info.point.x, MIN_PANEL_WIDTH), MAX_SIDEBAR_WIDTH);
+        const newWidth = Math.round(
+          Math.min(Math.max(info.point.x, MIN_PANEL_WIDTH), MAX_SIDEBAR_WIDTH),
+        );
         sidebarWidthRef.current = newWidth;
         document.documentElement.style.setProperty("--sidebar-width", `${newWidth}px`);
       } else if (panel === "right") {
@@ -646,19 +523,22 @@ The AI assistant will read and update this file during compilation.
       if (matches.length > 1) {
         const preferred = matches[0];
         if (preferred) {
-          toast(`Multiple files named "${normalized}" found. Opening "${preferred}".`, "error");
+          toast(t("files.multipleFilesFound", { name: normalized, preferred }), "error");
           return preferred;
         }
       }
 
       return matches[0] ?? normalized;
     },
-    [filesByBasename, toast],
+    [filesByBasename, toast, t],
   );
 
   const handleFileSelect = useCallback(
     async (path: string) => {
       const resolvedPath = resolveSelectablePath(path);
+      if (agentReview.changes.some((change) => change.path === resolvedPath)) {
+        agentReview.setOpen(true);
+      }
       setEditorViewMode("file");
       setGitDiffPreview(null);
       const fileType = getFileType(resolvedPath);
@@ -673,7 +553,8 @@ The AI assistant will read and update this file during compilation.
       if (fileType === "text") {
         setIsLoadingFile(true);
         try {
-          const content = await daemon.readFile(resolvedPath);
+          const proposal = agentReview.changes.find((change) => change.path === resolvedPath);
+          const content = proposal ? (proposal.before ?? "") : await daemon.readFile(resolvedPath);
           setFileContent(content ?? "");
         } catch (err) {
           const errorStr = String(err);
@@ -681,7 +562,7 @@ The AI assistant will read and update this file during compilation.
           // Handle file not found - remove from tabs and notify user
           if (errorStr.includes("FILE_NOT_FOUND")) {
             const fileName = pathSync.basename(resolvedPath);
-            toast(`File "${fileName}" no longer exists and has been removed from tabs`, "error");
+            toast(t("files.fileRemovedFromTabs", { name: fileName }), "error");
 
             // Remove the file from open tabs
             setOpenTabs((prev) => {
@@ -704,7 +585,7 @@ The AI assistant will read and update this file during compilation.
             });
           } else {
             console.error("Failed to read file:", err);
-            toast(`Failed to read file: ${err}`, "error");
+            toast(t("files.failedToReadFile", { error: String(err) }), "error");
             setFileContent("");
           }
         } finally {
@@ -714,16 +595,38 @@ The AI assistant will read and update this file during compilation.
         const fullPath = daemon.projectPath
           ? pathSync.join(daemon.projectPath, resolvedPath)
           : resolvedPath;
-        setBinaryPreviewUrl(convertFileSrc(fullPath));
+        setBinaryPreviewUrl(safeConvertFileSrc(fullPath));
         setFileContent("");
       }
     },
-    [daemon, getFileType, resolveSelectablePath, toast],
+    [
+      daemon,
+      getFileType,
+      resolveSelectablePath,
+      toast,
+      t,
+      agentReview.changes,
+      agentReview.setOpen,
+    ],
   );
+
+  const reviewWasOpen = useRef(false);
+  useEffect(() => {
+    const justOpened = agentReview.open && !reviewWasOpen.current;
+    reviewWasOpen.current = agentReview.open;
+    const first = agentReview.changes[0];
+    if (
+      justOpened &&
+      first &&
+      !agentReview.changes.some((change) => change.path === selectedFile)
+    ) {
+      void handleFileSelect(first.path);
+    }
+  }, [agentReview.open, agentReview.changes, selectedFile, handleFileSelect]);
 
   const handleSynctexClick = useCallback(
     async (page: number, x: number, y: number) => {
-      if (!daemon.projectPath || !selectedFile) return;
+      if (!daemon.projectPath || !selectedFile || !/\.pdf$/i.test(selectedFile)) return;
 
       // Resolve the PDF path on disk
       const pdfPath = pathSync.join(daemon.projectPath, selectedFile);
@@ -753,7 +656,18 @@ The AI assistant will read and update this file during compilation.
           resolvedFile = resolvedFile.replace(/^\/+/, "");
         }
 
-        // Open the file and navigate to the line
+        setSplitPane((current) =>
+          placeSynctexPdfOnRight(
+            current,
+            {
+              path: selectedFile,
+              url: safeConvertFileSrc(pdfPath),
+              refreshKey: pdfRefreshKey,
+            },
+            resolvedFile,
+          ),
+        );
+        setOpenTabs((current) => current.filter((path) => path !== selectedFile));
         await handleFileSelect(resolvedFile);
         setPendingGoToLine(result.line);
       } catch (err) {
@@ -761,20 +675,28 @@ The AI assistant will read and update this file during compilation.
         if (errorStr.includes("SYNCTEX_NOT_INSTALLED")) {
           pendingSynctexRetryRef.current = { page, x, y, context: "main" };
           setShowSynctexInstallDialog(true);
+        } else if (isMissingSynctexData(err)) {
+          toast(t("latex.synctexDataMissing"), "info");
         } else {
           console.error("SyncTeX lookup failed:", err);
-          toast("SyncTeX lookup failed. Check that your PDF has a .synctex.gz file.", "error");
+          toast(t("latex.synctexLookupFailed"), "error");
         }
       }
     },
-    [daemon.projectPath, selectedFile, handleFileSelect, toast],
+    [daemon.projectPath, selectedFile, pdfRefreshKey, handleFileSelect, toast, t],
   );
 
   const handleSplitSynctexClick = useCallback(
     async (page: number, x: number, y: number) => {
-      if (!daemon.projectPath || !splitPane?.selectedFile) return;
+      if (
+        !daemon.projectPath ||
+        !splitPane?.selectedFile ||
+        !/\.pdf$/i.test(splitPane.selectedFile)
+      )
+        return;
 
-      const pdfPath = pathSync.join(daemon.projectPath, splitPane.selectedFile);
+      const pdfFile = splitPane.selectedFile;
+      const pdfPath = pathSync.join(daemon.projectPath, pdfFile);
 
       try {
         const result = await invoke<SynctexResult>("latex_synctex_edit", {
@@ -799,6 +721,18 @@ The AI assistant will read and update this file during compilation.
           resolvedFile = resolvedFile.replace(/^\/+/, "");
         }
 
+        setSplitPane((current) =>
+          placeSynctexPdfOnRight(
+            current,
+            {
+              path: pdfFile,
+              url: safeConvertFileSrc(pdfPath),
+              refreshKey: splitPane.pdfRefreshKey,
+            },
+            resolvedFile,
+          ),
+        );
+        setOpenTabs((current) => current.filter((path) => path !== pdfFile));
         await handleFileSelect(resolvedFile);
         setPendingGoToLine(result.line);
       } catch (err) {
@@ -806,13 +740,15 @@ The AI assistant will read and update this file during compilation.
         if (errorStr.includes("SYNCTEX_NOT_INSTALLED")) {
           pendingSynctexRetryRef.current = { page, x, y, context: "split" };
           setShowSynctexInstallDialog(true);
+        } else if (isMissingSynctexData(err)) {
+          toast(t("latex.synctexDataMissing"), "info");
         } else {
           console.error("SyncTeX lookup failed:", err);
-          toast("SyncTeX lookup failed. Check that your PDF has a .synctex.gz file.", "error");
+          toast(t("latex.synctexLookupFailed"), "error");
         }
       }
     },
-    [daemon.projectPath, splitPane, handleFileSelect, toast],
+    [daemon.projectPath, splitPane, handleFileSelect, toast, t],
   );
 
   const handleSynctexInstallComplete = useCallback(() => {
@@ -1151,7 +1087,10 @@ The AI assistant will read and update this file during compilation.
           if (splitLoadRequestIdRef.current !== requestId) return;
           const errorStr = String(err);
           if (errorStr.includes("FILE_NOT_FOUND")) {
-            toast(`File "${pathSync.basename(resolvedPath)}" no longer exists`, "error");
+            toast(
+              t("files.fileNoLongerExists", { name: pathSync.basename(resolvedPath) }),
+              "error",
+            );
             setSplitPane(null);
             return;
           }
@@ -1181,6 +1120,7 @@ The AI assistant will read and update this file during compilation.
           binaryPreviewUrl: null,
           pdfRefreshKey: 0,
         };
+
         return {
           ...base,
           side,
@@ -1191,12 +1131,12 @@ The AI assistant will read and update this file during compilation.
           content: "",
           isLoading: false,
           error: null,
-          binaryPreviewUrl: convertFileSrc(fullPath),
+          binaryPreviewUrl: safeConvertFileSrc(fullPath),
           pdfRefreshKey: 0,
         };
       });
     },
-    [daemon, getFileType, resolveSelectablePath, toast, selectedFile, handleFileSelect],
+    [daemon, getFileType, resolveSelectablePath, toast, t, selectedFile, handleFileSelect],
   );
 
   const handleSplitContentChange = useCallback(
@@ -1234,6 +1174,150 @@ The AI assistant will read and update this file during compilation.
       void openFileInSplitPane(path, splitPane.side);
     },
     [splitPane, openFileInSplitPane],
+  );
+
+  // Execute local LaTeX compilation and handle PDF output / error diagnostics
+  const performCompile = useCallback(
+    async (mainFile: string) => {
+      if (!daemon.projectPath) return;
+
+      if (!hasAnyCompiler) {
+        toast(t("latex.noCompilerFound"), "error");
+        return;
+      }
+
+      try {
+        const result = await latexCompiler.compile(mainFile);
+
+        if (result.success) {
+          toast(t("latex.compileSuccess"), "success");
+
+          // Refresh file tree to include newly generated PDF and aux files
+          void daemon.refreshFiles();
+
+          // Target PDF relative path
+          const pdfRelPath = mainFile.replace(/\.tex$/i, ".pdf");
+
+          // Increment PDF refresh keys to force viewers to reload
+          setPdfRefreshKey((k) => k + 1);
+          setSplitPane((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              pdfRefreshKey: prev.pdfRefreshKey + 1,
+            };
+          });
+
+          // Check if PDF is already visible in main or split pane
+          const isPdfSelectedInMain = selectedFile === pdfRelPath;
+          const isPdfSelectedInSplit = splitPane?.selectedFile === pdfRelPath;
+
+          if (!isPdfSelectedInMain && !isPdfSelectedInSplit) {
+            void openFileInSplitPane(pdfRelPath, "right");
+          }
+        } else {
+          // Extract specific error details from compiler output logs if available
+          const errorLogs = latexCompiler.compileLogs
+            .filter((l) => l.is_error)
+            .map((l) => l.line.trim())
+            .filter((l) => l.length > 0);
+
+          const primaryError =
+            errorLogs.find(
+              (l) => l.startsWith("!") || l.includes("Error:") || l.includes("error:"),
+            ) || errorLogs[errorLogs.length - 1];
+
+          const displayMessage = primaryError
+            ? `${t("latex.compileFailed", { error: result.error || "Error" })}: ${primaryError}`
+            : result.error || t("latex.compileFailed", { error: "Unknown error" });
+
+          toast(displayMessage, "error");
+
+          if (daemon.projectPath) {
+            const errorLines = (
+              errorLogs.length > 0
+                ? errorLogs
+                : latexCompiler.compileLogs.slice(-15).map((l) => l.line)
+            )
+              .slice(-10)
+              .join("\n");
+            const diagnosticMsg = `LaTeX compilation of "${mainFile}" failed.\nError: ${result.error || ""}\n${primaryError ? `Primary cause: ${primaryError}\n` : ""}${errorLines ? `Recent log:\n${errorLines}` : ""}\nPlease inspect the LaTeX source code and help fix the compilation error.`;
+            setShowRightPanel(true);
+            setPendingAcademicMessage(diagnosticMsg);
+          }
+        }
+      } catch (err) {
+        console.error("Compilation error:", err);
+        toast(t("latex.compileFailed", { error: String(err) }), "error");
+      }
+    },
+    [
+      daemon,
+      hasAnyCompiler,
+      latexCompiler,
+      toast,
+      t,
+      selectedFile,
+      splitPane?.selectedFile,
+      openFileInSplitPane,
+    ],
+  );
+
+  // Handle compile with main file detection
+  const handleCompileWithDetection = useCallback(async () => {
+    if (!daemon.projectPath) return;
+
+    if (!hasAnyCompiler) {
+      toast(t("latex.noCompilerFound"), "error");
+      return;
+    }
+
+    // Ensure COMPILE_NOTES.md file exists before compilation
+    await ensureCompileNotesFile();
+
+    // Run detection
+    const result = await latexSettings.detectMainFile(daemon.projectPath);
+
+    if (!result) {
+      toast(t("latex.detectFailed"), "error");
+      return;
+    }
+
+    // If detection found a main file and doesn't need user input, proceed
+    if (result.main_file && !result.needs_user_input) {
+      void performCompile(result.main_file);
+      return;
+    }
+
+    // If we need user input (ambiguous case), show the dialog
+    if (result.needs_user_input && result.tex_files.length > 0) {
+      setMainFileDetectionResult(result);
+      setShowMainFileDialog(true);
+      return;
+    }
+
+    // No tex files found
+    toast(t("latex.noTexFilesToast"), "error");
+  }, [
+    daemon.projectPath,
+    hasAnyCompiler,
+    ensureCompileNotesFile,
+    latexSettings,
+    toast,
+    t,
+    performCompile,
+  ]);
+
+  // Handle main file selection from dialog
+  const handleMainFileSelect = useCallback(
+    (mainFile: string) => {
+      latexSettings.setMainFile(mainFile);
+      setShowMainFileDialog(false);
+      setMainFileDetectionResult(null);
+
+      void performCompile(mainFile);
+    },
+    [latexSettings, performCompile],
   );
 
   const handleSplitCloseTab = useCallback(
@@ -1552,8 +1636,11 @@ The AI assistant will read and update this file during compilation.
               </div>
             ) : (
               <EditorErrorBoundary>
-                <MonacoEditor
+                <DocumentEditor
+                  filePath={splitSelectedFile}
+                  projectPath={daemon.projectPath ?? ""}
                   content={splitPane.content}
+                  bibliography={bibliography}
                   readOnly={false}
                   onContentChange={handleSplitContentChange}
                   language={getFileLanguage(splitSelectedFile)}
@@ -1569,6 +1656,7 @@ The AI assistant will read and update this file during compilation.
     },
     [
       splitPane,
+      bibliography,
       getFileType,
       closeSplitPane,
       splitPaneTabs,
@@ -1582,6 +1670,7 @@ The AI assistant will read and update this file during compilation.
       handleSplitCloseTabsToRight,
       handleSplitSynctexClick,
       handleSplitContentChange,
+      daemon.projectPath,
       getFileLanguage,
       editorSettings.settings,
       editorSettings.editorTheme,
@@ -1602,14 +1691,14 @@ The AI assistant will read and update this file during compilation.
   // Sidebar tabs configuration
   const sidebarTabs = useMemo(
     (): TabItem[] => [
-      { id: "files", label: "Files" },
+      { id: "files", label: t("files.title") },
       {
         id: "git",
-        label: "Git",
+        label: t("git.title"),
         badge: gitStatus && gitStatus.changes.length > 0 ? gitStatus.changes.length : undefined,
       },
     ],
-    [gitStatus],
+    [gitStatus, t],
   );
 
   const handleContentChange = useCallback(
@@ -1680,11 +1769,11 @@ The AI assistant will read and update this file during compilation.
         setShowRightPanel(true);
       } catch (err) {
         console.error("Failed to open project:", err);
-        toast("Failed to open project", "error");
+        toast(t("workspace.openProjectFailed"), "error");
         recentProjects.removeProject(path);
       }
     },
-    [daemon, recentProjects, toast],
+    [daemon, recentProjects, toast, t],
   );
 
   const handleStageAll = useCallback(() => {
@@ -1731,20 +1820,20 @@ The AI assistant will read and update this file during compilation.
   const handleGitPush = useCallback(async () => {
     const result = await daemon.gitPush();
     if (result.success) {
-      toast("Changes pushed successfully", "success");
+      toast(t("git.pushSuccess"), "success");
     } else {
-      toast(result.error || "Failed to push changes", "error");
+      toast(result.error || t("git.pushFailed"), "error");
     }
-  }, [daemon, toast]);
+  }, [daemon, toast, t]);
 
   const handleGitPull = useCallback(async () => {
     const result = await daemon.gitPull();
     if (result.success) {
-      toast("Changes pulled successfully", "success");
+      toast(t("git.pullSuccess"), "success");
     } else {
-      toast(result.error || "Failed to pull changes", "error");
+      toast(result.error || t("git.pullFailed"), "error");
     }
-  }, [daemon, toast]);
+  }, [daemon, toast, t]);
 
   const handleRefreshGitStatus = useCallback(() => {
     void daemon.refreshGitStatus(true);
@@ -1753,22 +1842,22 @@ The AI assistant will read and update this file during compilation.
   const handleDiscardAll = useCallback(async () => {
     const result = await daemon.gitDiscardAll();
     if (result.success) {
-      toast("All changes discarded", "success");
+      toast(t("git.discardAllSuccess"), "success");
     } else {
-      toast(result.error || "Failed to discard changes", "error");
+      toast(result.error || t("git.discardAllFailed"), "error");
     }
-  }, [daemon, toast]);
+  }, [daemon, toast, t]);
 
   const handleDiscardFile = useCallback(
     async (path: string) => {
       const result = await daemon.gitDiscardFile(path);
       if (result.success) {
-        toast(`Discarded changes: ${path}`, "success");
+        toast(t("git.discardFileSuccess", { path }), "success");
       } else {
-        toast(result.error || "Failed to discard file", "error");
+        toast(result.error || t("git.discardFileFailed"), "error");
       }
     },
-    [daemon, toast],
+    [daemon, toast, t],
   );
 
   const handlePublishToGitHub = useCallback(async () => {
@@ -1776,13 +1865,13 @@ The AI assistant will read and update this file during compilation.
 
     const status = await daemon.ghCheck();
     if (!status.installed) {
-      toast("GitHub CLI (gh) is not installed. Install it from https://cli.github.com", "error");
+      toast(t("git.ghNotInstalled"), "error");
       return;
     }
 
     if (!status.authenticated) {
       if (daemon.isAuthenticatingGh) {
-        toast("GitHub authentication is already in progress in the terminal window.", "info");
+        toast(t("git.authInProgress"), "info");
         return;
       }
 
@@ -1792,14 +1881,14 @@ The AI assistant will read and update this file during compilation.
       );
       const loginResult = await daemon.ghAuthLogin();
       if (!loginResult.success || !loginResult.authenticated) {
-        toast(loginResult.error || "GitHub authentication failed", "error");
+        toast(loginResult.error || t("git.authFailed"), "error");
         return;
       }
-      toast("Authenticated with GitHub", "success");
+      toast(t("git.authenticatedSuccess"), "success");
     }
 
     setShowGitHubPublishDialog(true);
-  }, [daemon, toast]);
+  }, [daemon, toast, t]);
 
   const handleGitHubPublish = useCallback(
     async (name: string, isPrivate: boolean, description: string) => {
@@ -1807,182 +1896,30 @@ The AI assistant will read and update this file during compilation.
       const result = await daemon.ghCreateRepo(name, isPrivate, description || undefined);
       if (result.success) {
         setShowGitHubPublishDialog(false);
-        toast(`Repository published: ${result.url}`, "success");
+        toast(t("git.repoPublished", { url: result.url || "" }), "success");
       } else {
-        setGhPublishError(result.error || "Failed to create repository");
+        setGhPublishError(result.error || t("git.publishDialogTitle"));
       }
     },
-    [daemon, toast],
-  );
-
-  const runOpenCodePrompt = useCallback(
-    async (prompt: string): Promise<string> => {
-      if (!daemon.projectPath) {
-        throw new Error("Project path is missing");
-      }
-
-      const baseUrl = `http://localhost:${opencodePort}`;
-      const query = `?directory=${encodeURIComponent(daemon.projectPath)}`;
-      const headers = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-opencode-directory": encodeURIComponent(daemon.projectPath),
-      };
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), AI_COMMIT_TIMEOUT_MS);
-      let sessionId: string | null = null;
-
-      try {
-        const createSessionResponse = await fetch(`${baseUrl}/session${query}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({}),
-          signal: controller.signal,
-        });
-
-        if (!createSessionResponse.ok) {
-          const errorText = await createSessionResponse.text().catch(() => "");
-          throw new Error(
-            `Failed to create OpenCode session: ${createSessionResponse.status} ${errorText}`,
-          );
-        }
-
-        const sessionData = (await createSessionResponse.json()) as {
-          id?: string;
-        };
-        if (!sessionData.id) {
-          throw new Error("OpenCode session response missing id");
-        }
-        sessionId = sessionData.id;
-        const preferred = getPreferredOpenCodeConfig();
-        const requestBody: {
-          parts: Array<{ type: "text"; text: string }>;
-          noReply: boolean;
-          agent?: string;
-          model?: { providerID: string; modelID: string };
-        } = {
-          parts: [{ type: "text", text: prompt }],
-          noReply: false,
-        };
-        if (preferred.agent) {
-          requestBody.agent = preferred.agent;
-        }
-        if (preferred.model) {
-          requestBody.model = preferred.model;
-        }
-
-        const messageResponse = await fetch(`${baseUrl}/session/${sessionId}/message${query}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-
-        if (!messageResponse.ok) {
-          const errorText = await messageResponse.text().catch(() => "");
-          throw new Error(`OpenCode message failed: ${messageResponse.status} ${errorText}`);
-        }
-
-        const messageDataRaw = (await messageResponse.json()) as unknown;
-        const messageData = parseOpenCodeMessageResponse(messageDataRaw);
-        const initialText = extractTextParts(messageData?.parts).join("\n").trim();
-        if (initialText) {
-          return initialText;
-        }
-
-        const parentMessageId =
-          messageData?.info?.role === "user" ? messageData.info.id : undefined;
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < AI_COMMIT_TIMEOUT_MS) {
-          const messagesResponse = await fetch(`${baseUrl}/session/${sessionId}/message${query}`, {
-            method: "GET",
-            headers,
-            signal: controller.signal,
-          });
-
-          if (!messagesResponse.ok) {
-            const errorText = await messagesResponse.text().catch(() => "");
-            throw new Error(
-              `Failed to poll OpenCode messages: ${messagesResponse.status} ${errorText}`,
-            );
-          }
-
-          const messagesData = (await messagesResponse.json()) as unknown;
-          const items = Array.isArray(messagesData)
-            ? (messagesData as OpenCodeMessageItem[])
-            : messagesData &&
-                typeof messagesData === "object" &&
-                Array.isArray((messagesData as { messages?: OpenCodeMessageItem[] }).messages)
-              ? (messagesData as { messages: OpenCodeMessageItem[] }).messages
-              : [];
-
-          for (let i = items.length - 1; i >= 0; i--) {
-            const item = items[i];
-            if (!item) continue;
-            const info = item?.info;
-            if (info?.role !== "assistant") continue;
-            if (parentMessageId && info.parentID && info.parentID !== parentMessageId) {
-              continue;
-            }
-
-            const text = extractTextParts(item.parts).join("\n").trim();
-            if (text) {
-              return text;
-            }
-
-            const errorMessage = info.error?.data?.message;
-            if (errorMessage) {
-              throw new Error(errorMessage);
-            }
-          }
-
-          await sleep(500);
-        }
-
-        throw new Error("OpenCode returned an empty response");
-      } finally {
-        clearTimeout(timeoutId);
-        if (sessionId) {
-          void fetch(`${baseUrl}/session/${sessionId}${query}`, {
-            method: "DELETE",
-            headers,
-          }).catch(() => {});
-        }
-      }
-    },
-    [daemon.projectPath, opencodePort],
+    [daemon, toast, t],
   );
 
   const handleGenerateCommitMessageAI = useCallback(async () => {
     if (!daemon.projectPath) {
-      toast("Please open a project first.", "error");
+      toast(t("agent.openProjectFirst"), "error");
       return;
     }
 
     if (stagedChanges.length === 0) {
-      toast("Stage files before generating commit message.", "error");
+      toast(t("git.stageBeforeAi"), "error");
       return;
     }
 
+    const projectPath = daemon.projectPath;
     setShowCommitInput(true);
     setIsGeneratingCommitMessageAI(true);
 
     try {
-      const status = await checkOpencodeStatus();
-      if (!status?.installed) {
-        toast("OpenCode is not installed. Run: npm i -g opencode-ai@latest", "error");
-        return;
-      }
-
-      if (!status.running) {
-        const started = await startOpencode(daemon.projectPath);
-        if (!started) {
-          toast("Failed to start OpenCode daemon.", "error");
-          return;
-        }
-      }
-
       const diffChunks: string[] = await Promise.all(
         stagedChanges.map((change: { path: string }) => daemon.gitDiff(change.path, true)),
       );
@@ -1993,54 +1930,61 @@ The AI assistant will read and update this file during compilation.
         .trim();
 
       if (!mergedDiff) {
-        toast("No textual staged diff available.", "error");
+        toast(t("git.noDiffAvailable"), "error");
         return;
       }
 
       const prompt = buildAiCommitPrompt(mergedDiff, "staged");
-      const aiRaw = await runOpenCodePrompt(prompt);
+      const aiRaw = await (agentSelection.selected === "builtin"
+        ? academicAgent
+        : externalAgent
+      ).generateCommitMessage(prompt);
       const aiMessage = sanitizeAiCommitMessage(aiRaw);
 
       if (!aiMessage) {
-        toast("AI returned an empty commit message.", "error");
+        toast(t("git.emptyAiCommit"), "error");
         return;
       }
 
+      if (activeProjectPathRef.current !== projectPath) return;
       setCommitMessage(aiMessage);
-      toast("AI commit draft generated.", "success");
+      toast(t("git.aiCommitGenerated"), "success");
     } catch (error) {
       console.error("Failed to generate AI commit message:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast(`AI draft failed: ${errorMessage}`, "error");
+      toast(t("git.aiDraftFailed", { error: errorMessage }), "error");
     } finally {
       setIsGeneratingCommitMessageAI(false);
     }
-  }, [daemon, stagedChanges, checkOpencodeStatus, startOpencode, runOpenCodePrompt, toast]);
+  }, [daemon, stagedChanges, academicAgent, externalAgent, agentSelection.selected, toast, t]);
 
   const handleCommit = useCallback(async () => {
     if (!commitMessage.trim()) return;
     const result = await daemon.gitCommit(commitMessage.trim());
     if (result.success) {
-      toast("Changes committed", "success");
+      toast(t("git.commitSuccess"), "success");
       setCommitMessage("");
       setShowCommitInput(false);
     } else {
-      toast(result.error || "Failed to commit", "error");
+      toast(result.error || t("git.commitFailed"), "error");
     }
-  }, [commitMessage, daemon, toast]);
+  }, [commitMessage, daemon, toast, t]);
 
-  const validateFileName = useCallback((name: string): string | null => {
-    if (!name.trim()) {
-      return "Name cannot be empty";
-    }
-    if (name.includes("/") || name.includes("\\")) {
-      return "Name cannot contain / or \\";
-    }
-    if (name.startsWith(".")) {
-      return "Name cannot start with .";
-    }
-    return null;
-  }, []);
+  const validateFileName = useCallback(
+    (name: string): string | null => {
+      if (!name.trim()) {
+        return t("files.invalidName");
+      }
+      if (name.includes("/") || name.includes("\\")) {
+        return t("files.invalidName");
+      }
+      if (name.startsWith(".")) {
+        return t("files.invalidName");
+      }
+      return null;
+    },
+    [t],
+  );
 
   const handleCreateConfirm = useCallback(
     async (value: string) => {
@@ -2053,24 +1997,29 @@ The AI assistant will read and update this file during compilation.
         }
         setCreateDialog(null);
       } catch (error) {
-        toast(`Failed to create: ${error}`, "error");
+        toast(t("files.failedToCreate", { error: String(error) }), "error");
       }
     },
-    [createDialog, daemon, toast],
+    [createDialog, daemon, toast, t],
   );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMod = e.metaKey || e.ctrlKey;
-      const key = e.key.toLowerCase();
+      if (typeof e.key !== "string" || e.isComposing || e.defaultPrevented || e.repeat) return;
+      if (
+        e.target instanceof Element &&
+        e.target.closest('[data-shortcut-recorder], [role="dialog"]')
+      )
+        return;
+      if (showSettingsPage && !matchesShortcut(e, keyboardShortcuts.settings)) return;
 
-      if (isMod && key === "o" && !e.shiftKey) {
+      if (matchesShortcut(e, keyboardShortcuts.openProject)) {
         e.preventDefault();
         handleOpenFolder();
         return;
       }
 
-      if (isMod && key === "w" && !e.shiftKey) {
+      if (matchesShortcut(e, keyboardShortcuts.closeTab)) {
         e.preventDefault();
         if (selectedFile) {
           handleCloseTab(selectedFile);
@@ -2078,19 +2027,39 @@ The AI assistant will read and update this file during compilation.
         return;
       }
 
-      // Compile with AI: Cmd/Ctrl+Shift+B
-      if (isMod && e.shiftKey && key === "b") {
+      if (matchesShortcut(e, keyboardShortcuts.compile)) {
         e.preventDefault();
         if (daemon.projectPath) {
           handleCompileWithDetection();
         }
         return;
       }
+
+      if (matchesShortcut(e, keyboardShortcuts.settings)) {
+        e.preventDefault();
+        setShowSettingsPage((prev) => !prev);
+        return;
+      }
+      if (matchesShortcut(e, keyboardShortcuts.sidebar)) {
+        e.preventDefault();
+        setShowSidebar((previous) => !previous);
+      } else if (matchesShortcut(e, keyboardShortcuts.terminal)) {
+        e.preventDefault();
+        setShowTerminal((previous) => !previous);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [daemon, handleOpenFolder, selectedFile, handleCloseTab, handleCompileWithDetection]);
+  }, [
+    daemon,
+    handleOpenFolder,
+    selectedFile,
+    handleCloseTab,
+    handleCompileWithDetection,
+    keyboardShortcuts,
+    showSettingsPage,
+  ]);
 
   const isShowingGitDiff =
     editorViewMode === "git-diff" && !!gitDiffPreview && selectedFile === gitDiffPreview.path;
@@ -2120,7 +2089,16 @@ The AI assistant will read and update this file during compilation.
         />
       )}
 
-      {selectedFile ? (
+      {agentReview.open && agentReview.changes.some((change) => change.path === selectedFile) ? (
+        <div className="flex-1 min-h-0">
+          <AgentReviewPanel
+            review={agentReview}
+            editorSettings={editorSettings.settings}
+            filePath={selectedFile}
+            onFileSelect={handleFileSelect}
+          />
+        </div>
+      ) : selectedFile ? (
         isShowingGitDiff ? (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="border-b border-border bg-accent-hover px-3 py-2 flex items-center justify-between gap-2">
@@ -2234,8 +2212,11 @@ The AI assistant will read and update this file during compilation.
             className="flex-1 min-h-0"
           >
             <EditorErrorBoundary>
-              <MonacoEditor
+              <DocumentEditor
+                filePath={selectedFile}
+                projectPath={daemon.projectPath ?? ""}
                 content={fileContent}
+                bibliography={bibliography}
                 readOnly={false}
                 onContentChange={handleContentChange}
                 language={getFileLanguage(selectedFile)}
@@ -2256,7 +2237,7 @@ The AI assistant will read and update this file during compilation.
   );
 
   const editorPanelItems: DockviewPanelItem[] = [];
-  if (selectedFile || openTabs.length > 0) {
+  if (selectedFile || openTabs.length > 0 || (agentReview.open && agentReview.changes.length > 0)) {
     editorPanelItems.push({
       id: "editor-primary",
       title: selectedFile ? pathSync.basename(selectedFile) : "Editor",
@@ -2291,7 +2272,9 @@ The AI assistant will read and update this file during compilation.
                 <div className="text-sm font-medium px-2 py-1 -ml-2 truncate">
                   {daemon.projectPath ? pathSync.basename(daemon.projectPath) : "Inkwell"}
                 </div>
-                {isSaving && <span className="text-xs text-muted shrink-0">Saving...</span>}
+                {isSaving && (
+                  <span className="text-xs text-muted shrink-0">{t("editor.saving")}</span>
+                )}
               </div>
             </div>
 
@@ -2300,75 +2283,85 @@ The AI assistant will read and update this file during compilation.
                 <button
                   type="button"
                   onClick={() => setShowSidebar((prev) => !prev)}
-                  className={`h-8 w-8 border border-border transition-colors flex items-center justify-center bg-background text-foreground ${
-                    showSidebar
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "hover:bg-accent-hover hover:border-border-dark"
-                  }`}
-                  title="Toggle Sidebar"
+                  className="toolbar-icon-button"
+                  aria-pressed={showSidebar}
+                  aria-label={t("header.toggleSidebar")}
+                  title={t("header.toggleSidebar")}
                 >
-                  <SidebarSimpleIcon className="size-4" weight="bold" />
+                  <SidebarSimpleIcon className="size-4" aria-hidden="true" />
                 </button>
+              )}
+
+              {daemon.projectPath && (
+                <MainFileSwitcher
+                  mainFile={latexSettings.settings.mainFile}
+                  texFiles={texFiles}
+                  disabled={latexSettings.isDetecting || latexCompiler.isCompiling}
+                  onSelect={latexSettings.setMainFile}
+                />
               )}
 
               {daemon.projectPath && (
                 <button
                   type="button"
                   onClick={() => setShowTerminal((prev) => !prev)}
-                  className={`h-8 w-8 border border-border transition-colors flex items-center justify-center bg-background text-foreground ${
-                    showTerminal
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "hover:bg-accent-hover hover:border-border-dark"
-                  }`}
-                  title="Toggle Terminal"
+                  className="toolbar-icon-button"
+                  aria-pressed={showTerminal}
+                  aria-label={t("header.toggleTerminal")}
+                  title={t("header.toggleTerminal")}
                 >
-                  <TerminalIcon className="size-4" weight="bold" />
+                  <TerminalIcon className="size-4" aria-hidden="true" />
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={handleToggleRightPanel}
-                className={`h-8 w-8 border border-border transition-colors flex items-center justify-center bg-background text-foreground ${
-                  showRightPanel
-                    ? "border-accent bg-accent/10 text-accent"
-                    : "hover:bg-accent-hover hover:border-border-dark"
-                }`}
-                title="Toggle Agent Mode"
+                className="toolbar-icon-button"
+                aria-pressed={showRightPanel}
+                aria-label={t("header.toggleAgent")}
+                title={t("header.toggleAgent")}
               >
-                <RobotIcon className="size-4" weight="bold" />
+                <SparkleIcon className="size-4" aria-hidden="true" />
               </button>
 
-              {daemon.projectPath && (
-                <>
-                  <span className="text-border text-lg select-none">/</span>
-                  <div className="flex items-center gap-2 h-8">
-                    <button
-                      type="button"
-                      onClick={handleCompileWithDetection}
-                      disabled={latexSettings.isDetecting}
-                      className={`h-8 w-8 border border-border transition-colors flex items-center justify-center bg-background text-foreground ${
-                        latexSettings.isDetecting
-                          ? "opacity-50 cursor-not-allowed"
-                          : "hover:bg-accent-hover hover:border-border-dark"
-                      }`}
-                      title="Compile (Ctrl+Shift+B)"
-                    >
-                      <PlayCircleIcon className="size-4" />
-                    </button>
+              <span className="text-border text-lg select-none">/</span>
+              <div className="flex items-center gap-2 h-8">
+                {daemon.projectPath && (
+                  <button
+                    type="button"
+                    onClick={handleCompileWithDetection}
+                    disabled={latexSettings.isDetecting || latexCompiler.isCompiling}
+                    className="toolbar-icon-button"
+                    title={
+                      latexCompiler.isCompiling ? t("latex.compiling") : t("header.compileTooltip")
+                    }
+                    aria-label={
+                      latexCompiler.isCompiling ? t("latex.compiling") : t("header.compileTooltip")
+                    }
+                  >
+                    {latexCompiler.isCompiling ? (
+                      <CircleNotchIcon
+                        className="size-4 animate-spin text-accent"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <PlayIcon className="size-4" aria-hidden="true" />
+                    )}
+                  </button>
+                )}
 
-                    <button
-                      type="button"
-                      onClick={() => setShowLatexSettings(true)}
-                      className="h-8 w-8 border border-border bg-background text-foreground hover:bg-accent-hover hover:border-border-dark transition-colors flex items-center justify-center"
-                      title="Settings"
-                      aria-label="Settings"
-                    >
-                      <GearIcon className="size-4" />
-                    </button>
-                  </div>
-                </>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsPage(true)}
+                  className="toolbar-icon-button"
+                  aria-pressed={showSettingsPage}
+                  title={t("header.settingsTooltip")}
+                  aria-label={t("header.settingsTooltip")}
+                >
+                  <GearIcon className="size-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -2385,7 +2378,7 @@ The AI assistant will read and update this file during compilation.
               transition={prefersReducedMotion ? INSTANT_TRANSITION : PANEL_SPRING}
               className="flex flex-shrink-0"
               style={{
-                willChange: prefersReducedMotion ? undefined : "transform, opacity",
+                willChange: "auto",
               }}
             >
               <aside
@@ -2488,6 +2481,28 @@ The AI assistant will read and update this file during compilation.
         </AnimatePresence>
 
         <div className="flex-1 min-w-0 w-0 flex flex-col overflow-hidden">
+          {agentReview.changes.length > 0 &&
+            (!agentReview.open ||
+              !agentReview.changes.some((change) => change.path === selectedFile)) && (
+              <div className="flex items-center justify-end border-b border-border px-3 py-1">
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    agentReview.setOpen(true);
+                    const first = agentReview.changes[0];
+                    if (first) void handleFileSelect(first.path);
+                  }}
+                >
+                  {
+                    { zh: "审阅 Agent 修改", en: "Review Agent changes", ko: "Agent 변경 검토" }[
+                      locale
+                    ]
+                  }{" "}
+                  ({agentReview.changes.length})
+                </button>
+              </div>
+            )}
           {daemon.projectPath && editorPanelItems.length > 0 ? (
             <div ref={editorWorkspaceRef} className="relative flex-1 min-h-0">
               {splitDropHint && (
@@ -2495,8 +2510,8 @@ The AI assistant will read and update this file during compilation.
                   <div
                     className={`absolute inset-y-0 w-1/2 transition-opacity duration-100 ${
                       splitDropHint === "left"
-                        ? "left-0 border-r border-accent/40 bg-gradient-to-r from-foreground/15 to-transparent shadow-[inset_-20px_0_24px_-20px_rgba(0,0,0,0.45)]"
-                        : "right-0 border-l border-accent/40 bg-gradient-to-l from-foreground/15 to-transparent shadow-[inset_20px_0_24px_-20px_rgba(0,0,0,0.45)]"
+                        ? "left-0 border-r border-accent/40 bg-gradient-to-r from-foreground/15 to-transparent"
+                        : "right-0 border-l border-accent/40 bg-gradient-to-l from-foreground/15 to-transparent"
                     }`}
                   />
                 </div>
@@ -2512,7 +2527,7 @@ The AI assistant will read and update this file during compilation.
                 <div className="flex flex-col items-center justify-center text-center px-6">
                   <Logo size="large" className="h-24 w-auto mb-10" />
                   <button type="button" onClick={handleOpenFolder} className="btn btn-primary">
-                    Open Folder
+                    {t("welcome.openFolder")}
                   </button>
                   <RecentProjects
                     projects={recentProjects.projects}
@@ -2590,59 +2605,52 @@ The AI assistant will read and update this file during compilation.
                 }}
                 className="border-l border-border flex flex-col flex-shrink-0 overflow-hidden"
               >
-                <OpenCodeErrorBoundary onReset={restartOpencode}>
-                  <OpenCodePanel
-                    className="h-full"
-                    baseUrl={`http://localhost:${opencodePort}`}
+                {agentSelection.ready && agentSelection.selected !== "builtin" ? (
+                  <ExternalAgentPanel
+                    agent={externalAgent}
+                    selected={agentSelection.selected}
                     directory={daemon.projectPath ?? undefined}
-                    autoConnect={opencodeDaemonStatus === "running" && !!daemon.projectPath}
-                    daemonStatus={opencodeDaemonStatus}
-                    onRestartOpenCode={restartOpencode}
-                    onMaxReconnectFailed={handleMaxReconnectFailed}
-                    onFileClick={handleFileSelect}
-                    pendingMessage={pendingOpenCodeMessage}
-                    onPendingMessageSent={() => setPendingOpenCodeMessage(null)}
+                    files={daemon.files}
+                    skills={academicAgent.catalog.filter((skill) =>
+                      academicAgent.config.skillIds.includes(skill.id),
+                    )}
+                    enabledSkillIds={academicAgent.config.skillIds}
                   />
-                </OpenCodeErrorBoundary>
+                ) : (
+                  <AcademicAgentPanel
+                    key={daemon.projectPath ?? "no-project"}
+                    agent={academicAgent}
+                    files={daemon.files}
+                  />
+                )}
               </aside>
             </motion.div>
           )}
         </AnimatePresence>
       </main>
 
-      <OpenCodeDisconnectedDialog
-        open={showDisconnectedDialog}
-        onClose={handleCloseDisconnectedDialog}
-        onRestart={handleRestartFromDialog}
-      />
-
-      <OpenCodeErrorDialog
-        open={!!opencodeError}
-        error={opencodeError ?? ""}
-        onClose={handleCloseErrorDialog}
-        onRetry={restartOpencode}
-        onKillPort={handleKillPort}
-      />
-
       {createDialog && (
         <InputDialog
-          title={createDialog.type === "file" ? "New File" : "New Folder"}
-          placeholder={createDialog.type === "file" ? "file.tex" : "folder"}
+          title={createDialog.type === "file" ? t("files.newFile") : t("files.newFolder")}
+          placeholder={createDialog.type === "file" ? "file.tex" : t("files.folderName")}
           onConfirm={handleCreateConfirm}
           onCancel={() => setCreateDialog(null)}
           validator={validateFileName}
         />
       )}
 
-      <SettingsDialog
-        open={showLatexSettings}
-        onClose={() => setShowLatexSettings(false)}
-        settings={latexSettings.settings}
-        onUpdateSettings={latexSettings.updateSettings}
-        editorSettings={editorSettings.settings}
-        onUpdateEditorSettings={editorSettings.updateSettings}
-        texFiles={texFiles}
-      />
+      {showSettingsPage && (
+        <SettingsPage
+          onClose={() => {
+            setShowSettingsPage(false);
+          }}
+          academicAgent={academicAgent}
+          agentSelection={agentSelection}
+          externalAgent={externalAgent}
+          editorSettings={editorSettings.settings}
+          onUpdateEditorSettings={editorSettings.updateSettings}
+        />
+      )}
 
       {mainFileDetectionResult && (
         <MainFileSelectionDialog

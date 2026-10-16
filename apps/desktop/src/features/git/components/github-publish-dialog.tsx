@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Spinner } from "@/components/ui/spinner";
+import { useI18n } from "@/features/i18n";
 
 interface GitHubPublishDialogProps {
   defaultRepoName: string;
@@ -20,6 +21,7 @@ export function GitHubPublishDialog({
   isCreating,
   error,
 }: GitHubPublishDialogProps) {
+  const { t } = useI18n();
   const [repoName, setRepoName] = useState(defaultRepoName);
   const [isPrivate, setIsPrivate] = useState(true);
   const [description, setDescription] = useState("");
@@ -64,7 +66,7 @@ export function GitHubPublishDialog({
           {/* Header */}
           <div className="px-5 py-4 border-b border-border">
             <h3 id={titleId} className="text-sm font-medium">
-              Publish to GitHub
+              {t("git.publishDialogTitle")}
             </h3>
           </div>
 
@@ -72,11 +74,8 @@ export function GitHubPublishDialog({
           <div className="px-5 py-4 space-y-4">
             {/* Repo name */}
             <div>
-              <label
-                htmlFor="github-repo-name"
-                className="block text-xs font-mono text-muted mb-1.5"
-              >
-                Repository name
+              <label htmlFor="github-repo-name" className="block text-xs text-muted mb-1.5">
+                {t("git.repoName")}
               </label>
               <input
                 id="github-repo-name"
@@ -102,49 +101,46 @@ export function GitHubPublishDialog({
 
             {/* Visibility toggle */}
             <div>
-              <span className="block text-xs font-mono text-muted mb-1.5">Visibility</span>
+              <span className="block text-xs text-muted mb-1.5">Visibility</span>
               <div className="flex border border-border">
                 <button
                   type="button"
                   onClick={() => setIsPrivate(false)}
                   disabled={isCreating}
-                  className={`flex-1 text-xs font-mono py-2 transition-colors ${
+                  className={`flex-1 text-xs py-2 transition-colors ${
                     !isPrivate
                       ? "bg-accent text-accent-foreground"
                       : "bg-background text-foreground hover:bg-accent-hover"
                   } disabled:opacity-50`}
                 >
-                  Public
+                  {t("git.publicRepo")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsPrivate(true)}
                   disabled={isCreating}
-                  className={`flex-1 text-xs font-mono py-2 border-l border-border transition-colors ${
+                  className={`flex-1 text-xs py-2 border-l border-border transition-colors ${
                     isPrivate
                       ? "bg-accent text-accent-foreground"
                       : "bg-background text-foreground hover:bg-accent-hover"
                   } disabled:opacity-50`}
                 >
-                  Private
+                  {t("git.privateRepo")}
                 </button>
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <label
-                htmlFor="github-repo-description"
-                className="block text-xs font-mono text-muted mb-1.5"
-              >
-                Description (optional)
+              <label htmlFor="github-repo-description" className="block text-xs text-muted mb-1.5">
+                {t("git.repoDesc")}
               </label>
               <input
                 id="github-repo-description"
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="A short description..."
+                placeholder={t("interface.repoDescription")}
                 disabled={isCreating}
                 className="w-full px-3 py-2 text-sm border border-border outline-none focus:border-accent transition-colors disabled:opacity-50"
                 onKeyDown={(e) => {
@@ -180,7 +176,7 @@ export function GitHubPublishDialog({
               disabled={isCreating}
               className="btn btn-sm btn-secondary disabled:opacity-50"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -191,10 +187,10 @@ export function GitHubPublishDialog({
               {isCreating ? (
                 <>
                   <Spinner className="size-3" />
-                  Creating...
+                  {t("git.publishing")}
                 </>
               ) : (
-                "Create & Push"
+                t("git.publishButton")
               )}
             </button>
           </div>

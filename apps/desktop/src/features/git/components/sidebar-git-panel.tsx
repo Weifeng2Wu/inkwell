@@ -21,6 +21,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
+import { useI18n } from "@/features/i18n";
 import type { GitFileChange, GitLogEntry, GitStatus } from "@/types/git";
 
 type SelectedChange = {
@@ -44,7 +45,10 @@ const STATUS_STYLE: Record<GitFileChange["status"], string> = {
   untracked: "bg-surface-tertiary text-muted",
 };
 
-function formatRelativeDate(dateStr: string): string {
+function formatRelativeDate(
+  dateStr: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -55,12 +59,12 @@ function formatRelativeDate(dateStr: string): string {
   const diffWeek = Math.floor(diffDay / 7);
   const diffMonth = Math.floor(diffDay / 30);
 
-  if (diffSec < 60) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
-  if (diffWeek < 5) return `${diffWeek}w ago`;
-  if (diffMonth < 12) return `${diffMonth}mo ago`;
+  if (diffSec < 60) return t("git.justNow");
+  if (diffMin < 60) return t("git.minAgo", { count: diffMin });
+  if (diffHour < 24) return t("git.hoursAgo", { count: diffHour });
+  if (diffDay < 7) return t("git.daysAgo", { count: diffDay });
+  if (diffWeek < 5) return t("git.weeksAgo", { count: diffWeek });
+  if (diffMonth < 12) return t("git.monthsAgo", { count: diffMonth });
   return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -77,6 +81,7 @@ function CommitEntry({
   isFirst: boolean;
   isLast: boolean;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const handleCopyHash = useCallback(() => {
@@ -96,15 +101,13 @@ function CommitEntry({
 
       {/* Content */}
       <div className="flex-1 min-w-0 py-2">
-        <p className="text-xs font-mono leading-relaxed truncate text-foreground">
-          {entry.message}
-        </p>
+        <p className="text-xs leading-relaxed truncate text-foreground">{entry.message}</p>
         <div className="flex items-center gap-2 mt-1">
           <button
             type="button"
             onClick={handleCopyHash}
             className="flex items-center gap-1 text-[10px] font-mono text-muted hover:text-foreground transition-colors group/hash"
-            title={`Copy hash: ${entry.hash}`}
+            title={t("git.copyHash", { hash: entry.hash })}
           >
             <span className="bg-surface-secondary px-1 py-px group-hover/hash:bg-surface-tertiary transition-colors">
               {entry.shortHash}
@@ -115,9 +118,9 @@ function CommitEntry({
               <CopyIcon className="w-2.5 h-2.5 opacity-0 group-hover/hash:opacity-100 transition-opacity" />
             )}
           </button>
-          <span className="text-[10px] font-mono text-muted-foreground">{entry.author}</span>
-          <span className="text-[10px] font-mono text-muted-foreground ml-auto flex-shrink-0">
-            {formatRelativeDate(entry.date)}
+          <span className="text-[10px] text-muted-foreground">{entry.author}</span>
+          <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
+            {formatRelativeDate(entry.date, t)}
           </span>
         </div>
       </div>
@@ -201,6 +204,7 @@ export function GitSidebarPanel({
   isPulling,
   isAuthenticatingGh = false,
 }: GitSidebarPanelProps) {
+  const { t } = useI18n();
   const [selectedChange, setSelectedChange] = useState<SelectedChange | null>(null);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [showAllCommits, setShowAllCommits] = useState(false);
@@ -250,7 +254,7 @@ export function GitSidebarPanel({
                 {STATUS_SHORT[change.status]}
               </span>
               <span
-                className={`truncate text-xs font-mono ${
+                className={`truncate text-xs ${
                   change.status === "deleted" ? "line-through text-muted" : "text-foreground"
                 }`}
               >
@@ -266,8 +270,8 @@ export function GitSidebarPanel({
                   void onDiscardFile(change.path);
                 }}
                 className="w-7 flex items-center justify-center hover:bg-surface-tertiary"
-                aria-label={`Discard ${change.path}`}
-                title="Discard changes"
+                aria-label={t("git.discardFile")}
+                title={t("git.discardFile")}
               >
                 <ArrowCounterClockwiseIcon className="w-3 h-3" />
               </button>
@@ -277,8 +281,8 @@ export function GitSidebarPanel({
                 type="button"
                 onClick={() => onUnstageFile(change.path)}
                 className="w-7 flex items-center justify-center hover:bg-surface-tertiary"
-                aria-label={`Unstage ${change.path}`}
-                title="Unstage file"
+                aria-label={t("git.unstageFile")}
+                title={t("git.unstageFile")}
               >
                 <MinusIcon className="w-3.5 h-3.5" />
               </button>
@@ -287,8 +291,8 @@ export function GitSidebarPanel({
                 type="button"
                 onClick={() => onStageFile(change.path)}
                 className="w-7 flex items-center justify-center hover:bg-surface-tertiary"
-                aria-label={`Stage ${change.path}`}
-                title="Stage file"
+                aria-label={t("git.stageFile")}
+                title={t("git.stageFile")}
               >
                 <PlusIcon className="w-3.5 h-3.5" />
               </button>
@@ -297,7 +301,7 @@ export function GitSidebarPanel({
         </div>
       );
     },
-    [handleSelectChange, onStageFile, onUnstageFile, onDiscardFile, selectedChange],
+    [handleSelectChange, onStageFile, onUnstageFile, onDiscardFile, selectedChange, t],
   );
 
   if (!projectPath) {
@@ -306,7 +310,7 @@ export function GitSidebarPanel({
         <div className="w-12 h-12 border-2 border-border flex items-center justify-center mb-3">
           <GitBranchIcon className="w-6 h-6 opacity-30" />
         </div>
-        <p className="text-xs font-mono uppercase tracking-wider">No folder open</p>
+        <p className="text-xs uppercase tracking-wider">{t("git.noFolderOpen")}</p>
       </div>
     );
   }
@@ -317,14 +321,14 @@ export function GitSidebarPanel({
         <div className="w-12 h-12 border-2 border-border flex items-center justify-center mb-3">
           <GitBranchIcon className="w-6 h-6 opacity-30" />
         </div>
-        <p className="text-xs font-mono uppercase tracking-wider mb-4">Not a git repository</p>
+        <p className="text-xs uppercase tracking-wider mb-4">{t("git.notRepo")}</p>
         <button
           type="button"
           onClick={onInitGit}
           disabled={isInitializingGit}
           className="btn btn-sm btn-primary"
         >
-          {isInitializingGit ? "Initializing..." : "Init Git"}
+          {isInitializingGit ? t("git.initializing") : t("git.initRepo")}
         </button>
       </div>
     );
@@ -336,25 +340,25 @@ export function GitSidebarPanel({
   const canPush = gitStatus.hasUpstream ? gitStatus.ahead > 0 : gitStatus.hasCommits;
   const canPull = gitStatus.hasUpstream ? gitStatus.behind > 0 : true;
   const pushTitle = !canPush
-    ? "Nothing to push"
+    ? t("git.noChanges")
     : gitStatus.hasUpstream
-      ? `Push ${gitStatus.ahead} commit${gitStatus.ahead > 1 ? "s" : ""}`
-      : "Push current branch to origin";
+      ? t("git.pushTitle")
+      : t("git.pushTitle");
   const pullTitle = !canPull
-    ? "Nothing to pull"
+    ? t("git.noChanges")
     : gitStatus.hasUpstream
-      ? `Pull ${gitStatus.behind} commit${gitStatus.behind > 1 ? "s" : ""}`
-      : "Pull and set upstream from origin";
+      ? t("git.pullTitle")
+      : t("git.pullTitle");
 
   return (
     <>
       {/* Discard all confirm dialog */}
       {showDiscardAllConfirm && (
         <ConfirmDialog
-          title="Discard all changes"
-          message={`This will discard all ${unstagedChanges.length} unstaged change${unstagedChanges.length > 1 ? "s" : ""}. This action cannot be undone.`}
-          confirmLabel="Discard All"
-          cancelLabel="Cancel"
+          title={t("git.discardAllConfirmTitle")}
+          message={t("git.discardAllConfirmMessage")}
+          confirmLabel={t("git.discardAll")}
+          cancelLabel={t("common.cancel")}
           onConfirm={() => {
             void onDiscardAll();
             setShowDiscardAllConfirm(false);
@@ -368,13 +372,13 @@ export function GitSidebarPanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <GitBranchIcon className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="font-mono text-xs font-medium truncate">{gitStatus.branch}</span>
+            <span className="text-xs font-medium truncate">{gitStatus.branch}</span>
           </div>
           <button
             type="button"
             onClick={onRefreshStatus}
             className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            aria-label="Refresh git status"
+            aria-label={t("interface.refreshGit")}
           >
             <ArrowClockwiseIcon className="w-3.5 h-3.5" />
           </button>
@@ -388,7 +392,7 @@ export function GitSidebarPanel({
                 value={remoteUrl}
                 onChange={(e) => onRemoteUrlChange(e.target.value)}
                 placeholder="https://github.com/user/repo.git"
-                className="w-full rounded-md px-2 py-1.5 text-xs font-mono border border-border focus:border-accent focus:outline-none bg-background"
+                className="w-full rounded-md px-2 py-1.5 text-xs border border-border focus:border-accent focus:outline-none bg-background"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && remoteUrl.trim()) {
                     onSubmitRemote();
@@ -405,19 +409,21 @@ export function GitSidebarPanel({
                     type="button"
                     onClick={onPublishToGitHub}
                     disabled={isAuthenticatingGh}
-                    className="flex items-center gap-1.5 w-full px-2.5 py-1.5 text-[11px] font-mono bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-1.5 w-full px-2.5 py-1.5 text-[11px] bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                   >
                     <GithubLogoIcon className="w-3.5 h-3.5" />
-                    <span>{isAuthenticatingGh ? "Authenticating..." : "Publish to GitHub"}</span>
+                    <span>
+                      {isAuthenticatingGh ? t("git.authenticating") : t("git.publishGithub")}
+                    </span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={onShowRemoteInput}
-                  className="flex items-center gap-1.5 text-[11px] font-mono text-muted hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] text-muted hover:text-foreground transition-colors"
                 >
                   <GlobeIcon className="w-3 h-3" />
-                  <span>or add remote URL manually</span>
+                  <span>{t("git.orAddRemote")}</span>
                 </button>
               </>
             )}
@@ -431,8 +437,8 @@ export function GitSidebarPanel({
           <textarea
             value={commitMessage}
             onChange={(e) => onCommitMessageChange(e.target.value)}
-            placeholder="Message (Ctrl+Enter to commit)"
-            className="w-full px-2.5 py-2 text-xs font-mono border border-border resize-none focus:outline-none focus:border-accent bg-background placeholder:text-muted-foreground transition-colors"
+            placeholder={t("git.commitPlaceholder")}
+            className="w-full px-2.5 py-2 text-xs border border-border resize-none focus:outline-none focus:border-accent bg-background placeholder:text-muted-foreground transition-colors"
             rows={2}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -446,10 +452,10 @@ export function GitSidebarPanel({
             type="button"
             onClick={onCommit}
             disabled={!commitMessage.trim() || stagedChanges.length === 0}
-            className="flex-1 text-[11px] font-mono py-1.5 bg-accent text-accent-foreground border border-accent hover:bg-accent/90/90 disabled:opacity-30 disabled:hover:bg-accent transition-colors flex items-center justify-center gap-1.5"
+            className="flex-1 text-xs font-medium py-1.5 bg-accent text-accent-foreground border border-accent hover:bg-accent/90 disabled:opacity-50 disabled:hover:bg-accent transition-colors flex items-center justify-center gap-1.5"
           >
-            <CheckIcon className="w-3 h-3" />
-            Commit
+            <CheckIcon className="size-3.5 shrink-0" />
+            {t("git.commit")}
             {stagedChanges.length > 0 && (
               <span className="opacity-60">({stagedChanges.length})</span>
             )}
@@ -460,11 +466,11 @@ export function GitSidebarPanel({
               void onGenerateCommitMessageAI();
             }}
             disabled={isGeneratingCommitMessageAI || stagedChanges.length === 0}
-            className="text-[11px] font-mono px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-30 disabled:hover:border-border disabled:hover:bg-background transition-colors flex items-center gap-1"
-            title="AI Draft"
+            className="text-xs font-medium px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-background transition-colors flex items-center gap-1"
+            title={t("git.aiDraft")}
           >
-            <SparkleIcon className="w-3 h-3" />
-            {isGeneratingCommitMessageAI ? "..." : "AI"}
+            <SparkleIcon className="size-3.5 shrink-0" />
+            {isGeneratingCommitMessageAI ? "..." : t("git.aiDraft")}
           </button>
           {showPushButton && (
             <button
@@ -473,15 +479,15 @@ export function GitSidebarPanel({
                 void onPush();
               }}
               disabled={isPushing || !canPush}
-              className="text-[11px] font-mono px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-30 transition-colors flex items-center gap-1"
+              className="text-xs font-medium px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-50 transition-colors flex items-center gap-1"
               title={pushTitle}
             >
               {isPushing ? (
                 <Spinner className="size-3" />
               ) : (
                 <>
-                  <ArrowUpIcon className="w-3 h-3" />
-                  {gitStatus.hasUpstream ? gitStatus.ahead : "Push"}
+                  <ArrowUpIcon className="size-3.5 shrink-0" />
+                  {gitStatus.hasUpstream ? gitStatus.ahead : t("git.push")}
                 </>
               )}
             </button>
@@ -493,15 +499,15 @@ export function GitSidebarPanel({
                 void onPull();
               }}
               disabled={isPulling || !canPull}
-              className="text-[11px] font-mono px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-30 transition-colors flex items-center gap-1"
+              className="text-xs font-medium px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-50 transition-colors flex items-center gap-1"
               title={pullTitle}
             >
               {isPulling ? (
                 <Spinner className="size-3" />
               ) : (
                 <>
-                  <ArrowDownIcon className="w-3 h-3" />
-                  {gitStatus.hasUpstream ? gitStatus.behind : "Pull"}
+                  <ArrowDownIcon className="size-3.5 shrink-0" />
+                  {gitStatus.hasUpstream ? gitStatus.behind : t("git.pull")}
                 </>
               )}
             </button>
@@ -515,10 +521,10 @@ export function GitSidebarPanel({
           {/* Staged Changes */}
           {stagedChanges.length > 0 && (
             <div className="border-b border-border">
-              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-muted">
+              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">
                 <span className="flex items-center gap-1.5">
                   <CheckIcon className="w-3 h-3" />
-                  Staged
+                  {t("git.stagedChanges")}
                   <span className="inline-flex items-center justify-center w-4 h-4 bg-accent text-accent-foreground text-[9px] font-bold">
                     {stagedChanges.length}
                   </span>
@@ -527,7 +533,7 @@ export function GitSidebarPanel({
                   type="button"
                   onClick={onUnstageAll}
                   className="normal-case tracking-normal text-muted hover:text-foreground transition-colors p-0.5"
-                  title="Unstage all"
+                  title={t("git.unstageAll")}
                 >
                   <MinusIcon className="w-3.5 h-3.5" />
                 </button>
@@ -541,9 +547,9 @@ export function GitSidebarPanel({
           {/* Unstaged Changes */}
           {unstagedChanges.length > 0 && (
             <div className="border-b border-border">
-              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-muted">
+              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">
                 <span className="flex items-center gap-1.5">
-                  Changes
+                  {t("git.changes")}
                   <span className="inline-flex items-center justify-center w-4 h-4 bg-accent text-accent-foreground text-[9px] font-bold">
                     {unstagedChanges.length}
                   </span>
@@ -553,7 +559,7 @@ export function GitSidebarPanel({
                     type="button"
                     onClick={() => setShowDiscardAllConfirm(true)}
                     className="normal-case tracking-normal text-muted hover:text-foreground transition-colors p-0.5"
-                    title="Discard all changes"
+                    title={t("git.discardAll")}
                   >
                     <ArrowCounterClockwiseIcon className="w-3.5 h-3.5" />
                   </button>
@@ -561,7 +567,7 @@ export function GitSidebarPanel({
                     type="button"
                     onClick={onStageAll}
                     className="normal-case tracking-normal text-muted hover:text-foreground transition-colors p-0.5"
-                    title="Stage all changes"
+                    title={t("git.stageAll")}
                   >
                     <PlusIcon className="w-3.5 h-3.5" />
                   </button>
@@ -577,8 +583,8 @@ export function GitSidebarPanel({
           {changeCount === 0 && (
             <div className="px-3 py-8 text-center border-b border-border">
               <CheckIcon className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-[11px] font-mono text-muted uppercase tracking-wider">
-                Working tree clean
+              <p className="text-[11px] text-muted uppercase tracking-wider">
+                {t("git.noChanges")}
               </p>
             </div>
           )}
@@ -588,11 +594,11 @@ export function GitSidebarPanel({
             <button
               type="button"
               onClick={() => setHistoryCollapsed(!historyCollapsed)}
-              className="w-full px-3 py-1.5 flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-muted hover:bg-accent-hover transition-colors"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted hover:bg-accent-hover transition-colors"
             >
               <span className="flex items-center gap-1.5">
                 <ClockCounterClockwiseIcon className="w-3 h-3" />
-                History
+                {t("git.commitHistory")}
                 {gitLogEntries.length > 0 && (
                   <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-0.5 bg-surface-tertiary text-muted text-[9px] font-bold">
                     {gitLogEntries.length}
@@ -616,7 +622,7 @@ export function GitSidebarPanel({
                     <button
                       type="button"
                       onClick={() => setShowAllCommits(!showAllCommits)}
-                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[11px] font-mono text-muted hover:text-foreground hover:bg-accent-hover transition-colors"
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[11px] text-muted hover:text-foreground hover:bg-accent-hover transition-colors"
                     >
                       <div className="flex flex-col items-center w-3 flex-shrink-0">
                         <div className="w-px flex-1 bg-surface-tertiary" />
@@ -638,7 +644,7 @@ export function GitSidebarPanel({
                 </div>
               ) : (
                 <div className="px-3 py-4 text-center">
-                  <p className="text-[11px] font-mono text-muted">No commits yet</p>
+                  <p className="text-[11px] text-muted">{t("git.noChanges")}</p>
                 </div>
               ))}
           </div>
@@ -648,17 +654,17 @@ export function GitSidebarPanel({
         {selectedChange && (
           <div className="border-t border-border px-3 py-2 bg-accent-hover flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-[11px] font-mono font-medium truncate flex items-center gap-1.5">
+              <div className="text-[11px] font-medium truncate flex items-center gap-1.5">
                 <FileIcon className="w-3 h-3 flex-shrink-0" />
                 {selectedChange.path}
               </div>
-              <div className="text-[10px] font-mono text-muted mt-0.5">Diff shown in editor</div>
+              <div className="text-[10px] text-muted mt-0.5">Diff shown in editor</div>
             </div>
             {onOpenFile && (
               <button
                 type="button"
                 onClick={handleOpenSelectedFile}
-                className="text-[11px] font-mono px-2 py-1 border border-border hover:bg-accent hover:text-accent-foreground transition-colors"
+                className="text-[11px] px-2 py-1 border border-border hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 Open
               </button>

@@ -2,6 +2,7 @@
 
 import { WarningIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef } from "react";
+import { useI18n } from "@/features/i18n";
 
 type Props = {
   open: boolean;
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function OpenCodeDisconnectedDialog({ open, onClose, onRestart }: Props) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,13 +76,13 @@ export function OpenCodeDisconnectedDialog({ open, onClose, onRestart }: Props) 
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 id="dialog-title" className="text-sm font-medium">
-            OpenCode Disconnected
+            {t("agent.disconnectedTitle")}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-muted hover:text-foreground transition-colors"
-            aria-label="Close dialog"
+            className="toolbar-icon-button"
+            aria-label={t("common.close")}
           >
             <XIcon className="size-4" />
           </button>
@@ -92,30 +94,18 @@ export function OpenCodeDisconnectedDialog({ open, onClose, onRestart }: Props) 
               <WarningIcon className="size-5 text-muted" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-foreground">
-                The connection to OpenCode has been lost and could not be re-established.
-              </p>
-              <p className="text-xs text-muted mt-2">
-                Please restart OpenCode to continue using AI features.
-              </p>
+              <p className="text-sm text-foreground">{t("agent.disconnectedMessage")}</p>
+              <p className="text-xs text-muted mt-2">{t("agent.disconnectedDesc")}</p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border bg-accent-hover">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs border border-border hover:border-accent transition-colors"
-          >
-            Dismiss
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border">
+          <button type="button" onClick={onClose} className="btn btn-sm">
+            {t("latex.dismiss")}
           </button>
-          <button
-            type="button"
-            onClick={handleRestart}
-            className="px-3 py-1.5 text-xs bg-background text-foreground border border-border rounded-md"
-          >
-            Restart OpenCode
+          <button type="button" onClick={handleRestart} className="btn btn-primary btn-sm">
+            {t("agent.restartOpencode")}
           </button>
         </div>
       </div>

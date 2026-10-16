@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+[ "$(uname -s)" = "Darwin" ] || { echo "PKG packaging requires macOS."; exit 1; }
+
 # Configuration
 APP_NAME="Inkwell"
 BUNDLE_ID="com.inkwell.app"
@@ -25,8 +27,8 @@ PKG_SCRIPTS="$SCRIPT_DIR/pkg"
 OUTPUT_DIR="$BUNDLE_DIR/pkg"
 
 # Detect architecture
-ARCH=$(uname -m)
-if [ "$ARCH" = "arm64" ]; then
+ARCH="${TAURI_TARGET_TRIPLE:-$(uname -m)}"
+if [[ "$ARCH" = arm64* || "$ARCH" = aarch64* ]]; then
     ARCH_SUFFIX="aarch64"
 else
     ARCH_SUFFIX="x64"
@@ -49,8 +51,9 @@ fi
 echo "✓ Found app bundle: $APP_PATH"
 
 # Step 1.5: Re-sign app ad-hoc to prevent broken signature errors
-echo "Signing app bundle (ad-hoc)..."
-codesign --force --deep --sign - "$APP_PATH"
+if ! codesign --verify --deep --strict "$APP_PATH" >/dev/null 2>&1; then
+    codesign --deep --sign - "$APP_PATH"
+fi
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" >/dev/null
 echo "✓ App signature verified"
 

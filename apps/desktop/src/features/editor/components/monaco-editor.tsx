@@ -7,8 +7,17 @@ import type { editor } from "monaco-editor";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { registerLaTeXLanguage } from "@/features/editor/monaco/latex";
 import { defineEditorThemes } from "@/features/editor/monaco/themes";
-import type { EditorSettings, EditorTheme } from "@/features/settings/lib/editor-settings";
-import { resolveMonoFontFamily } from "@/features/settings/lib/font-stacks";
+import { useI18n } from "@/features/i18n";
+import {
+  type EditorSettings,
+  type EditorTheme,
+  resolveEditorFontFamily,
+  useKeyboardShortcuts,
+} from "@/features/settings";
+import type { BibliographyEntry } from "../lib/bibliography";
+import { bindBibliography } from "../monaco/citation-completion";
+import { registerMarkdownLanguage } from "../monaco/markdown";
+import { monacoShortcut } from "../monaco/shortcut-keybinding";
 
 type Props = {
   content?: string;
@@ -19,11 +28,14 @@ type Props = {
   editorTheme?: EditorTheme;
   onContentChange?: (content: string) => void;
   goToLine?: number;
+  bibliography?: readonly BibliographyEntry[];
 };
 
 type VimModeController = {
   dispose: () => void;
 };
+
+const EMPTY_BIBLIOGRAPHY: readonly BibliographyEntry[] = [];
 
 function detectLanguage(lang: string): string {
   const languageMap: Record<string, string> = {
@@ -36,6 +48,8 @@ function detectLanguage(lang: string): string {
     tsx: "typescript",
     py: "python",
     md: "markdown",
+    markdown: "markdown",
+    mdown: "markdown",
     json: "json",
     css: "css",
     html: "html",
@@ -55,7 +69,10 @@ export const MonacoEditor = memo(function MonacoEditor({
   editorTheme = "one-light",
   onContentChange,
   goToLine,
+  bibliography = EMPTY_BIBLIOGRAPHY,
 }: Props) {
+  const { t } = useI18n();
+  const { bindings: keyboardShortcuts } = useKeyboardShortcuts();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const isExternalUpdateRef = useRef(false);
@@ -69,6 +86,51 @@ export const MonacoEditor = memo(function MonacoEditor({
   }));
 
   const pendingGoToLineRef = useRef<number>(0);
+
+  useEffect(() => {
+    const instance = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editorReady || !instance || !monaco) return;
+    const actions = [
+      { id: "bold" as const, before: "**", after: "**" },
+      { id: "italic" as const, before: "*", after: "*" },
+      { id: "link" as const, before: "[", after: "](https://example.com)" },
+    ].map(({ id, before, after }) =>
+      instance.addAction({
+        id: `markdown-${id}`,
+        label: t(`markdown.${id}`),
+        precondition: "editorLangId == markdown && !editorReadonly",
+        keybindings: monacoShortcut(monaco, keyboardShortcuts[id]),
+        run: (activeEditor) => {
+          const selection = activeEditor.getSelection();
+          const model = activeEditor.getModel();
+          if (!selection || !model) return;
+          const offset = model.getOffsetAt(selection.getStartPosition());
+          const selected = model.getValueInRange(selection);
+          activeEditor.pushUndoStop();
+          activeEditor.executeEdits(`markdown-${id}`, [
+            { range: selection, text: `${before}${selected}${after}` },
+          ]);
+          const start = model.getPositionAt(offset + before.length);
+          const end = model.getPositionAt(offset + before.length + selected.length);
+          activeEditor.setSelection(
+            new monaco.Selection(start.lineNumber, start.column, end.lineNumber, end.column),
+          );
+          activeEditor.pushUndoStop();
+          activeEditor.focus();
+        },
+      }),
+    );
+    return () => {
+      for (const action of actions) action.dispose();
+    };
+  }, [editorReady, t, keyboardShortcuts]);
+
+  useEffect(() => {
+    if (!editorReady) return;
+    const model = editorRef.current?.getModel();
+    if (model) return bindBibliography(model, bibliography);
+  }, [bibliography, editorReady]);
 
   const handleEditorDidMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
@@ -102,13 +164,20 @@ export const MonacoEditor = memo(function MonacoEditor({
 
     defineEditorThemes(monaco);
     registerLaTeXLanguage(monaco);
+    registerMarkdownLanguage(monaco);
 
     editor.focus();
+  }, []);
 
-    editor.addAction({
+  useEffect(() => {
+    const instance = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editorReady || !instance || !monaco) return;
+    const action = instance.addAction({
       id: "toggle-latex-comment",
-      label: "Toggle LaTeX Comment",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash],
+      label: t("shortcuts.actions.comment"),
+      precondition: "editorLangId == latex && !editorReadonly",
+      keybindings: monacoShortcut(monaco, keyboardShortcuts.comment),
       run: (ed) => {
         const selection = ed.getSelection();
         if (!selection) return;
@@ -154,7 +223,8 @@ export const MonacoEditor = memo(function MonacoEditor({
         ed.executeEdits("toggle-comment", edits);
       },
     });
-  }, []);
+    return () => action.dispose();
+  }, [editorReady, keyboardShortcuts.comment, t]);
 
   const handleChange: OnChange = useCallback(
     (value) => {
@@ -173,9 +243,19 @@ export const MonacoEditor = memo(function MonacoEditor({
   }, []);
 
   useEffect(() => {
-    if (monacoRef.current && editorTheme) {
-      monacoRef.current.editor.setTheme(editorTheme);
-    }
+    const update = () => {
+      if (monacoRef.current && editorTheme) {
+        defineEditorThemes(monacoRef.current);
+        monacoRef.current.editor.setTheme(editorTheme);
+      }
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    return () => observer.disconnect();
   }, [editorTheme]);
 
   useEffect(() => {
@@ -282,7 +362,7 @@ export const MonacoEditor = memo(function MonacoEditor({
         options={{
           readOnly,
           fontSize: editorSettings?.fontSize ?? 14,
-          fontFamily: resolveMonoFontFamily(editorSettings?.fontFamily),
+          fontFamily: resolveEditorFontFamily(editorSettings, detectLanguage(language)),
           fontLigatures: false,
           lineNumbers: editorSettings?.lineNumbers ?? "on",
           lineHeight: editorSettings?.lineHeight ?? 1.6,
@@ -290,7 +370,7 @@ export const MonacoEditor = memo(function MonacoEditor({
           renderWhitespace: editorSettings?.renderWhitespace ?? "selection",
           tabSize: editorSettings?.tabSize ?? 2,
           insertSpaces: editorSettings?.insertSpaces ?? true,
-          wordWrap: editorSettings?.wordWrap ?? "off",
+          wordWrap: editorSettings?.wordWrap ?? "on",
           wordWrapColumn: editorSettings?.wordWrapColumn ?? 80,
           wrappingIndent: "indent",
           automaticLayout: true,
@@ -330,6 +410,7 @@ export const MonacoEditor = memo(function MonacoEditor({
             highlightActiveIndentation: true,
           },
           suggest: {
+            snippetsPreventQuickSuggestions: false,
             showKeywords: true,
             showSnippets: true,
             showFunctions: true,

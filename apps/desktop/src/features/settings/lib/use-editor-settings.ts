@@ -6,6 +6,7 @@ import {
   type EditorTheme,
 } from "@/features/settings/lib/editor-settings";
 import { useThemeMode } from "@/features/settings/lib/theme";
+import { resolveFontFamily } from "./font-stacks";
 
 const STORAGE_KEY = "editor-settings";
 
@@ -26,7 +27,7 @@ function sanitizeString(value: unknown, fallback = ""): string {
 }
 
 // Migration helper for backward compatibility
-function migrateSettings(parsed: Record<string, unknown>): EditorSettings {
+export function migrateSettings(parsed: Record<string, unknown>): EditorSettings {
   const settings = { ...DEFAULT_EDITOR_SETTINGS, ...parsed };
 
   // Remove legacy theme field (now auto-follows app mode)
@@ -52,6 +53,16 @@ function migrateSettings(parsed: Record<string, unknown>): EditorSettings {
   }
 
   settings.fontFamily = sanitizeString(settings.fontFamily);
+  settings.uiFontFamily =
+    sanitizeString(parsed.uiFontFamily) || DEFAULT_EDITOR_SETTINGS.uiFontFamily;
+  settings.textFontFamily =
+    sanitizeString(parsed.textFontFamily) ||
+    settings.fontFamily ||
+    DEFAULT_EDITOR_SETTINGS.textFontFamily;
+  settings.codeFontFamily =
+    sanitizeString(parsed.codeFontFamily) ||
+    settings.fontFamily ||
+    DEFAULT_EDITOR_SETTINGS.codeFontFamily;
   settings.fontSize = clampInteger(settings.fontSize, DEFAULT_EDITOR_SETTINGS.fontSize, 8, 32);
   settings.lineHeight =
     Math.round(
@@ -86,7 +97,7 @@ function migrateSettings(parsed: Record<string, unknown>): EditorSettings {
   return settings as EditorSettings;
 }
 
-export function useEditorSettings() {
+export function useEditorSettings(enabled = true) {
   const themeMode = useThemeMode();
 
   const [settings, setSettings] = useState<EditorSettings>(() => {
@@ -110,13 +121,34 @@ export function useEditorSettings() {
 
   // Persist settings to localStorage
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     } catch {
       // Ignore storage errors
     }
-  }, [settings]);
+  }, [enabled, settings]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const style = document.body.style;
+    style.setProperty("--font-family-sans", resolveFontFamily(settings.uiFontFamily));
+    style.setProperty("--font-sans", resolveFontFamily(settings.uiFontFamily));
+    style.setProperty("--font-family-body", resolveFontFamily(settings.textFontFamily));
+    style.setProperty("--font-family-mono", resolveFontFamily(settings.codeFontFamily));
+    style.setProperty("--font-mono", resolveFontFamily(settings.codeFontFamily));
+    return () => {
+      for (const name of [
+        "--font-family-sans",
+        "--font-sans",
+        "--font-family-body",
+        "--font-family-mono",
+        "--font-mono",
+      ]) {
+        style.removeProperty(name);
+      }
+    };
+  }, [enabled, settings.uiFontFamily, settings.textFontFamily, settings.codeFontFamily]);
 
   const updateSettings = useCallback((updates: Partial<EditorSettings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));

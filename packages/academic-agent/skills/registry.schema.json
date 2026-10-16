@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Inkwell Agent Skill Registry",
+  "type": "object",
+  "required": ["schemaVersion", "skills"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "skills": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "version", "source", "entrypoint", "resources"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64 },
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "version": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "source": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "revision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+          "stars": { "type": "integer", "minimum": 0 },
+          "upstream": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repository", "subdirectory", "branch"],
+            "properties": {
+              "repository": { "type": "string", "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$" },
+              "subdirectory": { "type": "string", "maxLength": 256 },
+              "branch": { "type": "string", "minLength": 1, "maxLength": 256 }
+            }
+          },
+          "entrypoint": { "$ref": "#/$defs/resource" },
+          "resources": { "type": "array", "maxItems": 512, "items": { "$ref": "#/$defs/resource" } }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "id": { "const": "nature-writing-suite" } } },
+            "else": { "properties": { "resources": { "maxItems": 50 } } }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@
 import { WarningIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { useI18n } from "@/features/i18n";
 
 type ErrorType = "port_in_use" | "not_installed" | "generic";
 
@@ -26,6 +27,7 @@ function parseErrorType(error: string): { type: ErrorType; port?: number } {
 }
 
 export function OpenCodeErrorDialog({ open, error, onClose, onRetry, onKillPort }: Props) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const [killing, setKilling] = useState(false);
@@ -110,13 +112,13 @@ export function OpenCodeErrorDialog({ open, error, onClose, onRetry, onKillPort 
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2 id="error-dialog-title" className="text-sm font-medium">
-            OpenCode Error
+            {t("agent.errorTitle")}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-muted hover:text-foreground transition-colors"
-            aria-label="Close dialog"
+            className="toolbar-icon-button"
+            aria-label={t("common.close")}
           >
             <XIcon className="size-4" />
           </button>
@@ -130,91 +132,80 @@ export function OpenCodeErrorDialog({ open, error, onClose, onRetry, onKillPort 
             <div className="flex-1 min-w-0">
               {errorType === "port_in_use" && (
                 <p className="text-sm text-foreground mb-2">
-                  Port {port} is already in use by another process.
+                  {t("agent.portInUse", { port: port ?? "" })}
                 </p>
               )}
               {errorType === "not_installed" && (
                 <p className="text-sm text-foreground mb-2">
-                  OpenCode is not installed on your system.
+                  {t("agent.opencodeNotInstalledPrompt")}
                 </p>
               )}
               {errorType === "generic" && (
-                <p className="text-sm text-foreground mb-2">Failed to start OpenCode.</p>
+                <p className="text-sm text-foreground mb-2">{t("agent.failedToStartOpenCode")}</p>
               )}
             </div>
           </div>
 
           <div className="mt-3 relative">
-            <div className="bg-surface-secondary border border-border p-3 text-xs font-mono break-all max-h-32 overflow-y-auto">
+            <div className="bg-surface-secondary border border-border rounded-md p-3 text-xs font-mono break-all max-h-32 overflow-y-auto">
               {error}
             </div>
             <button
               type="button"
               onClick={handleCopy}
-              className="absolute top-2 right-2 px-2 py-1 text-xs bg-background border border-border hover:border-accent transition-colors"
+              className="btn btn-sm absolute top-2 right-2 bg-background"
             >
-              {copied ? "Copied!" : "Copy"}
+              {copied ? t("common.copied") : t("common.copy")}
             </button>
           </div>
 
           {errorType === "port_in_use" && onKillPort && (
-            <div className="mt-4 p-3 border border-border bg-accent-hover">
+            <div className="mt-4 p-3 rounded-lg border border-border bg-surface-secondary">
               <p className="text-xs text-muted mb-2">
-                Would you like to automatically kill the process using port {port} and restart
-                OpenCode?
+                {t("agent.askKillPortPrompt", { port: port ?? "" })}
               </p>
               <button
                 type="button"
                 onClick={handleKillPort}
                 disabled={killing}
-                className="w-full px-3 py-2 text-xs bg-background text-foreground border border-border rounded-md disabled:opacity-50 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
+                className="btn btn-primary btn-sm w-full"
               >
                 {killing ? (
                   <span className="flex items-center justify-center gap-2">
                     <Spinner className="size-3" />
-                    Killing process...
+                    {t("agent.killingProcess")}
                   </span>
                 ) : (
-                  `Kill Port ${port} & Restart`
+                  t("agent.killPortAndRestart", { port: port ?? "" })
                 )}
               </button>
             </div>
           )}
 
           {errorType === "not_installed" && (
-            <div className="mt-4 p-3 border border-border bg-accent-hover">
-              <p className="text-xs text-muted mb-2">Install OpenCode:</p>
+            <div className="mt-4 p-3 rounded-lg border border-border bg-surface-secondary">
+              <p className="text-xs text-muted mb-2">{t("agent.chooseInstallMethod")}</p>
               <div className="space-y-2">
-                <code className="block text-xs font-mono bg-background p-2 border border-border">
+                <code className="block text-xs font-mono bg-background p-2 border border-border rounded-md">
                   npm i -g opencode-ai@latest
                 </code>
-                <code className="block text-xs font-mono bg-background p-2 border border-border">
+                <code className="block text-xs font-mono bg-background p-2 border border-border rounded-md">
                   brew install sst/tap/opencode
                 </code>
               </div>
             </div>
           )}
 
-          <p className="mt-4 text-xs text-muted">
-            Copy this error and paste it to your local OpenCode or Claude for debugging assistance.
-          </p>
+          <p className="mt-4 text-xs text-muted">{t("agent.copyErrorHelpText")}</p>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border bg-accent-hover">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs border border-border hover:border-accent transition-colors"
-          >
-            Dismiss
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border">
+          <button type="button" onClick={onClose} className="btn btn-sm">
+            {t("latex.dismiss")}
           </button>
           {errorType !== "port_in_use" && (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="px-3 py-1.5 text-xs bg-background text-foreground border border-border rounded-md"
-            >
-              Retry
+            <button type="button" onClick={onRetry} className="btn btn-primary btn-sm">
+              {t("common.retry")}
             </button>
           )}
         </div>

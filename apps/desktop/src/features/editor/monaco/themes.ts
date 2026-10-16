@@ -5,6 +5,7 @@ import type { MonacoTheme } from "monaco-themes";
 import githubDarkTheme from "@/features/editor/monaco/github-dark.json";
 // Source: monaco-themes/themes/ (v0.4.8)
 import githubLightTheme from "@/features/editor/monaco/github-light.json";
+import { editorChromeColors } from "./theme-chrome";
 
 // Supplementary editor chrome colors not included in the base GitHub Light theme
 const githubLightEditorColors: Record<string, string> = {
@@ -114,6 +115,7 @@ export const defineEditorThemes = (monaco: Monaco) => {
     colors: {
       ...lightTheme.colors,
       ...githubLightEditorColors,
+      ...editorChromeColors(),
     },
   });
 
@@ -124,6 +126,7 @@ export const defineEditorThemes = (monaco: Monaco) => {
     colors: {
       ...darkTheme.colors,
       ...githubDarkEditorColors,
+      ...editorChromeColors(),
     },
   });
 };

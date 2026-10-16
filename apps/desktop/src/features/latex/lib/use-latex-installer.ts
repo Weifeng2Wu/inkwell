@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstallProgress, InstallResult, LaTeXDistribution } from "@/features/latex/lib/types";
@@ -16,6 +16,9 @@ export function useLatexInstaller() {
 
   // Fetch available distributions
   const fetchDistributions = useCallback(async () => {
+    if (!isTauri()) {
+      return [];
+    }
     setStatus("loading");
     try {
       const result = await invoke<LaTeXDistribution[]>("latex_get_distributions");
@@ -32,17 +35,24 @@ export function useLatexInstaller() {
 
   // Set up event listener for install progress
   useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
     let mounted = true;
 
     const setupListener = async () => {
-      if (unlistenRef.current) {
-        unlistenRef.current();
-      }
+      try {
+        if (unlistenRef.current) {
+          unlistenRef.current();
+        }
 
-      unlistenRef.current = await listen<InstallProgress>("latex-install-progress", (event) => {
-        if (!mounted) return;
-        setProgress(event.payload);
-      });
+        unlistenRef.current = await listen<InstallProgress>("latex-install-progress", (event) => {
+          if (!mounted) return;
+          setProgress(event.payload);
+        });
+      } catch (err) {
+        console.warn("Failed to listen for latex-install-progress:", err);
+      }
     };
 
     setupListener();
@@ -58,6 +68,9 @@ export function useLatexInstaller() {
 
   // Install a distribution
   const install = useCallback(async (distributionId: string) => {
+    if (!isTauri()) {
+      return null;
+    }
     setStatus("installing");
     setProgress(null);
     setResult(null);
@@ -83,6 +96,10 @@ export function useLatexInstaller() {
 
   // Open download page
   const openDownloadPage = useCallback(async (url: string) => {
+    if (!isTauri()) {
+      window.open(url, "_blank");
+      return;
+    }
     try {
       await invoke("latex_open_download_page", { url });
     } catch (err) {

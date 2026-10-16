@@ -1,3 +1,5 @@
+import type { EditorSettings } from "./editor-settings";
+
 const CJK_MONO_FONTS = [
   '"Maple Mono NF CN"',
   '"Maple Mono SC NF"',
@@ -67,6 +69,38 @@ export function resolveMonoFontFamily(customFontFamily?: string | null): string 
   return `${trimmedFontFamily}, ${EDITOR_MONO_FONT_FAMILY}`;
 }
 
+export const FONT_PRESETS = ["system-ui", "geist", "serif", "monospace"] as const;
+
+export function resolveFontFamily(value: string): string {
+  switch (value) {
+    case "system-ui":
+      return 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    case "geist":
+      return "var(--font-geist-sans), system-ui, sans-serif";
+    case "serif":
+      return 'ui-serif, Georgia, "Noto Serif CJK SC", "Songti SC", SimSun, serif';
+    case "monospace":
+      return EDITOR_MONO_FONT_FAMILY;
+    default:
+      return value.trim()
+        ? `${quoteFontFamilyName(value)}, system-ui, sans-serif`
+        : EDITOR_MONO_FONT_FAMILY;
+  }
+}
+
+export function resolveEditorFontFamily(
+  settings: Partial<EditorSettings> | undefined,
+  language: string,
+): string {
+  const isText = ["latex", "tex", "markdown", "md", "plaintext", "text", "txt"].includes(
+    language.toLowerCase(),
+  );
+  const selected = isText ? settings?.textFontFamily : settings?.codeFontFamily;
+  return resolveFontFamily(
+    selected ?? settings?.fontFamily ?? (isText ? "system-ui" : "monospace"),
+  );
+}
+
 function normalizeFontFamilyName(fontFamily: string): string {
   return fontFamily.replaceAll('"', "").replaceAll("'", "").trim().toLowerCase();
 }
@@ -91,10 +125,20 @@ function quoteFontFamilyName(fontFamily: string): string {
   return `"${trimmedFontFamily.replaceAll('"', '\\"')}"`;
 }
 
-export function resolveTerminalFontFamily(customFontFamily?: string | null): string {
+export function resolveTerminalFontFamily(
+  customFontFamily?: string | null,
+  geistMonoFamily = '"Geist Mono"',
+): string {
+  const fallback = TERMINAL_MONO_FONT_FAMILY.replace("var(--font-geist-mono)", geistMonoFamily);
   const trimmedFontFamily = customFontFamily?.trim();
   if (!trimmedFontFamily) {
-    return TERMINAL_MONO_FONT_FAMILY;
+    return fallback;
+  }
+  if (trimmedFontFamily === "geist-mono") {
+    return `${geistMonoFamily}, ${fallback}`;
+  }
+  if (trimmedFontFamily === "monospace") {
+    return `ui-monospace, ${EDITOR_MONO_FONT_FAMILY.replace("var(--font-geist-mono)", geistMonoFamily)}`;
   }
 
   const normalizedName = normalizeFontFamilyName(trimmedFontFamily);
@@ -107,8 +151,8 @@ export function resolveTerminalFontFamily(customFontFamily?: string | null): str
     normalizedName === "fira code nerd font propo";
 
   if (isFiraCodeNerdFont) {
-    return `"FiraCode Nerd Font Mono", "FiraCode Nerd Font", ${TERMINAL_MONO_FONT_FAMILY}`;
+    return `"FiraCode Nerd Font Mono", "FiraCode Nerd Font", ${fallback}`;
   }
 
-  return `${quoteFontFamilyName(trimmedFontFamily)}, ${TERMINAL_MONO_FONT_FAMILY}`;
+  return `${quoteFontFamilyName(trimmedFontFamily)}, ${fallback}`;
 }

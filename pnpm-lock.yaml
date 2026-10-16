@@ -184,6 +184,8 @@ importers:
         specifier: ^3.6.1
         version: 3.6.1(javascript-obfuscator@5.4.3)(webpack@5.107.2(lightningcss@1.32.0)(postcss@8.5.15))
 
+  packages/academic-agent: {}
+
 packages:
 
   '@alloc/quick-lru@5.2.0':

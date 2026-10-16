@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { useI18n } from "@/features/i18n";
 import { useLatexInstaller } from "@/features/latex";
 
 type QuickInstallStatus = "idle" | "checking" | "installing" | "success" | "error" | "no_texdist";
@@ -21,6 +22,7 @@ export function SynctexInstallDialog({
   onClose,
   onInstallComplete,
 }: SynctexInstallDialogProps) {
+  const { t } = useI18n();
   // Quick install state (tlmgr install synctex)
   const [quickStatus, setQuickStatus] = useState<QuickInstallStatus>("idle");
   const [quickError, setQuickError] = useState<string | null>(null);
@@ -107,13 +109,13 @@ export function SynctexInstallDialog({
             <div className="flex items-center gap-3">
               <WarningIcon className="size-5 text-warning" />
               <Dialog.Title className="text-base font-bold tracking-tight">
-                SyncTeX Not Available
+                {t("latex.synctexNotAvailableTitle")}
               </Dialog.Title>
             </div>
             {!isBusy && (
               <Dialog.Close
                 className="p-1.5 hover:bg-accent-hover transition-colors border border-transparent hover:border-border"
-                aria-label="Close"
+                aria-label={t("common.close")}
               >
                 <XIcon className="size-4" />
               </Dialog.Close>
@@ -123,7 +125,7 @@ export function SynctexInstallDialog({
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             <p className="text-sm text-foreground-secondary leading-relaxed">
-              SyncTeX is required for PDF-to-source navigation but was not found on your system.
+              {t("latex.synctexRequiredDesc")}
             </p>
 
             <AnimatePresence mode="wait">
@@ -141,12 +143,10 @@ export function SynctexInstallDialog({
                     onClick={handleQuickInstall}
                     className="btn btn-sm bg-success text-success-foreground border-success  transition-all"
                   >
-                    Install SyncTeX
+                    {t("latex.installSynctexButton")}
                   </button>
                   <p className="text-xs text-muted mt-2">
-                    Will run{" "}
-                    <code className="bg-accent-hover px-1 py-0.5">tlmgr install synctex</code> to
-                    install the missing package.
+                    {t("latex.willRunTlmgr", { command: "tlmgr install synctex" })}
                   </p>
                 </motion.div>
               )}
@@ -164,15 +164,12 @@ export function SynctexInstallDialog({
                     <Spinner className="size-4" />
                     <span className="text-sm font-medium">
                       {quickStatus === "checking"
-                        ? "Installing SyncTeX via tlmgr..."
-                        : "Installing..."}
+                        ? t("latex.installingViaTlmgr")
+                        : t("latex.installing")}
                     </span>
                   </div>
                   <p className="text-sm text-muted mt-1">
-                    Running{" "}
-                    <code className="text-xs bg-accent-hover px-1 py-0.5">
-                      tlmgr install synctex
-                    </code>
+                    {t("latex.runningCommand", { command: "tlmgr install synctex" })}
                   </p>
                 </motion.div>
               )}
@@ -186,16 +183,16 @@ export function SynctexInstallDialog({
                   exit={{ opacity: 0, height: 0 }}
                   className="mt-4 p-3 bg-success/10 border border-success/30"
                 >
-                  <p className="text-sm text-success">SyncTeX installed successfully.</p>
+                  <p className="text-sm text-success">{t("latex.synctexInstalledSuccess")}</p>
                   <div className="mt-3 flex items-center gap-3">
                     <button
                       type="button"
                       onClick={handleRetry}
                       className="btn btn-sm bg-success text-success-foreground border-success hover:bg-success transition-colors"
                     >
-                      Retry SyncTeX
+                      {t("latex.retrySynctex")}
                     </button>
-                    <span className="text-xs text-success">Click to navigate to source</span>
+                    <span className="text-xs text-success">{t("latex.clickToNavigate")}</span>
                   </div>
                 </motion.div>
               )}
@@ -218,7 +215,7 @@ export function SynctexInstallDialog({
                     className="mt-2 text-sm text-warning hover:text-warning underline flex items-center gap-1"
                   >
                     <ArrowClockwiseIcon className="size-3.5" />
-                    Try again
+                    {t("latex.tryAgain")}
                   </button>
                 </motion.div>
               )}
@@ -232,8 +229,7 @@ export function SynctexInstallDialog({
                   exit={{ opacity: 0, height: 0 }}
                 >
                   <p className="mt-3 text-sm text-warning">
-                    No TeX distribution was found. Install one below to get SyncTeX and LaTeX
-                    compilation support.
+                    {t("latex.noTexDistFound")}
                   </p>
 
                   {/* Installation Progress (full distro) */}
@@ -277,9 +273,9 @@ export function SynctexInstallDialog({
                             onClick={handleRetry}
                             className="btn btn-sm bg-success text-success-foreground border-success hover:bg-success transition-colors"
                           >
-                            Retry SyncTeX
+                            {t("latex.retrySynctex")}
                           </button>
-                          <span className="text-xs text-success">Click to navigate to source</span>
+                          <span className="text-xs text-success">{t("latex.clickToNavigate")}</span>
                         </div>
                       )}
                       {!result.success && (
@@ -289,7 +285,7 @@ export function SynctexInstallDialog({
                           className="mt-2 text-sm text-warning hover:text-warning underline flex items-center gap-1"
                         >
                           <ArrowClockwiseIcon className="size-3.5" />
-                          Try again
+                          {t("latex.tryAgain")}
                         </button>
                       )}
                     </div>
@@ -315,7 +311,7 @@ export function SynctexInstallDialog({
                                 {dist.name}
                                 {index === 0 && (
                                   <span className="text-xs px-1.5 py-0.5 bg-success/15 text-success font-normal">
-                                    Recommended
+                                    {t("latex.recommended")}
                                   </span>
                                 )}
                               </div>
@@ -332,7 +328,7 @@ export function SynctexInstallDialog({
                                       : "bg-accent text-accent-foreground border-accent rounded-md"
                                   }`}
                                 >
-                                  Install
+                                  {t("latex.install")}
                                 </button>
                               )}
                               {downloadUrl && (
@@ -345,7 +341,7 @@ export function SynctexInstallDialog({
                                       : "border-border bg-background text-muted hover:bg-accent-hover"
                                   }`}
                                 >
-                                  Download
+                                  {t("latex.download")}
                                 </button>
                               )}
                             </div>
@@ -359,7 +355,7 @@ export function SynctexInstallDialog({
                   {!isInstalling && !result && distributions.length === 0 && (
                     <div className="mt-4 flex items-center gap-2 text-sm text-muted">
                       <Spinner className="size-4" />
-                      Loading available distributions...
+                      {t("latex.loadingDistributions")}
                     </div>
                   )}
                 </motion.div>
@@ -375,7 +371,7 @@ export function SynctexInstallDialog({
                 onClick={handleClose}
                 className="px-6 py-2 text-sm font-medium bg-background text-foreground border border-border rounded-md"
               >
-                Dismiss
+                {t("latex.dismiss")}
               </button>
             )}
           </div>

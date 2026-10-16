@@ -3,6 +3,7 @@
 import { FolderIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { formatRelativeTime } from "@/features/agent/components/utils";
+import { useI18n } from "@/features/i18n";
 import type { RecentProject } from "@/features/workspace/lib/recent-projects";
 
 export function RecentProjects({
@@ -16,6 +17,7 @@ export function RecentProjects({
   onRemove: (path: string) => void;
   onClearAll: () => void;
 }) {
+  const { t } = useI18n();
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -26,13 +28,13 @@ export function RecentProjects({
   return (
     <div className="mt-8 w-full max-w-md">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-muted">Recent Projects</h3>
+        <h3 className="text-sm font-medium text-muted">{t("welcome.recentProjects")}</h3>
         <button
           type="button"
           onClick={() => setShowClearConfirm(true)}
           className="text-xs text-muted hover:text-foreground transition-colors"
         >
-          Clear All
+          {t("welcome.clearAll")}
         </button>
       </div>
       <div className="border border-border bg-background">
@@ -62,7 +64,7 @@ export function RecentProjects({
                   setDeleteConfirmPath(project.path);
                 }}
                 className="px-3 py-2 text-muted hover:text-error transition-colors"
-                title="Remove from history"
+                title={t("common.remove")}
               >
                 <TrashIcon className="size-4" />
               </button>
@@ -73,7 +75,7 @@ export function RecentProjects({
 
       {deleteConfirmPath && (
         <ConfirmDialog
-          message="Remove this project from history?"
+          message={t("welcome.removeRecentConfirm")}
           onConfirm={() => {
             onRemove(deleteConfirmPath);
             setDeleteConfirmPath(null);
@@ -84,7 +86,7 @@ export function RecentProjects({
 
       {showClearConfirm && (
         <ConfirmDialog
-          message="Clear all recent projects?"
+          message={t("welcome.clearRecentConfirm")}
           onConfirm={() => {
             onClearAll();
             setShowClearConfirm(false);
@@ -105,6 +107,7 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45">
       <div className="bg-background border border-border rounded-lg p-4 max-w-xs w-full mx-4 shadow-2xl">
@@ -115,10 +118,10 @@ function ConfirmDialog({
             onClick={onCancel}
             className="px-3 py-1.5 text-sm border border-border hover:bg-surface-secondary transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="button" onClick={onConfirm} className="btn btn-sm">
-            Confirm
+            {t("common.confirm")}
           </button>
         </div>
       </div>

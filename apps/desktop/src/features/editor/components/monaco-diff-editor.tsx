@@ -1,11 +1,12 @@
 "use client";
 
+import "@/features/editor/monaco/config";
 import { DiffEditor, type DiffOnMount, type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import { memo, useCallback, useEffect, useRef } from "react";
-import type { EditorSettings } from "@/features/settings/lib/editor-settings";
-import { resolveMonoFontFamily } from "@/features/settings/lib/font-stacks";
-import { useThemeMode } from "@/features/settings/lib/theme";
+import { type EditorSettings, resolveEditorFontFamily, useThemeMode } from "@/features/settings";
+import { mountReviewZones } from "../lib/review-zones";
+import { editorChromeColors, editorDiffColors } from "../monaco/theme-chrome";
 
 // Define diff themes for both light and dark
 const defineDiffThemes = (monaco: Monaco) => {
@@ -46,6 +47,8 @@ const defineDiffThemes = (monaco: Monaco) => {
       "scrollbar.shadow": "#00000000",
       "scrollbarSlider.background": "#d4d4d4",
       "scrollbarSlider.hoverBackground": "#a3a3a3",
+      ...editorChromeColors(),
+      ...editorDiffColors(),
     },
   });
 
@@ -86,6 +89,8 @@ const defineDiffThemes = (monaco: Monaco) => {
       "scrollbar.shadow": "#01040900",
       "scrollbarSlider.background": "#636e7b33",
       "scrollbarSlider.hoverBackground": "#636e7b55",
+      ...editorChromeColors(),
+      ...editorDiffColors(),
     },
   });
 };
@@ -126,6 +131,13 @@ type Props = {
   language?: string;
   className?: string;
   editorSettings?: Partial<EditorSettings>;
+  onChanges?: (changes: editor.ILineChange[]) => void;
+  inlineReview?: {
+    acceptLabel: string;
+    rejectLabel: string;
+    disabled: boolean;
+    onDecide: (changes: editor.ILineChange[], index: number, accept: boolean) => void;
+  };
 };
 
 export const MonacoDiffEditor = memo(function MonacoDiffEditor({
@@ -135,6 +147,8 @@ export const MonacoDiffEditor = memo(function MonacoDiffEditor({
   language,
   className = "",
   editorSettings,
+  onChanges,
+  inlineReview,
 }: Props) {
   const editorRef = useRef<editor.IStandaloneDiffEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -143,6 +157,16 @@ export const MonacoDiffEditor = memo(function MonacoDiffEditor({
 
   const diffTheme = themeMode === "dark" ? "diff-dark" : "diff-light";
   const detectedLanguage = language || (filePath ? getLanguageFromPath(filePath) : "plaintext");
+  const onChangesRef = useRef(onChanges);
+  onChangesRef.current = onChanges;
+  const reviewRef = useRef(inlineReview);
+  reviewRef.current = inlineReview;
+  const updateReviewRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!inlineReview) return;
+    updateReviewRef.current?.();
+  }, [inlineReview]);
 
   const handleBeforeMount = useCallback((monaco: Monaco) => {
     defineDiffThemes(monaco);
@@ -152,13 +176,33 @@ export const MonacoDiffEditor = memo(function MonacoDiffEditor({
     editorRef.current = editor;
     monacoRef.current = monaco;
     isDisposingRef.current = false;
+    const reviewZones = mountReviewZones(
+      editor,
+      () => reviewRef.current,
+      (changes) => onChangesRef.current?.(changes),
+    );
+    updateReviewRef.current = reviewZones.update;
+    editor.onDidDispose(() => {
+      reviewZones.dispose();
+      updateReviewRef.current = null;
+    });
   }, []);
 
   // Reactively switch theme when app mode changes
   useEffect(() => {
-    if (monacoRef.current) {
-      monacoRef.current.editor.setTheme(diffTheme);
-    }
+    const update = () => {
+      if (monacoRef.current) {
+        defineDiffThemes(monacoRef.current);
+        monacoRef.current.editor.setTheme(diffTheme);
+      }
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    return () => observer.disconnect();
   }, [diffTheme]);
 
   // Cleanup effect to properly dispose the editor before unmount
@@ -198,7 +242,7 @@ export const MonacoDiffEditor = memo(function MonacoDiffEditor({
   }, []);
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col ${inlineReview ? "agent-inline-review" : ""} ${className}`}>
       <DiffEditor
         height="100%"
         language={detectedLanguage}
@@ -209,7 +253,9 @@ export const MonacoDiffEditor = memo(function MonacoDiffEditor({
         onMount={handleEditorDidMount}
         options={{
           readOnly: true,
-          renderSideBySide: true,
+          renderSideBySide: !inlineReview,
+          experimental: { useTrueInlineView: false },
+          renderMarginRevertIcon: !inlineReview,
           enableSplitViewResizing: true,
           ignoreTrimWhitespace: false,
           renderIndicators: true,
@@ -220,7 +266,7 @@ export const MonacoDiffEditor = memo(function MonacoDiffEditor({
           wordWrap: "on",
           diffWordWrap: "on",
           fontSize: editorSettings?.fontSize ?? 13,
-          fontFamily: resolveMonoFontFamily(editorSettings?.fontFamily),
+          fontFamily: resolveEditorFontFamily(editorSettings, detectedLanguage),
           lineNumbers: "on",
           lineHeight: editorSettings?.lineHeight ?? 1.5,
           padding: { top: 12, bottom: 12 },

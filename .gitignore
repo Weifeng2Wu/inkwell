@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+.cache/
 
 # Next.js
 .next/
@@ -15,6 +16,8 @@ build/
 # Rust / Tauri
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/resources/agent/
 
 # release artifacts
 *.dmg

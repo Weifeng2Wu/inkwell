@@ -34,10 +34,22 @@ export const THEMES: readonly ThemeDefinition[] = [
     swatch: ["#0b0f19", "#171c27", "#818cf8"],
   },
   {
+    id: "caffeine-light",
+    label: "Caffeine Light",
+    mode: "light",
+    swatch: ["#fbf7f2", "#eee3d6", "#8c4a20"],
+  },
+  {
     id: "caffeine",
     label: "Caffeine",
     mode: "dark",
     swatch: ["#1c1714", "#2a211c", "#d98b4a"],
+  },
+  {
+    id: "tokyo-day",
+    label: "Tokyo Day",
+    mode: "light",
+    swatch: ["#f3f4fa", "#e1e6f1", "#3456a0"],
   },
   {
     id: "tokyo-night",
@@ -46,10 +58,22 @@ export const THEMES: readonly ThemeDefinition[] = [
     swatch: ["#1a1b26", "#24283b", "#7aa2f7"],
   },
   {
+    id: "catppuccin-latte",
+    label: "Catppuccin Latte",
+    mode: "light",
+    swatch: ["#eff1f5", "#dce0e8", "#8839ef"],
+  },
+  {
     id: "catppuccin",
     label: "Catppuccin",
     mode: "dark",
     swatch: ["#1e1e2e", "#313244", "#cba6f7"],
+  },
+  {
+    id: "nord-light",
+    label: "Nord Light",
+    mode: "light",
+    swatch: ["#f4f6f9", "#e5e9f0", "#326b7e"],
   },
   {
     id: "nord",

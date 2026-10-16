@@ -286,11 +286,21 @@ pub async fn latex_compile(
     };
 
     // Build command arguments
-    let mut cmd_args = vec![
-        "-interaction=nonstopmode".to_string(),
-        "-file-line-error".to_string(),
-        "-synctex=1".to_string(),
-    ];
+    let mut cmd_args = Vec::new();
+
+    // latexmk requires -pdf (or -xelatex / -lualatex) to output PDF instead of DVI/PS
+    if compiler == "latexmk" {
+        let has_pdf_engine = args.iter().any(|a| {
+            a.starts_with("-pdf") || a == "-xelatex" || a == "-lualatex"
+        });
+        if !has_pdf_engine {
+            cmd_args.push("-pdf".to_string());
+        }
+    }
+
+    cmd_args.push("-interaction=nonstopmode".to_string());
+    cmd_args.push("-file-line-error".to_string());
+    cmd_args.push("-synctex=1".to_string());
 
     // Add user-provided arguments
     cmd_args.extend(args);

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/features/i18n";
 
 interface ConfirmDialogProps {
   title: string;
@@ -16,11 +17,14 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
+  const resolvedConfirmLabel = confirmLabel ?? t("common.confirm");
+  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
   const titleId = useId();
   const messageId = useId();
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -83,7 +87,7 @@ export function ConfirmDialog({
 
           <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
             <button type="button" onClick={onCancel} className="btn btn-sm btn-secondary">
-              {cancelLabel}
+              {resolvedCancelLabel}
             </button>
             <button
               ref={confirmRef}
@@ -91,7 +95,7 @@ export function ConfirmDialog({
               onClick={onConfirm}
               className="btn btn-sm btn-primary"
             >
-              {confirmLabel}
+              {resolvedConfirmLabel}
             </button>
           </div>
         </motion.div>

@@ -7,6 +7,7 @@ import {
   FolderPlusIcon,
 } from "@phosphor-icons/react";
 import { EditorErrorBoundary } from "@/features/editor/components/editor-error-boundary";
+import { useI18n } from "@/features/i18n";
 import { type FileOperations, FileTree } from "@/features/workspace/components/file-tree";
 import { pathSync } from "@/lib/path";
 import type { FileNode } from "@/types/files";
@@ -34,11 +35,13 @@ export function FileSidebarPanel({
   onRefreshFiles,
   fileOperations,
 }: FileSidebarPanelProps) {
+  const { t } = useI18n();
+
   if (!projectPath) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-4 text-center text-muted">
         <FolderIcon className="w-8 h-8 mb-2 opacity-30" />
-        <p className="text-xs">No folder open</p>
+        <p className="text-xs">{t("files.noFolderOpen")}</p>
       </div>
     );
   }
@@ -55,8 +58,8 @@ export function FileSidebarPanel({
             type="button"
             onClick={onCreateFile}
             className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            title="New File"
-            aria-label="New File"
+            title={t("files.newFile")}
+            aria-label={t("files.newFile")}
           >
             <FilePlusIcon className="w-4 h-4" />
           </button>
@@ -64,8 +67,8 @@ export function FileSidebarPanel({
             type="button"
             onClick={onCreateDirectory}
             className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            title="New Folder"
-            aria-label="New Folder"
+            title={t("files.newFolder")}
+            aria-label={t("files.newFolder")}
           >
             <FolderPlusIcon className="w-4 h-4" />
           </button>
@@ -73,8 +76,8 @@ export function FileSidebarPanel({
             type="button"
             onClick={onRefreshFiles}
             className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            title="Refresh Files"
-            aria-label="Refresh Files"
+            title={t("files.refreshFiles")}
+            aria-label={t("files.refreshFiles")}
           >
             <ArrowClockwiseIcon className="w-4 h-4" />
           </button>

@@ -18,6 +18,9 @@ export interface EditorSettings {
 
   // Display
   fontFamily: string;
+  uiFontFamily: string;
+  textFontFamily: string;
+  codeFontFamily: string;
   fontSize: number;
   lineHeight: number;
   wordWrap: "off" | "on" | "wordWrapColumn" | "bounded";
@@ -67,9 +70,12 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
 
   // Display
   fontFamily: "",
+  uiFontFamily: "system-ui",
+  textFontFamily: "system-ui",
+  codeFontFamily: "monospace",
   fontSize: 14,
   lineHeight: 1.6,
-  wordWrap: "off",
+  wordWrap: "on",
   wordWrapColumn: 80,
 
   // Editing

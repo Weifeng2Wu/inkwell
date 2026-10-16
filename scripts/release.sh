@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+[ "$(uname -s)" = "Darwin" ] || { echo "Use GitHub Actions Desktop build for Windows/Linux installers."; exit 1; }
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TAURI_DIR="$PROJECT_ROOT/apps/desktop/src-tauri"
 VERSION="$(node -p "require('$TAURI_DIR/tauri.conf.json').version")"

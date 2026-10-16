@@ -5,8 +5,8 @@
    active theme. next-themes applies the theme name as a class on <html>.
 
    `light` and `dark` are the neutral base themes. `caffeine`, `tokyo-night`,
-   `catppuccin` and `nord` are named palettes; each of them is a dark theme,
-   which is why the Tailwind `dark` variant matches all of them.
+   `catppuccin` and `nord` are dark palettes, each with a paired light palette.
+   The Tailwind `dark` variant matches only the dark palette classes.
 
    Token semantics
      background / foreground      page surface and primary text
@@ -226,4 +226,136 @@
   --info-foreground: #2e3440;
   --error: #bf616a;
   --shadow: #242933;
+}
+
+.caffeine-light {
+  color-scheme: light;
+
+  --background: #fbf7f2;
+  --foreground: #34271f;
+  --foreground-secondary: #584538;
+  --muted: #705d4e;
+  --muted-foreground: #6f5b4b;
+
+  --border: #e1d6c9;
+  --border-dark: #cdbca8;
+
+  --accent: #8c4a20;
+  --accent-foreground: #ffffff;
+  --accent-hover: #efe2d2;
+  --accent-muted: #946338;
+  --accent-dark: #703a19;
+
+  --surface: #f5eee5;
+  --surface-text: #34271f;
+  --surface-secondary: #eee3d6;
+  --surface-tertiary: #e5d6c6;
+
+  --success: #3d6b35;
+  --success-foreground: #ffffff;
+  --warning: #8a520b;
+  --warning-foreground: #ffffff;
+  --info: #275c85;
+  --info-foreground: #ffffff;
+  --error: #a93230;
+  --shadow: #34271f;
+}
+
+.tokyo-day {
+  color-scheme: light;
+
+  --background: #f3f4fa;
+  --foreground: #343b58;
+  --foreground-secondary: #495573;
+  --muted: #596584;
+  --muted-foreground: #596584;
+
+  --border: #d5dceb;
+  --border-dark: #b9c3d6;
+
+  --accent: #3456a0;
+  --accent-foreground: #ffffff;
+  --accent-hover: #e5e9f4;
+  --accent-muted: #6551a1;
+  --accent-dark: #294583;
+
+  --surface: #eaedf5;
+  --surface-text: #343b58;
+  --surface-secondary: #e1e6f1;
+  --surface-tertiary: #d5ddeb;
+
+  --success: #366530;
+  --success-foreground: #ffffff;
+  --warning: #875015;
+  --warning-foreground: #ffffff;
+  --info: #3456a0;
+  --info-foreground: #ffffff;
+  --error: #a73d55;
+  --shadow: #343b58;
+}
+
+.catppuccin-latte {
+  color-scheme: light;
+
+  --background: #eff1f5;
+  --foreground: #4c4f69;
+  --foreground-secondary: #5c5f77;
+  --muted: #5c5f77;
+  --muted-foreground: #5c5f77;
+
+  --border: #ccd0da;
+  --border-dark: #bcc0cc;
+
+  --accent: #8839ef;
+  --accent-foreground: #ffffff;
+  --accent-hover: #e8e0f5;
+  --accent-muted: #7041b5;
+  --accent-dark: #7025cc;
+
+  --surface: #e6e9ef;
+  --surface-text: #4c4f69;
+  --surface-secondary: #dce0e8;
+  --surface-tertiary: #ccd0da;
+
+  --success: #366b26;
+  --success-foreground: #ffffff;
+  --warning: #895600;
+  --warning-foreground: #ffffff;
+  --info: #1e66f5;
+  --info-foreground: #ffffff;
+  --error: #b82d48;
+  --shadow: #4c4f69;
+}
+
+.nord-light {
+  color-scheme: light;
+
+  --background: #f4f6f9;
+  --foreground: #2e3440;
+  --foreground-secondary: #434c5e;
+  --muted: #4c566a;
+  --muted-foreground: #596579;
+
+  --border: #d8dee9;
+  --border-dark: #bcc7d6;
+
+  --accent: #326b7e;
+  --accent-foreground: #ffffff;
+  --accent-hover: #e1ebef;
+  --accent-muted: #456987;
+  --accent-dark: #285665;
+
+  --surface: #eceff4;
+  --surface-text: #2e3440;
+  --surface-secondary: #e5e9f0;
+  --surface-tertiary: #d8dee9;
+
+  --success: #42663b;
+  --success-foreground: #ffffff;
+  --warning: #87591a;
+  --warning-foreground: #ffffff;
+  --info: #38658d;
+  --info-foreground: #ffffff;
+  --error: #a33f49;
+  --shadow: #2e3440;
 }

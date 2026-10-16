@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useI18n } from "@/features/i18n";
 import type { TerminalShellMode } from "@/features/settings";
 import { pathSync } from "@/lib/path";
 
@@ -101,6 +102,7 @@ export function TerminalPanel({
   prefersReducedMotion,
   onClose,
 }: TerminalPanelProps) {
+  const { t } = useI18n();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const heightRef = useRef(DEFAULT_TERMINAL_HEIGHT);
   const frameRef = useRef<number | null>(null);
@@ -114,7 +116,7 @@ export function TerminalPanel({
   );
   const shellLabel = useMemo(() => getShellLabel(shellMode, customShell), [shellMode, customShell]);
   const shellTitle =
-    shellMode === "custom" && customShell.trim().length > 0 ? customShell.trim() : "Auto shell";
+    shellMode === "custom" && customShell.trim().length > 0 ? customShell.trim() : t("terminal.autoShell");
 
   const setPanelHeightVariable = useCallback((nextHeight: number) => {
     panelRef.current?.style.setProperty("--terminal-panel-height", `${nextHeight}px`);
@@ -268,7 +270,7 @@ export function TerminalPanel({
               onDragEnd={handleResizeEnd}
               onKeyDown={handleResizeKeyDown}
               role="separator"
-              aria-label="Resize terminal"
+              aria-label={t("terminal.resizeTerminal")}
               aria-orientation="horizontal"
               aria-valuemin={MIN_TERMINAL_HEIGHT}
               aria-valuemax={getMaxTerminalHeight()}
@@ -287,7 +289,7 @@ export function TerminalPanel({
           <div className="h-8 flex-shrink-0 border-b border-border px-2 flex items-center justify-between gap-2 bg-background">
             <div className="min-w-0 flex items-center gap-2">
               <TerminalIcon className="size-3.5 flex-shrink-0" weight="bold" />
-              <span className="font-mono text-[11px] uppercase text-foreground">Terminal</span>
+              <span className="font-mono text-[11px] uppercase text-foreground">{t("terminal.title")}</span>
               <span className="text-border select-none">/</span>
               <span className="truncate text-xs text-muted" title={projectPath}>
                 {projectName}
@@ -305,8 +307,8 @@ export function TerminalPanel({
                 type="button"
                 onClick={onClose}
                 className="h-6 w-6 border border-transparent text-muted hover:text-foreground hover:border-border hover:bg-accent/5 transition-colors flex items-center justify-center"
-                title="Close Terminal"
-                aria-label="Close Terminal"
+                title={t("terminal.closeTerminal")}
+                aria-label={t("terminal.closeTerminal")}
               >
                 <XIcon className="size-3.5" />
               </button>

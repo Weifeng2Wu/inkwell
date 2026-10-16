@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CheckIcon } from "@/features/agent/components/icons";
 import type { AskUserQuestion } from "@/features/agent/components/types";
 import type { ToolPart } from "@/features/agent/lib/types";
+import { useI18n } from "@/features/i18n";
 
 export function parseAskUserQuestions(input: Record<string, unknown>): AskUserQuestion[] | null {
   let questions = input.questions;
@@ -32,6 +33,7 @@ export function AskUserQuestionDisplay({
   part: ToolPart;
   onAnswer?: (questionID: string, answers: string[][]) => void;
 }) {
+  const { t } = useI18n();
   const questions = useMemo(() => parseAskUserQuestions(part.state.input), [part.state.input]);
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string[]>>({});
   const [customInputs, setCustomInputs] = useState<Record<number, string>>({});
@@ -133,7 +135,9 @@ export function AskUserQuestionDisplay({
   if (isCompleted) {
     return (
       <div className="border border-accent bg-background p-3 space-y-1 rounded-sm">
-        <div className="text-[10px] font-medium text-muted uppercase tracking-wider">Answered</div>
+        <div className="text-[10px] font-medium text-muted uppercase tracking-wider">
+          {t("agent.answered")}
+        </div>
         {questions.map((q, qIndex) => {
           const answer = getAnswerText(qIndex);
           return answer ? (
@@ -177,7 +181,7 @@ export function AskUserQuestionDisplay({
           ))}
         </div>
         <span className="text-[9px] font-mono text-muted uppercase tracking-wider">
-          {isSummaryStep ? "Review" : `${currentStep + 1} / ${questions.length}`}
+          {isSummaryStep ? t("agent.review") : `${currentStep + 1} / ${questions.length}`}
         </span>
       </div>
 
@@ -197,7 +201,9 @@ export function AskUserQuestionDisplay({
                   <span className="text-[10px] font-bold px-1.5 py-0.5 bg-accent text-accent-foreground rounded-sm uppercase tracking-wide">
                     {q.header}
                   </span>
-                  {q.multiSelect && <span className="text-[10px] text-muted">(Multi-select)</span>}
+                  {q.multiSelect && (
+                    <span className="text-[10px] text-muted">{t("agent.multiSelect")}</span>
+                  )}
                 </div>
                 <p className="text-xs font-medium text-foreground-secondary leading-relaxed">
                   {q.question}
@@ -260,7 +266,9 @@ export function AskUserQuestionDisplay({
                               <CheckIcon className="size-2.5 text-accent-foreground" />
                             )}
                           </div>
-                          <div className="text-xs font-medium text-foreground-secondary">Other</div>
+                          <div className="text-xs font-medium text-foreground-secondary">
+                            {t("agent.other")}
+                          </div>
                         </div>
                       </button>
 
@@ -271,7 +279,7 @@ export function AskUserQuestionDisplay({
                           onChange={(e) =>
                             setCustomInputs((prev) => ({ ...prev, [qIndex]: e.target.value }))
                           }
-                          placeholder="Enter custom answer..."
+                          placeholder={t("agent.enterCustomAnswer")}
                           className="w-full px-2 py-1.5 text-xs border border-border focus:border-accent focus:outline-none rounded"
                         />
                       )}
@@ -286,7 +294,7 @@ export function AskUserQuestionDisplay({
         {isSummaryStep && (
           <div key="step-summary" className="wizard-step-enter space-y-2">
             <div className="text-[10px] font-medium uppercase tracking-wider text-muted mb-1">
-              Review Answers
+              {t("agent.reviewAnswers")}
             </div>
             {questions.map((q, qIndex) => {
               const answer = getAnswerText(qIndex);
@@ -306,11 +314,11 @@ export function AskUserQuestionDisplay({
                         {q.header}
                       </div>
                       <div className="text-xs mt-0.5 truncate text-foreground-secondary">
-                        {hasAnswer ? answer : "Not answered"}
+                        {hasAnswer ? answer : t("agent.notAnswered")}
                       </div>
                     </div>
                     <span className="text-[9px] text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      Edit
+                      {t("agent.edit")}
                     </span>
                   </div>
                 </button>
@@ -330,7 +338,7 @@ export function AskUserQuestionDisplay({
               currentStep === 0 ? "opacity-0 pointer-events-none" : ""
             }`}
           >
-            Back
+            {t("common.back")}
           </button>
 
           {isSummaryStep ? (
@@ -340,7 +348,7 @@ export function AskUserQuestionDisplay({
               disabled={!hasAnySelection || submitting}
               className="px-3 py-1 bg-accent text-accent-foreground text-[10px] font-medium uppercase tracking-wider hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {submitting ? "Submitting..." : "Submit"}
+              {submitting ? t("agent.submitting") : t("agent.submit")}
             </button>
           ) : (
             <button
@@ -349,7 +357,7 @@ export function AskUserQuestionDisplay({
               disabled={!currentStepHasSelection}
               className="px-3 py-1 bg-accent text-accent-foreground text-[10px] font-medium uppercase tracking-wider hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {currentStep === questions.length - 1 ? "Review" : "Next"}
+              {currentStep === questions.length - 1 ? t("agent.review") : t("common.next")}
             </button>
           )}
         </div>
