@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
+import { AppDatabase, databasePath } from "./storage.mjs";
 
 export const MAX_RESOURCE_BYTES = 128 * 1024;
+export function libraryDatabasePath(directory) {
+  return databasePath(path.basename(directory) === "skills" ? path.dirname(directory) : directory);
+}
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -122,13 +126,30 @@ export class SkillLibrary {
   }
 
   static async open(directory) {
-    const filename = path.join(directory, "registry.json");
-    if ((await stat(filename)).size > MAX_RESOURCE_BYTES)
-      throw new Error("Skill registry is too large.");
-    return new SkillLibrary(
-      await realpath(directory),
-      JSON.parse(await readFile(filename, "utf8")),
-    );
+    const scope = await realpath(directory);
+    const database = new AppDatabase(libraryDatabasePath(scope));
+    try {
+      const saved = database.db
+        .prepare("SELECT value FROM skill_registry WHERE scope=?")
+        .get(scope);
+      if (saved) return new SkillLibrary(scope, JSON.parse(saved.value));
+      const filename = path.join(scope, "registry.json");
+      if ((await stat(filename)).size > MAX_RESOURCE_BYTES)
+        throw new Error("Skill registry is too large.");
+      const value = await readFile(filename, "utf8");
+      const library = new SkillLibrary(scope, JSON.parse(value));
+      database.transaction(() => {
+        database.db
+          .prepare("INSERT INTO skill_registry VALUES (?,?) ON CONFLICT(scope) DO NOTHING")
+          .run(scope, JSON.stringify(library.registry));
+      });
+      const current = database.db
+        .prepare("SELECT value FROM skill_registry WHERE scope=?")
+        .get(scope);
+      return new SkillLibrary(scope, JSON.parse(current.value));
+    } finally {
+      database.close();
+    }
   }
 
   catalog() {

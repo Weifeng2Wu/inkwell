@@ -8,6 +8,7 @@ pub async fn layout_parser_request(app: AppHandle, request: Value) -> Result<Val
     let directory = app.path().app_data_dir().map_err(|_| "App data unavailable.")?.join("layout-parser");
     tokio::fs::create_dir_all(&directory).await.map_err(|_| "Could not prepare layout parser.")?;
     for (name, content) in [
+        ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
         ("layout-parser.mjs", include_str!("../../../../../packages/academic-agent/src/layout-parser.mjs")),
         ("zip-skills.mjs", include_str!("../../../../../packages/academic-agent/src/zip-skills.mjs")),
         ("library.mjs", include_str!("../../../../../packages/academic-agent/src/library.mjs")),

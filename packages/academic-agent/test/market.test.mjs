@@ -49,8 +49,9 @@ test("market starts empty and supports explicit upload, loading, removal, and re
   assert.equal(library.catalog().length, 1);
   assert.equal(
     JSON.parse(await readFile(path.join(root, "registry.json"), "utf8")).skills.length,
-    1,
+    0,
   );
+  assert.equal((await SkillLibrary.open(root)).catalog().length, 1);
   await assert.rejects(changeMarketSkill(root, "../escape", false), /Upload a skill/);
 });
 

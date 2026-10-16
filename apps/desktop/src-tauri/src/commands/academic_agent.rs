@@ -137,6 +137,7 @@ pub async fn academic_agent_start(
         .await
         .map_err(|error| error.to_string())?;
     for (name, contents) in [
+        ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
         ("bridge.mjs", BRIDGE),
         ("format-review.mjs", include_str!("../../../../../packages/academic-agent/src/format-review.mjs")),
         ("review-prompt.json", include_str!("../../../../../packages/academic-agent/src/review-prompt.json")),
@@ -173,6 +174,7 @@ pub async fn academic_agent_start(
         .arg(&directory)
         .arg(sdk)
         .arg(&project)
+        .env("INKWELL_DATABASE_PATH", directory.join("inkwell.sqlite"))
         .current_dir(&review_workspace)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

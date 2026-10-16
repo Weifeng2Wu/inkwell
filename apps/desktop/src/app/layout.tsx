@@ -5,6 +5,7 @@ import { ExternalLinkHandler } from "@/components/external-link-handler";
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/features/i18n";
 import { DEFAULT_THEME, THEME_IDS } from "@/features/settings/lib/theme";
+import { StorageProvider, StorageThemeSync } from "@/lib/storage/storage-provider";
 import "./globals.css";
 
 const modernSans = Geist({
@@ -30,20 +31,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${modernSans.variable} ${modernMono.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme={DEFAULT_THEME}
-          themes={THEME_IDS}
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <I18nProvider>
-            <ToastProvider>
-              <ExternalLinkHandler />
-              {children}
-            </ToastProvider>
-          </I18nProvider>
-        </ThemeProvider>
+        <StorageProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme={DEFAULT_THEME}
+            themes={THEME_IDS}
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <I18nProvider>
+              <StorageThemeSync />
+              <ToastProvider>
+                <ExternalLinkHandler />
+                {children}
+              </ToastProvider>
+            </I18nProvider>
+          </ThemeProvider>
+        </StorageProvider>
       </body>
     </html>
   );

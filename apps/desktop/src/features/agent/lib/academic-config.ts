@@ -1,3 +1,4 @@
+import { appStorage } from "@/lib/storage/app-storage";
 import type { AcademicConfig } from "./academic-client";
 
 export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
@@ -14,9 +15,7 @@ export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
 export function readConfig(storageKey: string): AcademicConfig {
   try {
     const value: unknown = JSON.parse(
-      localStorage.getItem(storageKey) ??
-        localStorage.getItem("inkwell-agent-config-v1:") ??
-        "null",
+      appStorage.getItem(storageKey) ?? appStorage.getItem("inkwell-agent-config-v1:") ?? "null",
     );
     if (
       value &&

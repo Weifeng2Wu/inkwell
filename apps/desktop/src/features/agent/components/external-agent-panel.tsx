@@ -72,7 +72,7 @@ export function ExternalAgentPanel({
             title: record.title,
             created: record.modified,
             modified: record.modified,
-            messageCount: record.messages.length,
+            messageCount: record.messageCount ?? record.messages.length,
           })),
           historyPreview: null,
           session: agent.currentConversationId

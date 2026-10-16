@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { appStorage } from "@/lib/storage/app-storage";
 
 export type LayoutConfig = {
   provider: "mineru" | "custom";
@@ -20,7 +21,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 const STORAGE = "inkwell-layout-parser-v1";
 export function readLayoutConfig(): LayoutConfig {
   try {
-    const value = JSON.parse(localStorage.getItem(STORAGE) ?? "{}");
+    const value = JSON.parse(appStorage.getItem(STORAGE) ?? "{}");
     return {
       ...DEFAULT_LAYOUT_CONFIG,
       provider: value.provider === "custom" ? "custom" : "mineru",
@@ -37,7 +38,7 @@ export function readLayoutConfig(): LayoutConfig {
   }
 }
 export function saveLayoutConfig(config: LayoutConfig) {
-  localStorage.setItem(STORAGE, JSON.stringify(config));
+  appStorage.setItem(STORAGE, JSON.stringify(config));
   window.dispatchEvent(new Event(STORAGE));
 }
 export function layoutKeyScope(config: LayoutConfig): string {

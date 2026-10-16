@@ -5,6 +5,7 @@ import { DEFAULT_THEME, isDarkTheme, THEME_IDS, THEMES } from "./theme";
 const stylesheet = readFileSync(new URL("../../../styles/themes.css", import.meta.url), "utf8");
 const globals = readFileSync(new URL("../../../app/globals.css", import.meta.url), "utf8");
 const lightCounterparts = ["caffeine-light", "tokyo-day", "catppuccin-latte", "nord-light"];
+const addedPalettes = ["dracula", "gruvbox-dark", "rose-pine", "rose-pine-dawn"];
 
 function themeTokens(identifier: string) {
   const block = stylesheet.match(new RegExp(`\\.${identifier}\\s*\\{([^}]+)\\}`))?.[1];
@@ -31,11 +32,11 @@ function contrast(first: string, second: string) {
 }
 
 describe("theme palettes", () => {
-  it("keeps existing selections and adds four light counterparts", () => {
+  it("keeps existing selections and includes the additional palettes", () => {
     expect(DEFAULT_THEME).toBe("light");
     expect(new Set(THEME_IDS).size).toBe(THEMES.length);
-    expect(THEMES.filter((theme) => theme.mode === "light")).toHaveLength(5);
-    expect(THEMES.filter((theme) => theme.mode === "dark")).toHaveLength(5);
+    expect(THEMES.filter((theme) => theme.mode === "light")).toHaveLength(6);
+    expect(THEMES.filter((theme) => theme.mode === "dark")).toHaveLength(8);
     for (const identifier of [
       "light",
       "dark",
@@ -44,6 +45,7 @@ describe("theme palettes", () => {
       "catppuccin",
       "nord",
       ...lightCounterparts,
+      ...addedPalettes,
     ])
       expect(THEME_IDS).toContain(identifier);
     expect(isDarkTheme(undefined)).toBe(false);
@@ -73,8 +75,8 @@ describe("theme palettes", () => {
       );
   });
 
-  it("keeps text and action labels readable in each new light palette", () => {
-    for (const identifier of lightCounterparts) {
+  it("keeps text and action labels readable in added palettes", () => {
+    for (const identifier of [...lightCounterparts, ...addedPalettes]) {
       const { tokens } = themeTokens(identifier);
       for (const surface of ["background", "surface", "surface-secondary"])
         for (const text of ["foreground", "foreground-secondary", "muted", "muted-foreground"])

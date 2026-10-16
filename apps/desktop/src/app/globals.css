@@ -20,7 +20,13 @@
   .catppuccin,
   .catppuccin *,
   .nord,
-  .nord *
+  .nord *,
+  .dracula,
+  .dracula *,
+  .gruvbox-dark,
+  .gruvbox-dark *,
+  .rose-pine,
+  .rose-pine *
 ));
 
 @theme {

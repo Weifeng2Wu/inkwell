@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { appStorage } from "@/lib/storage/app-storage";
 import {
   DEFAULT_SHORTCUTS,
   parseShortcutBindings,
@@ -17,7 +18,7 @@ let cachedBindings = DEFAULT_SHORTCUTS;
 
 function snapshot() {
   try {
-    const raw = window.localStorage.getItem(SHORTCUT_STORAGE_KEY);
+    const raw = appStorage.getItem(SHORTCUT_STORAGE_KEY);
     if (raw !== cachedRaw) {
       cachedRaw = raw;
       cachedBindings = parseShortcutBindings(raw);
@@ -38,7 +39,7 @@ function subscribe(notify: () => void) {
 }
 
 function save(bindings: ShortcutBindings) {
-  window.localStorage.setItem(SHORTCUT_STORAGE_KEY, JSON.stringify(bindings));
+  appStorage.setItem(SHORTCUT_STORAGE_KEY, JSON.stringify(bindings));
   window.dispatchEvent(new Event(changed));
 }
 

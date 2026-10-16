@@ -1,8 +1,14 @@
-import { randomUUID } from "node:crypto";
-import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { digest, MAX_RESOURCE_BYTES, SkillLibrary, validateRegistry } from "./library.mjs";
+import {
+  digest,
+  libraryDatabasePath,
+  MAX_RESOURCE_BYTES,
+  SkillLibrary,
+  validateRegistry,
+} from "./library.mjs";
+import { AppDatabase } from "./storage.mjs";
 import { importSkillZip } from "./zip-skills.mjs";
 
 const TEXT_EXTENSIONS = new Set([".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".bib", ".tex"]);
@@ -47,9 +53,18 @@ export async function marketCatalog(library) {
 
 export async function saveRegistry(library, skills) {
   const registry = validateRegistry({ schemaVersion: 1, skills });
-  const temporary = path.join(library.directory, `.registry-${randomUUID()}.json`);
-  await writeFile(temporary, JSON.stringify(registry, null, 2), { flag: "wx" });
-  await rename(temporary, path.join(library.directory, "registry.json"));
+  const database = new AppDatabase(libraryDatabasePath(library.directory));
+  try {
+    database.transaction(() => {
+      database.db
+        .prepare(
+          "INSERT INTO skill_registry VALUES (?,?) ON CONFLICT(scope) DO UPDATE SET value=excluded.value",
+        )
+        .run(library.directory, JSON.stringify(registry));
+    });
+  } finally {
+    database.close();
+  }
   return SkillLibrary.open(library.directory);
 }
 

@@ -1,6 +1,7 @@
 import { lstat, mkdir, readdir, readFile, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { isWithin } from "./library.mjs";
+import { AppDatabase, databasePath } from "./storage.mjs";
 
 const KEY_PATTERN = /^[a-f0-9]{64}\/[a-zA-Z0-9_.-]+\.jsonl$/;
 const MAX_SESSION_BYTES = 16 * 1024 * 1024;
@@ -72,24 +73,80 @@ export class SessionHistory {
 
   async list() {
     await mkdir(this.directory, { recursive: true });
-    const result = [];
-    const buckets = await readdir(this.directory, { withFileTypes: true });
-    for (const bucket of buckets) {
-      if (!bucket.isDirectory() || !/^[a-f0-9]{64}$/.test(bucket.name)) continue;
-      const files = await readdir(path.join(this.directory, bucket.name), { withFileTypes: true });
-      for (const file of files) {
-        if (!file.isFile()) continue;
-        const key = `${bucket.name}/${file.name}`;
-        if (!KEY_PATTERN.test(key)) continue;
-        try {
-          const { manager, info } = await this.resolve(key);
-          result.push(this.metadata(key, manager, info));
-        } catch (error) {
-          if (error.code === "EACCES") throw error;
+    const root = await realpath(this.directory);
+    const database = new AppDatabase(databasePath(path.dirname(root)));
+    try {
+      const cached = new Map(
+        database.db
+          .prepare("SELECT * FROM session_index WHERE root=? AND project=?")
+          .all(root, this.project)
+          .map((row) => [row.key, row]),
+      );
+      const result = [];
+      const seen = new Set();
+      const updates = [];
+      const buckets = await readdir(root, { withFileTypes: true });
+      for (const bucket of buckets) {
+        if (!bucket.isDirectory() || !/^[a-f0-9]{64}$/.test(bucket.name)) continue;
+        const parent = path.join(root, bucket.name);
+        if ((await realpath(parent)) !== parent) continue;
+        const files = await readdir(parent, { withFileTypes: true });
+        for (const file of files) {
+          const key = `${bucket.name}/${file.name}`;
+          if (!file.isFile() || !KEY_PATTERN.test(key)) continue;
+          try {
+            const filename = path.join(parent, file.name);
+            const info = await lstat(filename);
+            if (
+              !info.isFile() ||
+              info.isSymbolicLink() ||
+              info.nlink !== 1 ||
+              info.size > MAX_SESSION_BYTES ||
+              (await realpath(filename)) !== filename
+            )
+              continue;
+            const previous = cached.get(key);
+            if (
+              previous &&
+              previous.size === info.size &&
+              previous.mtime === info.mtimeMs &&
+              previous.ctime === info.ctimeMs
+            ) {
+              result.push(JSON.parse(previous.metadata));
+            } else {
+              const resolved = await this.resolve(key);
+              const metadata = this.metadata(key, resolved.manager, resolved.info);
+              updates.push([
+                root,
+                key,
+                this.project,
+                resolved.info.size,
+                resolved.info.mtimeMs,
+                resolved.info.ctimeMs,
+                JSON.stringify(metadata),
+              ]);
+              result.push(metadata);
+            }
+            seen.add(key);
+          } catch (error) {
+            if (error.code === "EACCES") throw error;
+          }
         }
       }
+      database.transaction(() => {
+        const upsert = database.db.prepare(
+          "INSERT INTO session_index VALUES (?,?,?,?,?,?,?) ON CONFLICT(root,key) DO UPDATE SET project=excluded.project,size=excluded.size,mtime=excluded.mtime,ctime=excluded.ctime,metadata=excluded.metadata",
+        );
+        for (const row of updates) upsert.run(...row);
+        const remove = database.db.prepare(
+          "DELETE FROM session_index WHERE root=? AND key=? AND project=?",
+        );
+        for (const key of cached.keys()) if (!seen.has(key)) remove.run(root, key, this.project);
+      });
+      return result.sort((first, second) => second.modified.localeCompare(first.modified));
+    } finally {
+      database.close();
     }
-    return result.sort((first, second) => second.modified.localeCompare(first.modified));
   }
 
   async read(key) {

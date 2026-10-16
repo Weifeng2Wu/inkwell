@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { basename, normalize } from "@/lib/path";
+import { appStorage } from "@/lib/storage/app-storage";
 
 const STORAGE_KEY = "recent-projects";
 const MAX_PROJECTS = 10;
@@ -17,7 +18,7 @@ export function useRecentProjects() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = appStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as RecentProject[];
         setProjects(parsed.sort((a, b) => b.lastOpened - a.lastOpened));
@@ -30,7 +31,7 @@ export function useRecentProjects() {
   const saveProjects = useCallback((newProjects: RecentProject[]) => {
     const sorted = newProjects.sort((a, b) => b.lastOpened - a.lastOpened);
     setProjects(sorted);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+    appStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
   }, []);
 
   const addProject = useCallback(
@@ -60,7 +61,7 @@ export function useRecentProjects() {
 
   const clearAll = useCallback(() => {
     setProjects([]);
-    localStorage.removeItem(STORAGE_KEY);
+    appStorage.removeItem(STORAGE_KEY);
   }, []);
 
   return { projects, addProject, removeProject, clearAll };

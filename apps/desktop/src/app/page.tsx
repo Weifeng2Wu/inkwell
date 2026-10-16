@@ -91,6 +91,7 @@ import { buildBasenameIndex, type TreeNode } from "@/features/workspace/lib/tree
 import { throttle } from "@/lib/async";
 import { INSTANT_TRANSITION, MAX_SIDEBAR_WIDTH, MIN_PANEL_WIDTH, PANEL_SPRING } from "@/lib/layout";
 import { pathSync } from "@/lib/path";
+import { appStorage, storedPanelWidth } from "@/lib/storage/app-storage";
 import { useTauriDaemon } from "@/lib/tauri";
 
 type EditorViewMode = "file" | "git-diff";
@@ -140,20 +141,20 @@ export default function EditorPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [rightPanelWidth, setRightPanelWidth] = useState(280);
+  const [sidebarWidth, setSidebarWidth] = useState(() => storedPanelWidth("sidebarWidth", 150, 600));
+  const [rightPanelWidth, setRightPanelWidth] = useState(() => storedPanelWidth("rightPanelWidth", 280, 700));
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const savedSidebar = localStorage.getItem("sidebarWidth");
+      const savedSidebar = appStorage.getItem("sidebarWidth");
       if (savedSidebar) {
         const parsed = parseInt(savedSidebar, 10);
         if (!Number.isNaN(parsed) && parsed >= 150 && parsed <= 600) {
           setSidebarWidth(parsed);
         }
       }
-      const savedRight = localStorage.getItem("rightPanelWidth");
+      const savedRight = appStorage.getItem("rightPanelWidth");
       if (savedRight) {
         const parsed = parseInt(savedRight, 10);
         if (!Number.isNaN(parsed) && parsed >= 280 && parsed <= 700) {
@@ -345,11 +346,11 @@ The AI assistant will read and update this file during compilation.
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("sidebarWidth", String(sidebarWidth));
+    appStorage.setItem("sidebarWidth", String(sidebarWidth));
   }, [sidebarWidth]);
 
   useEffect(() => {
-    localStorage.setItem("rightPanelWidth", String(rightPanelWidth));
+    appStorage.setItem("rightPanelWidth", String(rightPanelWidth));
   }, [rightPanelWidth]);
 
   useEffect(() => {

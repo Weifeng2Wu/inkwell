@@ -101,3 +101,28 @@ test("history rejects path traversal, other projects, symlinks, and corrupt file
   await assert.rejects(history.read(key), /Invalid or oversized/);
   assert.deepEqual(await history.list(), []);
 });
+
+test("unchanged JSONL sessions use SQLite metadata while changed logs are reindexed", async (context) => {
+  const { history, key, filename } = await fixture(context);
+  let opens = 0;
+  history.sdk = {
+    ...sdk,
+    SessionManager: {
+      open: (...arguments_) => {
+        opens += 1;
+        return sdk.SessionManager.open(...arguments_);
+      },
+    },
+  };
+  await history.list();
+  assert.equal(opens, 1);
+  await history.list();
+  assert.equal(opens, 1);
+  await history.rename(key, "Renamed externally");
+  assert.equal((await history.list())[0].title, "Renamed externally");
+  assert.equal(opens, 3);
+  await history.read(key);
+  assert.equal(opens, 4);
+  await rm(filename);
+  assert.deepEqual(await history.list(), []);
+});

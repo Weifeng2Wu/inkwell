@@ -35,3 +35,6 @@ apps/desktop/src-tauri/resources/agent/
 .idea/
 .vscode/
 *.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

@@ -20,12 +20,12 @@ pub struct ReviewWorkspace {
     disk: BTreeMap<String, String>,
 }
 
-async fn persist(current: &ReviewWorkspace) -> Result<(), String> {
-    let filename = current.work.parent().ok_or("Invalid review directory.")?.join("state.json");
-    let content = serde_json::to_vec(current).map_err(|error| error.to_string())?;
-    let temporary = filename.with_file_name(format!("state-{}.tmp", uuid::Uuid::new_v4()));
-    tokio::fs::write(&temporary, content).await.map_err(|error| error.to_string())?;
-    tokio::fs::rename(&temporary, filename).await.map_err(|error| error.to_string())
+async fn persist(app: &AppHandle, current: &ReviewWorkspace) -> Result<(), String> {
+    super::storage::internal_request(app, serde_json::json!({
+        "type": "record_write", "namespace": "agent-review",
+        "key": current.project.to_string_lossy(), "value": current
+    })).await?;
+    Ok(())
 }
 
 #[derive(Clone, Serialize)]
@@ -151,11 +151,21 @@ pub async fn workspace(app: &AppHandle, project: &Path) -> Result<PathBuf, Strin
     let work = app.path().app_data_dir().map_err(|error| error.to_string())?
         .join("agent-review").join(key).join("workspace");
     tokio::fs::create_dir_all(&work).await.map_err(|error| error.to_string())?;
-    let state_path = work.parent().ok_or("Invalid review directory.")?.join("state.json");
-    if tokio::fs::try_exists(&state_path).await.map_err(|error| error.to_string())? {
-        let bytes = tokio::fs::read(&state_path).await.map_err(|error| error.to_string())?;
-        let saved: ReviewWorkspace = serde_json::from_slice(&bytes).map_err(|error| format!("Cannot restore pending Agent review: {error}"))?;
+    let response = super::storage::internal_request(app, serde_json::json!({
+        "type": "record_read", "namespace": "agent-review", "key": project.to_string_lossy()
+    })).await?;
+    let saved = if let Some(value) = response.get("value").filter(|value| !value.is_null()) {
+        Some(serde_json::from_value::<ReviewWorkspace>(value.clone()).map_err(|error| format!("Cannot restore pending Agent review: {error}"))?)
+    } else {
+        let state_path = work.parent().ok_or("Invalid review directory.")?.join("state.json");
+        if tokio::fs::try_exists(&state_path).await.map_err(|error| error.to_string())? {
+            let bytes = tokio::fs::read(&state_path).await.map_err(|error| error.to_string())?;
+            Some(serde_json::from_slice::<ReviewWorkspace>(&bytes).map_err(|error| format!("Cannot migrate pending Agent review: {error}"))?)
+        } else { None }
+    };
+    if let Some(saved) = saved {
         if saved.project != project || saved.work != work { return Err("Invalid saved review workspace.".into()); }
+        persist(app, &saved).await?;
         *guard = Some(saved);
         return Ok(work);
     }
@@ -166,7 +176,7 @@ pub async fn workspace(app: &AppHandle, project: &Path) -> Result<PathBuf, Strin
         tokio::fs::write(target, content).await.map_err(|error| error.to_string())?;
     }
     let current = ReviewWorkspace { project: project.to_path_buf(), work: work.clone(), disk: baseline.clone(), baseline };
-    persist(&current).await?;
+    persist(app, &current).await?;
     *guard = Some(current);
     Ok(work)
 }
@@ -203,7 +213,7 @@ pub async fn agent_review_prepare(app: AppHandle, project: tauri::State<'_, Mute
     }
     current.baseline = contents;
     current.disk = baseline;
-    persist(current).await
+    persist(&app, current).await
 }
 
 #[tauri::command]
@@ -272,7 +282,7 @@ pub async fn agent_review_resolve(app: AppHandle, project: tauri::State<'_, Mute
         Some(content) => { current.baseline.insert(path, content); },
         None => { current.baseline.remove(&path); },
     }
-    persist(current).await
+    persist(&app, current).await
 }
 
 #[cfg(test)]

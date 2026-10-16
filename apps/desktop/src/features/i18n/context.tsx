@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { appStorage } from "@/lib/storage/app-storage";
 import { resolveInitialLocale } from "./locale-detection";
 import { en } from "./locales/en";
 import { ko } from "./locales/ko";
@@ -32,7 +33,7 @@ async function detectInitialLocale(): Promise<Locale> {
 
   let saved: string | null = null;
   try {
-    saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    saved = appStorage.getItem(LOCALE_STORAGE_KEY);
   } catch {
     // Ignore localStorage errors
   }
@@ -87,7 +88,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     manuallySelected.current = true;
     setLocaleState(newLocale);
     try {
-      localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+      appStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
     } catch {
       // Ignore localStorage errors
     }

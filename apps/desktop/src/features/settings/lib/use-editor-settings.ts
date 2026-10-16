@@ -6,6 +6,7 @@ import {
   type EditorTheme,
 } from "@/features/settings/lib/editor-settings";
 import { useThemeMode } from "@/features/settings/lib/theme";
+import { appStorage } from "@/lib/storage/app-storage";
 import { resolveFontFamily } from "./font-stacks";
 
 const STORAGE_KEY = "editor-settings";
@@ -105,7 +106,7 @@ export function useEditorSettings(enabled = true) {
       return DEFAULT_EDITOR_SETTINGS;
     }
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = appStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         return migrateSettings(parsed);
@@ -123,7 +124,7 @@ export function useEditorSettings(enabled = true) {
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      appStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     } catch {
       // Ignore storage errors
     }

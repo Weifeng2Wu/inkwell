@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { appStorage } from "@/lib/storage/app-storage";
 import {
   type AgentSelection,
   isAgentSelection,
@@ -17,7 +18,7 @@ export function useAgentSelection() {
 
   useEffect(() => {
     try {
-      const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+      const stored: unknown = JSON.parse(appStorage.getItem(STORAGE_KEY) ?? "null");
       if (stored && typeof stored === "object") {
         if ("selected" in stored && isAgentSelection(stored.selected)) setSelected(stored.selected);
         if ("launches" in stored && stored.launches && typeof stored.launches === "object") {
@@ -48,7 +49,7 @@ export function useAgentSelection() {
   useEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, launches }));
+      appStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, launches }));
       setError(null);
     } catch (caught) {
       setError(String(caught));

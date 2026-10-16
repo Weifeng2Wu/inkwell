@@ -15,6 +15,7 @@ import {
 import { useI18n } from "@/features/i18n";
 import type { TerminalShellMode } from "@/features/settings";
 import { pathSync } from "@/lib/path";
+import { appStorage } from "@/lib/storage/app-storage";
 
 const DEFAULT_TERMINAL_HEIGHT = 224;
 const MIN_TERMINAL_HEIGHT = 120;
@@ -71,7 +72,7 @@ function readStoredTerminalHeight(): number {
     return DEFAULT_TERMINAL_HEIGHT;
   }
 
-  const savedHeight = window.localStorage.getItem(TERMINAL_HEIGHT_STORAGE_KEY);
+  const savedHeight = appStorage.getItem(TERMINAL_HEIGHT_STORAGE_KEY);
   const parsedHeight = savedHeight ? Number.parseInt(savedHeight, 10) : Number.NaN;
 
   if (!Number.isFinite(parsedHeight)) {
@@ -116,7 +117,9 @@ export function TerminalPanel({
   );
   const shellLabel = useMemo(() => getShellLabel(shellMode, customShell), [shellMode, customShell]);
   const shellTitle =
-    shellMode === "custom" && customShell.trim().length > 0 ? customShell.trim() : t("terminal.autoShell");
+    shellMode === "custom" && customShell.trim().length > 0
+      ? customShell.trim()
+      : t("terminal.autoShell");
 
   const setPanelHeightVariable = useCallback((nextHeight: number) => {
     panelRef.current?.style.setProperty("--terminal-panel-height", `${nextHeight}px`);
@@ -147,7 +150,7 @@ export function TerminalPanel({
   }, [height, setPanelHeightVariable]);
 
   useEffect(() => {
-    window.localStorage.setItem(TERMINAL_HEIGHT_STORAGE_KEY, String(height));
+    appStorage.setItem(TERMINAL_HEIGHT_STORAGE_KEY, String(height));
   }, [height]);
 
   useEffect(() => {
@@ -289,7 +292,9 @@ export function TerminalPanel({
           <div className="h-8 flex-shrink-0 border-b border-border px-2 flex items-center justify-between gap-2 bg-background">
             <div className="min-w-0 flex items-center gap-2">
               <TerminalIcon className="size-3.5 flex-shrink-0" weight="bold" />
-              <span className="font-mono text-[11px] uppercase text-foreground">{t("terminal.title")}</span>
+              <span className="font-mono text-[11px] uppercase text-foreground">
+                {t("terminal.title")}
+              </span>
               <span className="text-border select-none">/</span>
               <span className="truncate text-xs text-muted" title={projectPath}>
                 {projectName}

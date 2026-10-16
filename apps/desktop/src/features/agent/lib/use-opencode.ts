@@ -14,6 +14,7 @@ import type {
   SessionInfo,
   SessionStatus,
 } from "@/features/agent/lib/types";
+import { appStorage } from "@/lib/storage/app-storage";
 
 export type UseOpenCodeOptions = {
   baseUrl?: string;
@@ -379,8 +380,8 @@ export function useOpenCode(options: UseOpenCodeOptions = {}): UseOpenCodeReturn
       let savedAgent: string | null = null;
       let savedModel: { providerId: string; modelId: string } | null = null;
       try {
-        savedAgent = localStorage.getItem(STORAGE_KEY_AGENT);
-        const savedModelStr = localStorage.getItem(STORAGE_KEY_MODEL);
+        savedAgent = appStorage.getItem(STORAGE_KEY_AGENT);
+        const savedModelStr = appStorage.getItem(STORAGE_KEY_MODEL);
         if (savedModelStr) {
           savedModel = JSON.parse(savedModelStr);
         }
@@ -684,9 +685,9 @@ export function useOpenCode(options: UseOpenCodeOptions = {}): UseOpenCodeReturn
     setSelectedAgent(agentId);
     try {
       if (agentId) {
-        localStorage.setItem(STORAGE_KEY_AGENT, agentId);
+        appStorage.setItem(STORAGE_KEY_AGENT, agentId);
       } else {
-        localStorage.removeItem(STORAGE_KEY_AGENT);
+        appStorage.removeItem(STORAGE_KEY_AGENT);
       }
     } catch {
       // Ignore localStorage errors
@@ -698,9 +699,9 @@ export function useOpenCode(options: UseOpenCodeOptions = {}): UseOpenCodeReturn
       setSelectedModel(model);
       try {
         if (model) {
-          localStorage.setItem(STORAGE_KEY_MODEL, JSON.stringify(model));
+          appStorage.setItem(STORAGE_KEY_MODEL, JSON.stringify(model));
         } else {
-          localStorage.removeItem(STORAGE_KEY_MODEL);
+          appStorage.removeItem(STORAGE_KEY_MODEL);
         }
       } catch {
         // Ignore localStorage errors

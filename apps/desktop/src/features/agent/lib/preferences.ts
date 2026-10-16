@@ -1,3 +1,4 @@
+import { appStorage } from "@/lib/storage/app-storage";
 /** Persisted selection of the agent and model used for AI-assisted actions. */
 
 export const OPENCODE_STORAGE_KEY_AGENT = "opencode-selected-agent";
@@ -29,12 +30,12 @@ export function getPreferredOpenCodeConfig(): PreferredOpenCodeConfig {
     | undefined;
 
   try {
-    const savedAgent = localStorage.getItem(OPENCODE_STORAGE_KEY_AGENT);
+    const savedAgent = appStorage.getItem(OPENCODE_STORAGE_KEY_AGENT);
     if (savedAgent) {
       agent = savedAgent;
     }
 
-    const savedModelRaw = localStorage.getItem(OPENCODE_STORAGE_KEY_MODEL);
+    const savedModelRaw = appStorage.getItem(OPENCODE_STORAGE_KEY_MODEL);
     if (savedModelRaw) {
       const savedModel = JSON.parse(savedModelRaw) as {
         providerId?: unknown;

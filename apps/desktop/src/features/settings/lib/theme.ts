@@ -22,6 +22,30 @@ export interface ThemeDefinition {
 
 export const THEMES: readonly ThemeDefinition[] = [
   {
+    id: "dracula",
+    label: "Dracula",
+    mode: "dark",
+    swatch: ["#282a36", "#343746", "#bd93f9"],
+  },
+  {
+    id: "gruvbox-dark",
+    label: "Gruvbox Dark",
+    mode: "dark",
+    swatch: ["#282828", "#3c3836", "#fabd2f"],
+  },
+  {
+    id: "rose-pine",
+    label: "Rosé Pine",
+    mode: "dark",
+    swatch: ["#191724", "#26233a", "#c4a7e7"],
+  },
+  {
+    id: "rose-pine-dawn",
+    label: "Rosé Pine Dawn",
+    mode: "light",
+    swatch: ["#faf4ed", "#f2e9e1", "#806795"],
+  },
+  {
     id: "light",
     label: "Light",
     mode: "light",

@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { digest, MAX_RESOURCE_BYTES, SkillLibrary } from "./library.mjs";
+import { digest, libraryDatabasePath, MAX_RESOURCE_BYTES, SkillLibrary } from "./library.mjs";
 import { saveRegistry, withSkillStoreLock } from "./market.mjs";
+import { AppDatabase } from "./storage.mjs";
 
 export const WRITING_REPOSITORY = "Master-cai/Research-Paper-Writing-Skills";
 export const WRITING_SKILL_ID = "research-paper-writing";
@@ -70,10 +70,30 @@ async function readJson(filename, fallback) {
   }
 }
 
-async function atomicJson(filename, value) {
-  const temporary = `${filename}.${randomUUID()}.tmp`;
-  await writeFile(temporary, JSON.stringify(value), { flag: "wx" });
-  await rename(temporary, filename);
+async function syncState(directory, value) {
+  const database = new AppDatabase(libraryDatabasePath(directory));
+  try {
+    if (value !== undefined) {
+      database.request({ type: "record_write", namespace: "skill-sync", key: directory, value });
+      return value;
+    }
+    const saved = database.request({
+      type: "record_read",
+      namespace: "skill-sync",
+      key: directory,
+    }).value;
+    if (saved !== null) return saved;
+    const legacy = await readJson(path.join(directory, ".github-update-state.json"), {});
+    database.request({
+      type: "record_write",
+      namespace: "skill-sync",
+      key: directory,
+      value: legacy,
+    });
+    return legacy;
+  } finally {
+    database.close();
+  }
 }
 
 async function request(url, fetcher, json = false) {
@@ -403,12 +423,11 @@ export async function syncGitHubSkills(directory, { fetcher = fetch, now = Date.
     return syncGitHubSkills(directory, { fetcher, now });
   }
   try {
-    const statePath = path.join(directory, ".github-update-state.json");
-    const state = await readJson(statePath, {});
+    const state = await syncState(directory);
     let library = await SkillLibrary.open(directory);
     if (!state.initialized) {
       state.initialized = true;
-      await atomicJson(statePath, state);
+      await syncState(directory, state);
     }
     if (now - (state.checkedAt ?? 0) < INTERVAL) {
       if (state.error) library.updateError = state.error;
@@ -441,7 +460,7 @@ export async function syncGitHubSkills(directory, { fetcher = fetch, now = Date.
       }
     }
     const error = errors.join("\n");
-    await atomicJson(statePath, { initialized: true, checkedAt: now, ...(error ? { error } : {}) });
+    await syncState(directory, { initialized: true, checkedAt: now, ...(error ? { error } : {}) });
     if (error) library.updateError = error;
     return library;
   } finally {

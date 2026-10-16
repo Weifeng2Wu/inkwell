@@ -7,7 +7,15 @@ import type { AcademicConfig } from "./academic-client";
 import { type AcpAuthMethod, AcpClient, type AcpPermission, sharedPrompt } from "./acp-client";
 import type { ChatImage } from "./chat-input";
 import { prepareChatVision } from "./chat-vision";
-import { chatHistoryKey, type ExternalChatRecord, readChatHistory } from "./external-chat-history";
+import {
+  chatHistoryKey,
+  deleteChatRecord,
+  type ExternalChatRecord,
+  listChatHistory,
+  loadChatRecord,
+  renameChatRecord,
+  saveChatRecord,
+} from "./external-chat-history";
 import type { AgentSelectionController } from "./use-agent-selection";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
@@ -46,11 +54,16 @@ export function useExternalAgent({
   const [activity, setActivity] = useState("");
   const [history, setHistory] = useState<ExternalChatRecord[]>([]);
   const historyKey = directory ? chatHistoryKey(directory, selection.selected) : null;
+  const [historyReady, setHistoryReady] = useState<string | null>(null);
   const loadedHistory = useRef<string | null>(null);
   const messageScope = useRef<string | null>(null);
   const conversationId = useRef<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const pendingSave = useRef<(() => void) | null>(null);
+  const pendingSave = useRef<(() => Promise<void>) | null>(null);
+  const unsaved = useRef(new Map<string, () => Promise<void>>());
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const historyRef = useRef(history);
+  historyRef.current = history;
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredContext = useRef<Message[]>([]);
   const restoringHistory = useRef(false);
@@ -93,7 +106,7 @@ export function useExternalAgent({
     consumed.current = null;
     return () => {
       visionAbort.current?.abort();
-      pendingSave.current?.();
+      void pendingSave.current?.();
       generation.current += 1;
       const client = clientRef.current;
       clientRef.current = null;
@@ -102,70 +115,109 @@ export function useExternalAgent({
   }, [sessionScope]);
 
   useEffect(() => {
-    loadedHistory.current = historyKey;
-    try {
-      setHistory(historyKey ? readChatHistory(historyKey) : []);
-    } catch (caught) {
-      setHistory([]);
-      setError(String(caught));
-    }
+    let active = true;
+    loadedHistory.current = null;
+    setHistoryReady(null);
+    setHistory([]);
+    if (!historyKey) return;
+    void listChatHistory(historyKey)
+      .then((records) => {
+        if (active) {
+          loadedHistory.current = historyKey;
+          setHistoryReady(historyKey);
+          setHistory(records);
+        }
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(String(caught));
+      });
+    return () => {
+      active = false;
+    };
   }, [historyKey]);
 
   useEffect(() => {
     if (
       !historyKey ||
+      historyReady !== historyKey ||
       messageScope.current !== sessionScope ||
       loadedHistory.current !== historyKey ||
       !messages.some((message) => message.role === "user")
     )
       return;
-    const save = () => {
-      conversationId.current ??= crypto.randomUUID();
+    conversationId.current ??= crypto.randomUUID();
+    const recordId = conversationId.current;
+    const saveKey = JSON.stringify([historyKey, recordId]);
+    const save = async () => {
+      const existing = historyRef.current.find((item) => item.id === recordId);
+      const record: ExternalChatRecord = {
+        id: recordId,
+        renamed: existing?.renamed,
+        title: existing?.renamed
+          ? existing.title
+          : (messages.find((message) => message.role === "user")?.content.slice(0, 70) ?? "Chat"),
+        modified: new Date().toISOString(),
+        messages,
+      };
+      const operation = saveQueue.current.then(() => saveChatRecord(historyKey, record));
+      saveQueue.current = operation;
       try {
-        const previous = readChatHistory(historyKey);
-        const existing = previous.find((item) => item.id === conversationId.current);
-        const record: ExternalChatRecord = {
-          id: conversationId.current,
-          renamed: existing?.renamed,
-          title: existing?.renamed
-            ? existing.title
-            : (messages.find((message) => message.role === "user")?.content.slice(0, 70) ?? "Chat"),
-          modified: new Date().toISOString(),
-          messages,
-        };
-        const records = [record, ...previous.filter((item) => item.id !== record.id)];
-        localStorage.setItem(historyKey, JSON.stringify(records));
-        setHistory(records);
-        setCurrentConversationId(record.id);
-        pendingSave.current = null;
+        await operation;
+        if (pendingSave.current === save) pendingSave.current = null;
+        if (unsaved.current.get(saveKey) === save) unsaved.current.delete(saveKey);
+        if (scopeRef.current === sessionScope) {
+          setHistory((previous) => [record, ...previous.filter((item) => item.id !== record.id)]);
+          setCurrentConversationId(record.id);
+        }
       } catch (caught) {
+        saveQueue.current = Promise.resolve();
+        if (typeof window !== "undefined")
+          window.dispatchEvent(
+            new CustomEvent("inkwell-storage-error", { detail: String(caught) }),
+          );
         setError(String(caught));
       }
     };
     pendingSave.current = save;
+    unsaved.current.set(saveKey, save);
     saveTimer.current = setTimeout(save, 350);
     return () => {
       if (saveTimer.current !== null) clearTimeout(saveTimer.current);
     };
-  }, [messages, historyKey, sessionScope]);
+  }, [messages, historyKey, sessionScope, historyReady]);
 
-  useEffect(() => {
-    const flush = () => pendingSave.current?.();
-    window.addEventListener("pagehide", flush);
-    return () => window.removeEventListener("pagehide", flush);
+  const flushHistory = useCallback(async () => {
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    for (const save of [...unsaved.current.values()]) await save();
+    await saveQueue.current.catch(() => {});
+    return unsaved.current.size === 0;
   }, []);
 
-  function flushHistory() {
-    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-    pendingSave.current?.();
-    return pendingSave.current === null;
-  }
+  useEffect(() => {
+    const flush = () => {
+      void pendingSave.current?.();
+    };
+    window.addEventListener("pagehide", flush);
+    const close = (event: Event) => {
+      const tasks = (event as CustomEvent<Promise<unknown>[]>).detail;
+      tasks.push(
+        (async () => {
+          if (!(await flushHistory())) throw new Error("Conversation could not be saved.");
+        })(),
+      );
+    };
+    window.addEventListener("inkwell-before-close", close);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("inkwell-before-close", close);
+    };
+  }, [flushHistory]);
 
   async function newConversation() {
     if (!directory || assistantId.current !== null || restoringHistory.current) return false;
     restoringHistory.current = true;
     try {
-      if (!flushHistory()) return false;
+      if (!(await flushHistory())) return false;
       await disconnect();
       if (scopeRef.current !== sessionScope) return false;
       conversationId.current = null;
@@ -185,14 +237,9 @@ export function useExternalAgent({
   async function renameConversation(id: string, title: string) {
     if (!historyKey || !title.trim() || title.length > 200) return false;
     try {
-      if (!flushHistory()) return false;
-      const records = readChatHistory(historyKey);
-      if (!records.some((item) => item.id === id)) return false;
-      const next = records.map((item) =>
-        item.id === id ? { ...item, title: title.trim(), renamed: true } : item,
-      );
-      localStorage.setItem(historyKey, JSON.stringify(next));
-      setHistory(next);
+      if (!(await flushHistory())) return false;
+      if (!(await renameChatRecord(historyKey, id, title.trim()))) return false;
+      setHistory(await listChatHistory(historyKey));
       return true;
     } catch (caught) {
       setError(String(caught));
@@ -208,12 +255,9 @@ export function useExternalAgent({
     )
       return false;
     try {
-      if (!flushHistory()) return false;
-      const records = readChatHistory(historyKey);
-      if (!records.some((item) => item.id === id)) return false;
-      const next = records.filter((item) => item.id !== id);
-      localStorage.setItem(historyKey, JSON.stringify(next));
-      setHistory(next);
+      if (!(await flushHistory())) return false;
+      if (!(await deleteChatRecord(historyKey, id))) return false;
+      setHistory(await listChatHistory(historyKey));
       if (conversationId.current === id) {
         messageScope.current = null;
         conversationId.current = null;
@@ -491,19 +535,41 @@ export function useExternalAgent({
     deleteConversation,
     loadHistory: async () => {
       try {
-        if (!flushHistory()) return;
-        if (historyKey) setHistory(readChatHistory(historyKey));
+        if (!(await flushHistory())) return;
+        if (historyKey) {
+          const records = await listChatHistory(historyKey);
+          if (scopeRef.current !== sessionScope) return;
+          loadedHistory.current = historyKey;
+          setHistoryReady(historyKey);
+          setHistory(records);
+        }
       } catch (caught) {
         setError(String(caught));
       }
     },
     restoreHistory: async (id: string) => {
       if (restoringHistory.current || assistantId.current !== null) return false;
-      const record = history.find((item) => item.id === id);
-      if (!record || scopeRef.current !== sessionScope) return false;
+      if (
+        !historyKey ||
+        !history.some((item) => item.id === id) ||
+        scopeRef.current !== sessionScope
+      )
+        return false;
       if (conversationId.current === id && connected) return true;
-      if (!flushHistory()) return false;
+      if (!(await flushHistory())) return false;
       restoringHistory.current = true;
+      let record: ExternalChatRecord;
+      try {
+        record = await loadChatRecord(historyKey, id);
+      } catch (caught) {
+        setError(String(caught));
+        restoringHistory.current = false;
+        return false;
+      }
+      if (scopeRef.current !== sessionScope) {
+        restoringHistory.current = false;
+        return false;
+      }
       const stopped = disconnect();
       cleanupRef.current = Promise.all([cleanupRef.current, stopped]).then(() => {});
       const version = generation.current;

@@ -139,13 +139,30 @@ beforeEach(() => {
   configReady = true;
   config = { ...DEFAULT_ACADEMIC_CONFIG };
 });
-afterEach(() => {
+afterEach(async () => {
   for (const effect of hooks.effects.values()) effect.cleanup?.();
+  for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("external Agent lifecycle", () => {
+  it("window close waits for the pending conversation snapshot to be persisted", async () => {
+    vi.mocked(invoke).mockResolvedValue({ skills: [] });
+    const write = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: () => "[]", setItem: write });
+    render();
+    await settle();
+    await render().send("Save before closing");
+    render();
+    const tasks: Promise<unknown>[] = [];
+    window.dispatchEvent(new CustomEvent("inkwell-before-close", { detail: tasks }));
+    await Promise.all(tasks);
+    expect(write).toHaveBeenCalledWith(
+      expect.stringContaining("inkwell-external-chat-v1:"),
+      expect.stringContaining("Save before closing"),
+    );
+  });
   it("keeps image-capable ACP sessions on their native image path", async () => {
     vi.mocked(invoke).mockResolvedValue({ skills: [] });
     vi.mocked(parseLayoutImage).mockClear();
@@ -231,10 +248,10 @@ describe("external Agent lifecycle", () => {
         }),
     );
     const opened = render().restoreHistory(record.id);
+    expect(await opened).toBe(true);
     expect(render().messages).toEqual(record.messages);
     expect(render().working).toBe(true);
     expect(render().connected).toBe(false);
-    expect(await opened).toBe(true);
     expect(transport.connect).toHaveBeenCalledTimes(1);
     render().setInput("Next draft");
     finishStop();

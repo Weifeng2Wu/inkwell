@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
+import { appStorage } from "@/lib/storage/app-storage";
 import {
   AcademicClient,
   type AcademicConfig,
@@ -141,7 +142,7 @@ export function useAcademicAgent({
     if (loadedDirectory !== directory) return;
     try {
       const serialized = JSON.stringify(config);
-      localStorage.setItem(storageKey, serialized);
+      appStorage.setItem(storageKey, serialized);
       setPersistedConfig(serialized);
       setConfigSaveError(null);
     } catch (caught) {

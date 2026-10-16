@@ -972,6 +972,7 @@ pub async fn agent_shared_skills(
         .await
         .map_err(|error| error.to_string())?;
     for (name, content) in [
+        ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
         (
             "library.mjs",
             include_str!("../../../../../packages/academic-agent/src/library.mjs"),
@@ -1035,6 +1036,7 @@ pub async fn agent_shared_skills(
     let mut child = command(node.to_str().ok_or("Invalid Node.js executable path.")?)
         .arg(directory.join("shared-skills.mjs"))
         .arg(directory.join("skills"))
+        .env("INKWELL_DATABASE_PATH", directory.join("inkwell.sqlite"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -48,6 +48,7 @@ pub fn run() {
         .manage(AgentCredentialState::default())
         .manage(commands::agent_review::AgentReviewState::default())
         .manage(ExternalAgentState::default())
+        .manage(commands::storage::StorageState::default())
         .manage(LaTeXCompilationState::default())
         .manage(Mutex::new(WatcherState::default()))
         .manage(Mutex::new(ProjectState::default()))
@@ -56,6 +57,7 @@ pub fn run() {
             commands::agent_review::agent_review_changes,
             commands::agent_review::agent_review_resolve,
             commands::fonts::list_system_fonts,
+            commands::storage::app_storage_request,
             commands::layout_parser::layout_parser_request,
             commands::external_agent::external_agent_detect,
             commands::external_agent::external_agent_install,
