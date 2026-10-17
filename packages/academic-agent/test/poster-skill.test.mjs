@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { promisify } from "node:util";
 import {
   bundledCatalog,
   installBundledSkill,
@@ -25,7 +27,9 @@ test("poster skill installs offline, loads declared resources, avoids upstream s
   );
   for (const [relative, content] of Object.entries(snapshot.files)) {
     assert.equal(
-      await readFile(new URL(`../skills/academic-poster/${relative}`, import.meta.url), "utf8"),
+      (
+        await readFile(new URL(`../skills/academic-poster/${relative}`, import.meta.url), "utf8")
+      ).replaceAll("\r\n", "\n"),
       content,
     );
   }
@@ -104,4 +108,31 @@ test("poster skill installs offline, loads declared resources, avoids upstream s
   assert.equal(synced.catalog().length, 1);
   const { changeMarketSkill } = await import("../src/market.mjs");
   assert.equal((await changeMarketSkill(root, "academic-poster", false)).catalog().length, 0);
+});
+
+test("poster bundle checks and rebuilds identically from a Windows CRLF checkout", async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "inkwell-poster-crlf-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const script = path.join(root, "scripts/bundle-poster-skill.mjs");
+  await mkdir(path.dirname(script), { recursive: true });
+  await copyFile(new URL("../../../scripts/bundle-poster-skill.mjs", import.meta.url), script);
+  const bundled = (
+    await readFile(new URL("../skills/poster-bundle.json", import.meta.url), "utf8")
+  ).replaceAll("\r\n", "\n");
+  const snapshot = JSON.parse(bundled);
+  const skills = path.join(root, "packages/academic-agent/skills");
+  for (const [relative, content] of Object.entries(snapshot.files)) {
+    const target = path.join(skills, "academic-poster", relative);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, content.replaceAll("\n", "\r\n"));
+  }
+  const target = path.join(skills, "poster-bundle.json");
+  await writeFile(target, bundled.replaceAll("\n", "\r\n"));
+  const run = promisify(execFile);
+  await run(process.execPath, [script, "--check"]);
+  await run(process.execPath, [script]);
+  assert.equal(await readFile(target, "utf8"), bundled);
+
+  await writeFile(path.join(skills, "academic-poster/SKILL.md"), "Changed instructions\r\n");
+  await assert.rejects(run(process.execPath, [script, "--check"]), /Poster skill bundle is stale/);
 });

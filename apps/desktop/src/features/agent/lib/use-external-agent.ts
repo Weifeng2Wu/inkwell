@@ -45,6 +45,8 @@ export function useExternalAgent({
   afterTurn?: () => Promise<void>;
 }) {
   const { t } = useI18n();
+  const translateRef = useRef(t);
+  translateRef.current = t;
   const visionAbort = useRef<AbortController | null>(null);
   const [connected, setConnected] = useState(false);
   const [working, setWorking] = useState(false);
@@ -353,7 +355,7 @@ export function useExternalAgent({
               ),
             );
           } else if (event.type === "image_error") {
-            setError(t("interface.generatedImageSaveError"));
+            setError(translateRef.current("interface.generatedImageSaveError"));
           } else if (event.type === "permission")
             setPermissions((current) => [...current, event.permission]);
           else if (event.type === "activity") setActivity(event.text);
@@ -409,7 +411,7 @@ export function useExternalAgent({
         }
       }
     },
-    [directory, selection.selected, selection.ready, launch, configReady, t],
+    [directory, selection.selected, selection.ready, launch, configReady],
   );
 
   useEffect(() => {

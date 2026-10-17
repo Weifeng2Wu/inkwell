@@ -11,7 +11,11 @@ for (const file of [
   "references/poster-qa-checklist.md",
   "references/design-reference-prompt.md",
 ]) {
-  files[file] = await readFile(new URL(`academic-poster/${file}`, root), "utf8");
+  // Git may check out these text files with CRLF on Windows; keep snapshot hashes portable.
+  files[file] = (await readFile(new URL(`academic-poster/${file}`, root), "utf8")).replaceAll(
+    "\r\n",
+    "\n",
+  );
 }
 const snapshot = {
   id: "academic-poster",
@@ -26,6 +30,6 @@ const snapshot = {
 const target = new URL("poster-bundle.json", root);
 const output = `${JSON.stringify(snapshot, null, 2)}\n`;
 if (process.argv.includes("--check")) {
-  if ((await readFile(target, "utf8")) !== output)
+  if ((await readFile(target, "utf8")).replaceAll("\r\n", "\n") !== output)
     throw new Error("Poster skill bundle is stale. Run node scripts/bundle-poster-skill.mjs");
 } else await writeFile(target, output);

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLayoutImage } from "@/features/settings";
 import { DEFAULT_ACADEMIC_CONFIG } from "./academic-config";
+import type { AcpEvent } from "./acp-client";
 import type { AgentSelectionController } from "./use-agent-selection";
 import { useExternalAgent } from "./use-external-agent";
 
@@ -15,6 +16,7 @@ const transport = vi.hoisted(() => ({
   clients: [] as {
     sessionId: string | null;
     supportsImages: boolean;
+    onEvent: (event: AcpEvent) => void;
     disconnect: ReturnType<typeof vi.fn>;
   }[],
   connect: vi.fn(),
@@ -22,9 +24,16 @@ const transport = vi.hoisted(() => ({
   prompt: vi.fn(),
 }));
 
+const translations = vi.hoisted(() => ({ prefix: "" }));
+
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@/features/settings", () => ({ parseLayoutImage: vi.fn() }));
-vi.mock("@/features/i18n", () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock("@/features/i18n", () => ({
+  useI18n: () => {
+    const prefix = translations.prefix;
+    return { t: (key: string) => prefix + key };
+  },
+}));
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
   useState(initial: unknown) {
@@ -79,7 +88,7 @@ vi.mock("./acp-client", () => ({
   AcpClient: class {
     sessionId: string | null = null;
     supportsImages = false;
-    constructor() {
+    constructor(readonly onEvent: (event: AcpEvent) => void) {
       transport.clients.push(this);
     }
     async connect(...args: unknown[]) {
@@ -124,6 +133,7 @@ beforeEach(() => {
   hooks.effects.clear();
   hooks.pending = [];
   transport.clients = [];
+  translations.prefix = "";
   transport.connect.mockReset().mockResolvedValue(undefined);
   transport.disconnect.mockReset().mockResolvedValue(undefined);
   transport.prompt.mockReset().mockResolvedValue(undefined);
@@ -454,17 +464,38 @@ describe("external Agent lifecycle", () => {
   it("reconnects on permission, project and launch changes", async () => {
     render();
     await settle();
-    config = { ...config, permissionMode: "ask" };
+    expect(transport.connect).toHaveBeenCalledTimes(1);
+    config = { ...config, permissionMode: "auto" };
     render();
     await settle();
+    expect(transport.connect).toHaveBeenCalledTimes(2);
     directory = "/other";
     render();
     await settle();
+    expect(transport.connect).toHaveBeenCalledTimes(3);
     selection.launches = { codex: { command: "/bin/codex-acp", args: [] } };
     render();
     await settle();
     expect(transport.connect).toHaveBeenCalledTimes(4);
     expect(transport.disconnect).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses current translations without changing the connection lifecycle", async () => {
+    render();
+    const agent = await settle();
+    const client = transport.clients[0];
+    if (!client) throw new Error("Missing connected ACP client");
+    client.onEvent({ type: "image_error" });
+    expect(render().error).toBe("interface.generatedImageSaveError");
+
+    translations.prefix = "ko:";
+    render();
+    await settle();
+    client.onEvent({ type: "image_error" });
+    expect(render().error).toBe("ko:interface.generatedImageSaveError");
+    expect(render().connect).toBe(agent.connect);
+    expect(transport.connect).toHaveBeenCalledTimes(1);
+    expect(transport.disconnect).not.toHaveBeenCalled();
   });
 
   it("does not retry a failed connection until explicitly requested", async () => {
