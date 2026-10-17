@@ -31,14 +31,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${modernSans.variable} ${modernMono.variable} antialiased`}>
-        <StorageProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme={DEFAULT_THEME}
-            themes={THEME_IDS}
-            enableSystem={false}
-            disableTransitionOnChange
-          >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme={DEFAULT_THEME}
+          themes={THEME_IDS}
+          enableSystem={false}
+          enableColorScheme={false}
+          disableTransitionOnChange
+        >
+          <StorageProvider>
             <I18nProvider>
               <StorageThemeSync />
               <ToastProvider>
@@ -46,8 +47,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {children}
               </ToastProvider>
             </I18nProvider>
-          </ThemeProvider>
-        </StorageProvider>
+          </StorageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

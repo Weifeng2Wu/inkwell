@@ -1,14 +1,23 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { appStorage, desktopStorage, flushAppStorage, initializeAppStorage } from "./app-storage";
 
 export function StorageThemeSync() {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const loaded = useRef(false);
+  const [themeReady, setThemeReady] = useState(false);
   useEffect(() => {
-    if (theme) appStorage.setItem("theme", theme);
-  }, [theme]);
+    if (loaded.current) return;
+    loaded.current = true;
+    const saved = appStorage.getItem("theme");
+    if (saved) setTheme(saved);
+    setThemeReady(true);
+  }, [setTheme]);
+  useEffect(() => {
+    if (themeReady && theme) appStorage.setItem("theme", theme);
+  }, [theme, themeReady]);
   return null;
 }
 
