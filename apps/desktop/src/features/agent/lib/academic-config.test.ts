@@ -4,8 +4,8 @@ import { DEFAULT_ACADEMIC_CONFIG, readConfig } from "./academic-config";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Agent configuration defaults and migration", () => {
-  it("uses restricted permissions by default", () => {
-    expect(DEFAULT_ACADEMIC_CONFIG.permissionMode).toBe("restricted");
+  it("uses ask permissions by default", () => {
+    expect(DEFAULT_ACADEMIC_CONFIG.permissionMode).toBe("ask");
     expect(DEFAULT_ACADEMIC_CONFIG.protocol).toBe("openai");
     expect(DEFAULT_ACADEMIC_CONFIG.personalPrompt).toBe("");
     expect(DEFAULT_ACADEMIC_CONFIG.answerLanguage).toBe("zh");
@@ -30,7 +30,7 @@ describe("Agent configuration defaults and migration", () => {
   it("never enables edits when reading was explicitly disabled", () => {
     vi.stubGlobal("localStorage", {
       getItem: () =>
-        JSON.stringify({ ...DEFAULT_ACADEMIC_CONFIG, allowRead: false, allowEdits: true }),
+        JSON.stringify({ ...DEFAULT_ACADEMIC_CONFIG, permissionMode: undefined, allowRead: false, allowEdits: true }),
     });
     expect(readConfig("project").permissionMode).toBe("restricted");
   });

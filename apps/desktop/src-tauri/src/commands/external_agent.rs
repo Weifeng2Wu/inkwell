@@ -406,10 +406,13 @@ async fn download_antigravity_asset(
     destination: &Path,
     limit: usize,
 ) -> Result<(), String> {
-    let _ = app.emit(
-        "external-agent-install",
-        json!({"agentId":"antigravity", "text":format!("Downloading {url}")}),
-    );
+    let emit_progress = |app: &AppHandle, progress: Option<f32>, text: String| {
+        let _ = app.emit(
+            "external-agent-install",
+            json!({"agentId":"antigravity", "text":text, "progress":progress}),
+        );
+    };
+    emit_progress(app, Some(0.0), format!("Downloading {url}"));
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(600))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
@@ -454,6 +457,9 @@ async fn download_antigravity_asset(
         file.write_all(&chunk)
             .await
             .map_err(|error| error.to_string())?;
+        if let Some(total) = response.content_length() {
+            emit_progress(app, Some((size as f32 / total as f32).clamp(0.0, 1.0)), format!("Downloaded {} MiB", size / (1024 * 1024)));
+        }
         if size - reported >= 8 * 1024 * 1024 {
             reported = size;
             let _ = app.emit("external-agent-install", json!({"agentId":"antigravity", "text":format!("Downloaded {} MiB", size / (1024 * 1024))}));
@@ -466,7 +472,9 @@ async fn download_antigravity_asset(
     }
     tokio::fs::rename(temporary, destination)
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    emit_progress(app, Some(1.0), "Download complete".into());
+    Ok(())
 }
 
 async fn install_antigravity(app: &AppHandle, directory: &Path) -> Result<(), String> {
@@ -701,6 +709,58 @@ pub async fn external_agent_install(
     run_installer(&app, &agent_id, installer, &directory).await
 }
 
+#[tauri::command]
+pub async fn external_agent_uninstall(
+    app: AppHandle,
+    state: tauri::State<'_, ExternalAgentState>,
+    agent_id: String,
+) -> Result<(), String> {
+    let entry = agent(&agent_id)?;
+    let _guard = state.install.lock().await;
+    if !state.runtimes.lock().await.is_empty() {
+        return Err("Disconnect the Agent before uninstalling it.".into());
+    }
+    let directory = root(&app)?.join(entry.id);
+    if entry.id == "antigravity" {
+        let bin = directory.join("bin");
+        for name in [
+            antigravity_distribution(std::env::consts::OS, std::env::consts::ARCH)
+                .ok_or("Antigravity ACP is unsupported on this platform.")?
+                .binary,
+            antigravity_harness_binary(std::env::consts::OS),
+        ] {
+            let path = bin.join(name);
+            if tokio::fs::try_exists(&path).await.map_err(|error| error.to_string())? {
+                tokio::fs::remove_file(path).await.map_err(|error| error.to_string())?;
+            }
+        }
+        return Ok(());
+    }
+    let package = match entry.id {
+        "pi" => Some("pi-acp"),
+        "claude" => Some("@agentclientprotocol/claude-agent-acp"),
+        "codex" => Some("@agentclientprotocol/codex-acp"),
+        "zcode" => Some("zcode-acp-server"),
+        _ => None,
+    }
+    .ok_or("This Agent bundles ACP into its CLI; its ACP adapter cannot be removed separately.")?;
+    let output = command(if cfg!(windows) { "npm.cmd" } else { "npm" })
+        .args(["uninstall", "--no-audit", "--no-fund", "--prefix"])
+        .arg(&directory)
+        .arg(package)
+        .current_dir(&directory)
+        .output()
+        .await
+        .map_err(|error| format!("Could not uninstall ACP adapter: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "Could not uninstall ACP adapter: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(())
+}
+
 async fn run_installer(
     app: &AppHandle,
     agent_id: &str,
@@ -765,6 +825,7 @@ pub async fn external_agent_start(
     project: tauri::State<'_, Mutex<ProjectState>>,
     agent_id: String,
     launch: Option<LaunchOverride>,
+    replace_existing: Option<bool>,
 ) -> Result<String, String> {
     let entry = agent(&agent_id)?;
     let project_path = project
@@ -808,9 +869,15 @@ pub async fn external_agent_start(
     if state.shutting_down.load(Ordering::SeqCst) {
         return Err("Inkwell is shutting down.".into());
     }
-    for (_, mut runtime) in guard.drain() {
-        let _ = runtime.stdin.shutdown().await;
-        stop_child(&mut runtime.child).await;
+    if !guard.is_empty() {
+        if replace_existing.unwrap_or(false) {
+            for (_, mut runtime) in guard.drain() {
+                let _ = runtime.stdin.shutdown().await;
+                stop_child(&mut runtime.child).await;
+            }
+        } else {
+            return Err("ACP runtime already connected. Disconnect it before starting a replacement.".into());
+        }
     }
     let directory = root(&app)?.join(entry.id);
     let mut paths = vec![directory.join("node_modules/.bin"), directory.join("bin")];
@@ -833,6 +900,9 @@ pub async fn external_agent_start(
     #[cfg(unix)]
     launcher.process_group(0);
     let review_workspace = super::agent_review::workspace(&app, &project_path).await?;
+    tokio::fs::create_dir_all(&review_workspace)
+        .await
+        .map_err(|error| format!("Could not prepare ACP workspace: {error}"))?;
     let mut child = launcher
         .args(args)
         .env(

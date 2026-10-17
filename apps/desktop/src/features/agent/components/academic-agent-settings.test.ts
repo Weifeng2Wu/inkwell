@@ -81,6 +81,7 @@ describe("Agent configuration location", () => {
     expect(markup).toContain(agent.labels.personalPrompt);
     expect(markup).toContain(agent.labels.answerLanguage);
     expect(markup).toContain(agent.labels.permissions);
+    expect(markup).toContain("Ask every time (default)");
     expect(markup).toContain("Agent preferences");
     expect(markup).not.toContain("Shared Agent settings");
     expect(markup).not.toContain(agent.labels.skills);
@@ -412,7 +413,7 @@ describe("Agent configuration location", () => {
     );
     expect(markup.match(/<select[^>]*class="settings-control settings-select"/g)).toHaveLength(3);
     expect(markup).toMatch(/<input[^>]*type="text"[^>]*class="settings-control mt-1 w-full"/);
-    expect(markup).toMatch(/<textarea[^>]*class="settings-control mt-1 w-full min-h-32 resize-y"/);
+    expect(markup).toMatch(/<textarea[^>]*class="settings-control mt-1 w-full min-h-32 resize-none"/);
   });
 
   it("omits manual runtime connection controls from settings", () => {

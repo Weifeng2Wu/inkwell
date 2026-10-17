@@ -40,6 +40,24 @@ export function useQuickStart(workspaceReady: boolean) {
     setVisible(true);
     setSaveError(false);
   }
+  useEffect(() => {
+    if (!visible) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.isContentEditable || (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)))
+        return;
+      if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        if (step === QUICK_START_STEPS - 1) close(true);
+        else navigate(step + 1);
+      } else if (["p", "b"].includes(event.key.toLowerCase())) {
+        event.preventDefault();
+        navigate(Math.max(0, step - 1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [visible, step, workspaceReady]);
   return {
     visible,
     step,

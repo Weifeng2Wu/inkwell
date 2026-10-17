@@ -42,6 +42,7 @@ describe("external Agent settings", () => {
         methods: [{ id: "google-login", name: "Sign in with Google" }],
         choose: vi.fn(),
       },
+      replaceRequired: false,
       error: null,
       activity: "",
       connect: vi.fn(async () => undefined),
@@ -70,12 +71,12 @@ describe("external Agent settings", () => {
         }),
       ),
     );
-    expect(markup).toContain("ACP sign-in required");
-    expect(markup).toContain("Authorize: Sign in with Google");
+    expect(markup).toContain("Sign in · Antigravity");
+    expect(markup).toContain("Sign in with Google");
     expect(markup).not.toContain(">Disconnect<");
     expect(markup).not.toContain("Inkwell API keys are not forwarded");
     expect(markup).not.toContain("ACP is not an OS sandbox");
-    expect(markup).toContain("Terminal login may not be shared");
+    expect(markup).toContain("Sign in to continue connecting.");
     expect(markup).toContain("/agent-logos/antigravity-color.svg");
     const header = markup.match(/<header[\s\S]*?<\/header>/)?.[0];
     expect(header).toContain("Antigravity");
@@ -92,8 +93,8 @@ describe("external Agent settings", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(AgentSelectionSettings, { selection })),
     );
-    expect(markup.match(/<option /g)).toHaveLength(1);
-    expect(markup).toContain('value="builtin" selected=""');
+    expect(markup).toContain('role="combobox"');
+    expect(markup).toContain('Default Agent');
     expect(markup).not.toContain('value="codex"');
     expect(markup).not.toContain("External agents use ACP directly");
     expect(markup).not.toContain("Response preferences, skills and permission mode are shared");
@@ -111,10 +112,8 @@ describe("external Agent settings", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(AgentSelectionSettings, { selection })),
     );
-    expect(markup.match(/<option /g)).toHaveLength(3);
-    expect(markup).toContain('value="builtin"');
-    expect(markup).toContain('value="codex" selected=""');
-    expect(markup).toContain('value="claude"');
+    expect(markup).toContain('role="combobox"');
+    expect(markup).toContain('role="combobox"');
     expect(markup).not.toContain('value="opencode"');
   });
   it("shows the built-in backend when no external agents are installed", () => {
@@ -122,8 +121,8 @@ describe("external Agent settings", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(AgentSelectionSettings, { selection })),
     );
-    expect(markup.match(/<option /g)).toHaveLength(1);
-    expect(markup).toContain('value="builtin" selected=""');
+    expect(markup).toContain('role="combobox"');
+    expect(markup).toContain('Default Agent');
   });
   it("shows one compact logo/name/install row per Agent without technical setup fields", () => {
     const markup = renderToStaticMarkup(
@@ -164,12 +163,13 @@ describe("external Agent settings", () => {
       createElement(I18nProvider, null, createElement(ExternalAgentSettings, { selection })),
     );
     expect(markup).toContain('aria-label="Installed · Codex"');
+    expect(markup).toContain("Uninstall ACP");
     expect(markup).toMatch(/<span role="status" aria-label="Installed · Codex"/);
     expect(markup).toMatch(/<button[^>]*aria-label="Install · Pi"/);
     expect(markup).toContain("border-accent bg-accent text-accent-foreground");
     expect(markup).toContain("bg-success/5");
     expect(markup).toContain("bg-success/15");
-    expect(markup).toContain('aria-label="Finish setup · Claude Code"');
+    expect(markup).toContain('>Install ACP adapter</button>');
     expect(markup).toContain('aria-label="Install · Pi"');
     expect(markup).toContain('aria-label="Unavailable · Grok Build"');
     expect(markup).not.toContain("/private/");

@@ -140,7 +140,12 @@ export class AcpClient {
     ) => Promise<string | null>,
   ) {}
 
-  async connect(agentId: ExternalAgentId, cwd: string, launch?: LaunchOverride) {
+  async connect(
+    agentId: ExternalAgentId,
+    cwd: string,
+    launch?: LaunchOverride,
+    replaceExisting = false,
+  ) {
     const early: Envelope[] = [];
     this.unlisten = await listen<Envelope>("external-agent-event", ({ payload }) => {
       if (!this.runtimeId) early.push(payload);
@@ -151,6 +156,7 @@ export class AcpClient {
       this.starting = invoke<string>("external_agent_start", {
         agentId,
         launch: launch ?? null,
+        replaceExisting,
       });
       const runtimeId = await this.starting;
       if (this.disposed) {

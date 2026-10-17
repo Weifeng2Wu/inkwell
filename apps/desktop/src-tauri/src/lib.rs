@@ -61,6 +61,7 @@ pub fn run() {
             commands::layout_parser::layout_parser_request,
             commands::external_agent::external_agent_detect,
             commands::external_agent::external_agent_install,
+            commands::external_agent::external_agent_uninstall,
             commands::external_agent::external_agent_start,
             commands::external_agent::external_agent_send,
             commands::external_agent::external_agent_stop,

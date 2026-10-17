@@ -11,9 +11,11 @@ import { AgentApiKeyInput } from "./agent-api-key-input";
 export function AcademicAgentSettings({
   agent,
   external = false,
+  showPreferences = true,
 }: {
   agent: AcademicAgentController;
   external?: boolean;
+  showPreferences?: boolean;
 }) {
   const fieldId = useId();
   const { locale } = useI18n();
@@ -56,6 +58,15 @@ export function AcademicAgentSettings({
         </h3>
       </div>
       {!external && <p className="text-xs text-muted-foreground">{labels.settingsDescription}</p>}
+      {external && (
+        <p className="text-xs text-muted-foreground">
+          {{
+            zh: "适用于内置 Agent 和第三方 Agent。",
+            en: "Applies to built-in and third-party Agents.",
+            ko: "내장 및 외부 Agent에 공통으로 적용됩니다.",
+          }[locale]}
+        </p>
+      )}
       {!directory && <p className="text-sm text-muted-foreground">{labels.settingsProjectHint}</p>}
       <fieldset className="space-y-4">
         {!external && (
@@ -189,6 +200,7 @@ export function AcademicAgentSettings({
             </label>
           </div>
         )}
+        {showPreferences && <>
         <label className={selectRowClass} htmlFor={`${fieldId}-permission-mode`}>
           <span>{labels.permissions}</span>
           <select
@@ -233,7 +245,7 @@ export function AcademicAgentSettings({
           </label>
           <textarea
             id={`${fieldId}-personal-prompt`}
-            className={`${inputClass} min-h-32 resize-y`}
+            className={`${inputClass} min-h-32 resize-none`}
             value={config.personalPrompt}
             maxLength={16_384}
             placeholder={labels.personalPromptPlaceholder}
@@ -244,6 +256,7 @@ export function AcademicAgentSettings({
             {labels.personalPromptHint}
           </p>
         </div>
+        </>}
       </fieldset>
       {session && dirty && <p className="text-xs text-warning">{labels.dirty}</p>}
       {error && (

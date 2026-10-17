@@ -1,13 +1,11 @@
 "use client";
 
 import { CheckIcon, RobotIcon, TerminalIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   type AcademicAgentController,
   AcademicAgentSettings,
   type AgentSelectionController,
-  AgentSelectionSettings,
-  type ExternalAgentController,
   ExternalAgentSettings,
 } from "@/features/agent";
 import { useI18n } from "@/features/i18n";
@@ -16,19 +14,19 @@ import { quickStartLabels } from "@/features/onboarding/lib/labels";
 export function AgentConnectionSettings({
   agent,
   selection,
-  externalAgent,
-  onOpenTerminal,
 }: {
   agent?: AcademicAgentController;
   selection?: AgentSelectionController;
-  externalAgent?: ExternalAgentController;
-  onOpenTerminal?: () => void;
 }) {
   const { locale } = useI18n();
   const l = quickStartLabels[locale];
   const [mode, setMode] = useState<"builtin" | "external">(() =>
     selection?.selected && selection.selected !== "builtin" ? "external" : "builtin",
   );
+  useEffect(() => {
+    if (!selection) return;
+    setMode(selection.selected === "builtin" ? "builtin" : "external");
+  }, [selection?.selected]);
   if (!agent || !selection) return null;
   return (
     <div data-tour="agent-config" className="space-y-5">
@@ -64,52 +62,15 @@ export function AgentConnectionSettings({
           </label>
         ))}
       </div>
+      <AcademicAgentSettings agent={agent} external />
       {mode === "builtin" && (
         <>
           <p className="text-xs leading-6 text-muted">{l.agentHint}</p>
-          <AcademicAgentSettings agent={agent} />
+          <AcademicAgentSettings agent={agent} showPreferences={false} />
         </>
       )}
       {mode === "external" && (
         <>
-          <p className="text-xs leading-6 text-muted">{l.externalGuide}</p>
-          <AgentSelectionSettings selection={selection} externalOnly />
-          <div className="flex flex-wrap gap-3">
-            {onOpenTerminal && (
-              <button
-                type="button"
-                className="btn btn-sm"
-                disabled={!agent.directory}
-                onClick={onOpenTerminal}
-              >
-                {l.terminal}
-              </button>
-            )}
-            {externalAgent && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={
-                  !agent.directory ||
-                  selection.selected === "builtin" ||
-                  externalAgent.working ||
-                  externalAgent.connected
-                }
-                onClick={() => void externalAgent.connect()}
-              >
-                {selection.selected !== "builtin" && externalAgent.connected
-                  ? l.tested
-                  : externalAgent.working
-                    ? l.connecting
-                    : l.connect}
-              </button>
-            )}
-          </div>
-          {externalAgent?.error && (
-            <p role="alert" className="break-words text-xs text-error">
-              {externalAgent.error}
-            </p>
-          )}
           <h3 className="text-sm font-medium">{l.catalog}</h3>
           <ExternalAgentSettings selection={selection} />
         </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleNotchIcon, StarIcon } from "@phosphor-icons/react";
+import { ArrowSquareOutIcon, CircleNotchIcon, GithubLogoIcon, StarIcon } from "@phosphor-icons/react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useId, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "@/components/ui/context-menu";
@@ -177,7 +177,8 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
               {skill.source.startsWith("https://github.com/") ? (
                 <a
                   href={skill.source}
-                  className="text-accent hover:underline"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-surface px-2 py-1 font-medium text-foreground transition-colors hover:border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  title={skill.source}
                   onClick={(event) => {
                     event.preventDefault();
                     void open(skill.source).catch((error: unknown) =>
@@ -185,7 +186,9 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
                     );
                   }}
                 >
+                  <GithubLogoIcon size={13} weight="fill" aria-hidden="true" />
                   GitHub
+                  <ArrowSquareOutIcon size={11} aria-hidden="true" />
                 </a>
               ) : (
                 skill.source

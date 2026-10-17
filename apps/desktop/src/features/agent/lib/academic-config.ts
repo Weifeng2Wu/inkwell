@@ -9,7 +9,7 @@ export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
   personalPrompt: "",
   answerLanguage: "zh",
   skillIds: [],
-  permissionMode: "restricted",
+  permissionMode: "ask",
 };
 
 export function readConfig(storageKey: string): AcademicConfig {

@@ -256,6 +256,10 @@ export default function EditorPage() {
     onPendingMessageSent: () => setPendingAcademicMessage(null),
   });
 
+  useEffect(() => {
+    if (externalAgent.authentication) setShowRightPanel(true);
+  }, [externalAgent.authentication]);
+
   const [showMainFileDialog, setShowMainFileDialog] = useState(false);
   const [mainFileDetectionResult, setMainFileDetectionResult] =
     useState<MainFileDetectionResult | null>(null);
@@ -2641,13 +2645,6 @@ The AI assistant will read and update this file during compilation.
                     onRemove={recentProjects.removeProject}
                     onClearAll={recentProjects.clearAll}
                   />
-                  <button
-                    type="button"
-                    className="mt-6 text-xs text-muted hover:text-foreground"
-                    onClick={() => quickStart.open()}
-                  >
-                    {{ zh: "打开快速引导", en: "Open quick start", ko: "빠른 시작 열기" }[locale]}
-                  </button>
                 </div>
               )}
             </div>
@@ -2804,6 +2801,7 @@ The AI assistant will read and update this file during compilation.
           saveError={quickStart.saveError}
           onOpenFolder={handleOpenFolder}
           onNext={quickStart.next}
+          onBack={quickStart.back}
         />
       )}
 

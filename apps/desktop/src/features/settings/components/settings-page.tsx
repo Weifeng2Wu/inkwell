@@ -768,12 +768,7 @@ export function SettingsPage({
                   />
                 )}
                 {currentTab === "agent" && (
-                  <AgentConnectionSettings
-                    agent={academicAgent}
-                    selection={agentSelection}
-                    externalAgent={externalAgent}
-                    onOpenTerminal={onOpenTerminal}
-                  />
+                  <AgentConnectionSettings agent={academicAgent} selection={agentSelection} />
                 )}
                 {/* ===== 1. GENERAL TAB ===== */}
                 {currentTab === "general" && (

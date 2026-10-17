@@ -51,6 +51,7 @@ export function useExternalAgent({
     choose: (methodId: string | null) => void;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [replaceRequired, setReplaceRequired] = useState(false);
   const [activity, setActivity] = useState("");
   const [history, setHistory] = useState<ExternalChatRecord[]>([]);
   const historyKey = directory ? chatHistoryKey(directory, selection.selected) : null;
@@ -97,6 +98,7 @@ export function useExternalAgent({
     setAuthentication(null);
     setInput("");
     setError(null);
+    setReplaceRequired(false);
     setActivity("");
     conversationId.current = null;
     setCurrentConversationId(null);
@@ -287,7 +289,7 @@ export function useExternalAgent({
     onPendingMessageSent();
   }, [pendingMessage, selection.selected, selection.ready, onPendingMessageSent]);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (replaceExisting = false) => {
     if (
       !directory ||
       selection.selected === "builtin" ||
@@ -359,7 +361,8 @@ export function useExternalAgent({
     );
     clientRef.current = client;
     try {
-      await client.connect(selection.selected, directory, launch);
+      if (replaceExisting) await client.connect(selection.selected, directory, launch, true);
+      else await client.connect(selection.selected, directory, launch);
       if (
         version !== generation.current ||
         scopeRef.current !== scope ||
@@ -373,6 +376,7 @@ export function useExternalAgent({
       if (clientRef.current === client && version === generation.current) {
         clientRef.current = null;
         setError(String(caught));
+        setReplaceRequired(String(caught).includes("ACP runtime already connected"));
         setConnected(false);
       }
     } finally {
@@ -526,6 +530,7 @@ export function useExternalAgent({
     messages,
     permissions,
     authentication,
+    replaceRequired,
     error,
     activity,
     history,

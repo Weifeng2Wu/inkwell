@@ -16,6 +16,7 @@ interface Props {
   saveError: boolean;
   onOpenFolder: () => Promise<void>;
   onNext: () => void;
+  onBack: () => void;
 }
 
 export function QuickStart({
@@ -25,6 +26,7 @@ export function QuickStart({
   saveError,
   onOpenFolder,
   onNext,
+  onBack,
 }: Props) {
   const { locale } = useI18n();
   const l = quickStartLabels[locale];
@@ -198,6 +200,14 @@ export function QuickStart({
           </p>
         )}
         <div className="mt-5 flex justify-end border-t border-border pt-4">
+          <button
+            type="button"
+            className="btn mr-2"
+            disabled={step === 0 || opening}
+            onClick={onBack}
+          >
+            {l.back}
+          </button>
           <button
             ref={nextRef}
             type="button"
