@@ -198,6 +198,9 @@ export const en = {
     dismiss: "Dismiss",
   },
   header: {
+    layout: "Layout",
+    editorOnly: "Editor only",
+    editorWithSidebars: "Editor with sidebars",
     toggleSidebar: "Toggle Sidebar",
     switchMainFile: "Switch main file",
     currentMainFile: "Main file: {file}",

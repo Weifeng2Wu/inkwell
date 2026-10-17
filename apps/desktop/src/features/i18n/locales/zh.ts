@@ -192,6 +192,9 @@ export const zh: TranslationDictionary = {
     dismiss: "忽略",
   },
   header: {
+    layout: "布局",
+    editorOnly: "仅编辑区",
+    editorWithSidebars: "左右侧栏 + 编辑区",
     toggleSidebar: "切换侧边栏",
     switchMainFile: "切换项目主文件",
     currentMainFile: "当前主文件：{file}",

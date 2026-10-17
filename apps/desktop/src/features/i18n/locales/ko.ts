@@ -197,6 +197,9 @@ export const ko: TranslationDictionary = {
     dismiss: "닫기",
   },
   header: {
+    layout: "레이아웃",
+    editorOnly: "편집기만 표시",
+    editorWithSidebars: "양쪽 사이드바와 편집기",
     toggleSidebar: "사이드바 전환",
     switchMainFile: "프로젝트 기본 파일 전환",
     currentMainFile: "현재 기본 파일: {file}",

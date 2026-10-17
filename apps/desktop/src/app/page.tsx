@@ -5,6 +5,7 @@ import {
   FolderOpenIcon,
   GearIcon,
   PlayIcon,
+  SquaresFourIcon,
   SidebarSimpleIcon,
   SparkleIcon,
   TerminalIcon,
@@ -143,6 +144,7 @@ export default function EditorPage() {
   const [pendingGoToLine, setPendingGoToLine] = useState(0);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(false);
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     storedPanelWidth("sidebarWidth", 150, 600),
@@ -2380,6 +2382,51 @@ The AI assistant will read and update this file during compilation.
               >
                 <FolderOpenIcon className="size-4" aria-hidden="true" />
               </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowLayoutMenu((open) => !open)}
+                  className="toolbar-icon-button"
+                  aria-expanded={showLayoutMenu}
+                  aria-haspopup="true"
+                  aria-label={t("header.layout")}
+                  title={t("header.layout")}
+                >
+                  <SquaresFourIcon className="size-4" aria-hidden="true" />
+                </button>
+                {showLayoutMenu && (
+                  <div
+                    className="absolute right-0 top-full z-50 mt-2 min-w-52 rounded-md border border-border bg-background p-1 shadow-lg"
+                    role="group"
+                    aria-label={t("header.layout")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSidebar(false);
+                        setShowRightPanel(false);
+                        setShowLayoutMenu(false);
+                      }}
+                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-accent-hover"
+                      aria-pressed={!showSidebar && !showRightPanel}
+                    >
+                      {t("header.editorOnly")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSidebar(true);
+                        setShowRightPanel(true);
+                        setShowLayoutMenu(false);
+                      }}
+                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-accent-hover"
+                      aria-pressed={showSidebar && showRightPanel}
+                    >
+                      {t("header.editorWithSidebars")}
+                    </button>
+                  </div>
+                )}
+              </div>
               {daemon.projectPath && (
                 <button
                   type="button"
