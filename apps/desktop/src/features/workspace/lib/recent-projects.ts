@@ -15,6 +15,7 @@ export type RecentProject = {
 
 export function useRecentProjects() {
   const [projects, setProjects] = useState<RecentProject[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -25,6 +26,8 @@ export function useRecentProjects() {
       }
     } catch {
       // Ignore parse errors
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -64,5 +67,5 @@ export function useRecentProjects() {
     appStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  return { projects, addProject, removeProject, clearAll };
+  return { projects, loaded, addProject, removeProject, clearAll };
 }

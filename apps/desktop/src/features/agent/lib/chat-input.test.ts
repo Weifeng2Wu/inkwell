@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fileMentions, mentionQuery, readChatImage } from "./chat-input";
+import { fileMentions, mentionQuery, readChatImage, workspaceMentions } from "./chat-input";
 
 describe("chat references and attachments", () => {
   it("uses translated attachment validation messages", async () => {
@@ -30,6 +30,31 @@ describe("chat references and attachments", () => {
         "/project",
       ),
     ).toEqual(["src/paper.tex"]);
+  });
+  it("lists folders one level at a time for the @ picker", () => {
+    const files = [
+      {
+        name: "src",
+        path: "/project/src",
+        type: "directory" as const,
+        children: [
+          { name: "paper.tex", path: "/project/src/paper.tex", type: "file" as const },
+          { name: "figures", path: "/project/src/figures", type: "directory" as const, children: [
+            { name: "plot.png", path: "/project/src/figures/plot.png", type: "file" as const },
+          ] },
+        ],
+      },
+    ];
+    expect(workspaceMentions(files, "/project", "")).toEqual([
+      { path: "src", name: "src", folder: true },
+    ]);
+    expect(workspaceMentions(files, "/project", "src/")).toEqual([
+      { path: "src/paper.tex", name: "paper.tex", folder: false },
+      { path: "src/figures", name: "figures", folder: true },
+    ]);
+    expect(workspaceMentions(files, "/project", "src/figures/")).toEqual([
+      { path: "src/figures/plot.png", name: "plot.png", folder: false },
+    ]);
   });
   it("rejects oversized or active image formats before reading them", async () => {
     await expect(

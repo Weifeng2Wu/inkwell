@@ -171,6 +171,17 @@ describe("Agent review lifecycle", () => {
     expect(render().error).toContain("editor content changed");
   });
 
+  it("accepts a suggestion for a newly created file when its editor buffer is empty", async () => {
+    buffer = "";
+    const created = { path: "poster.tex", before: null, after: "\\documentclass{article}" };
+    await render().decide(created, true);
+    expect(invoke).toHaveBeenCalledWith(
+      "agent_review_resolve",
+      expect.objectContaining({ path: "poster.tex", expected: null, accept: true }),
+    );
+    expect(applied).toHaveBeenCalledWith("poster.tex", "\\documentclass{article}");
+  });
+
   it("preserves the original on backend conflicts", async () => {
     const review = render();
     await Promise.resolve();

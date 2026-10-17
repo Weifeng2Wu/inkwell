@@ -91,6 +91,7 @@ describe("Agent configuration location", () => {
     expect(markup).not.toContain(agent.labels.skills);
     expect(markup).not.toContain(agent.labels.market);
     expect(markup).not.toContain(agent.labels.testConnection);
+    expect(markup).not.toContain(agent.labels.imageGeneration);
     expect(markup).not.toMatch(/<input[^>]*type="password"/);
     expect(markup).not.toContain(agent.labels.keyHint);
   });
@@ -400,6 +401,11 @@ describe("Agent configuration location", () => {
       academicLabels.en.provider,
       academicLabels.en.model,
       academicLabels.en.key,
+      academicLabels.en.imageGeneration,
+      academicLabels.en.imageGenerationBaseUrl,
+      academicLabels.en.imageGenerationModel,
+      academicLabels.en.imageGenerationKey,
+      academicLabels.en.testImageGeneration,
       academicLabels.en.permissions,
     ]) {
       expect(markup).toContain(label);
@@ -409,6 +415,7 @@ describe("Agent configuration location", () => {
     expect(markup).toContain('value="test-model"');
     expect(markup).toContain(academicLabels.en.personalPrompt);
     expect(markup).toContain("Prefer concise Chinese responses.");
+    expect(markup).not.toContain("Optional OpenAI-compatible Images API settings");
   });
 
   it("uses shared styling for agent inputs, selects, and the multiline prompt", () => {

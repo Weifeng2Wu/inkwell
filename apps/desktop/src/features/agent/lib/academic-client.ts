@@ -15,7 +15,17 @@ export type MarketSkill = SkillMetadata & {
   managed: boolean;
 };
 export type AgentCatalog = { skills: SkillMetadata[]; market: MarketSkill[]; updateError?: string };
-export type AcademicMessage = { role: "user" | "assistant"; content: string };
+export type GeneratedImage = {
+  path: string;
+  relativePath: string;
+  mimeType: string;
+  src?: string;
+};
+export type AcademicMessage = {
+  role: "user" | "assistant";
+  content: string;
+  generatedImages?: GeneratedImage[];
+};
 export type ConversationSummary = {
   key: string;
   sessionId: string;
@@ -32,10 +42,14 @@ export type AcademicConfig = {
   protocol: "" | "openai" | "anthropic" | "gemini";
   baseUrl: string;
   model: string;
+  imageGeneration: { baseUrl: string; model: string };
   personalPrompt: string;
   answerLanguage: "zh" | "en" | "ko";
   skillIds: string[];
   permissionMode: "restricted" | "ask" | "auto";
+};
+export type ApiKeyConfig = Pick<AcademicConfig, "protocol" | "provider" | "baseUrl"> & {
+  model?: string;
 };
 export type SessionResult = {
   sessionId: string;
@@ -50,6 +64,7 @@ export type AcademicEvent =
   | ({ type: "permission_request" } & EditPermission)
   | { type: "permission_resolved"; id: string }
   | { type: "tool_start" | "tool_end"; tool: string; callId: string; isError?: boolean }
+  | { type: "image_generated"; path: string; relativePath: string; mimeType: string }
   | { type: "status"; status: string }
   | { type: "fatal"; error: string }
   | { type: "exit" }

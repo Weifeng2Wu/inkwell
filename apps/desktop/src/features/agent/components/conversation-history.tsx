@@ -49,7 +49,6 @@ export function ConversationHistory({
     restore: t("interface.restore"),
     undo: t("interface.undo"),
     notice: t("interface.notice"),
-    localOnly: t("interface.localOnly"),
   };
   const [archived, setArchive] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -343,7 +342,6 @@ export function ConversationHistory({
                     {item.title || labels.untitledConversation}
                   </p>
                   <p className="text-xs text-warning">{labels.confirmDeleteConversation}</p>
-                  <p className="text-xs text-muted">{words.localOnly}</p>
                   <div className="flex justify-end gap-1">
                     <button
                       type="button"

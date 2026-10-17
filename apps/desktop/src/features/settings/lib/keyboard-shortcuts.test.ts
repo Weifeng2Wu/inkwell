@@ -46,12 +46,12 @@ describe("custom keyboard shortcuts", () => {
     expect(matchesShortcut(event(), "")).toBe(false);
     expect(shortcutFromEvent(event({ key: "Control", code: "ControlLeft" }))).toBeNull();
   });
-  it("allows unbinding and bare Enter only for chat", () => {
+  it("allows Enter and Shift+Enter only for chat", () => {
     expect(validShortcut("", "bold")).toBe(true);
     expect(validShortcut("Enter", "send")).toBe(true);
     expect(validShortcut("Enter", "bold")).toBe(false);
     expect(validShortcut("B", "bold")).toBe(false);
-    expect(validShortcut("Shift+Enter", "send")).toBe(false);
+    expect(validShortcut("Shift+Enter", "send")).toBe(true);
     expect(validShortcut("Mod+Enter", "send")).toBe(true);
   });
   it.each([
@@ -79,6 +79,9 @@ describe("custom keyboard shortcuts", () => {
     expect(parseShortcutBindings("invalid")).toEqual(DEFAULT_SHORTCUTS);
     expect(parseShortcutBindings("[]")).toEqual(DEFAULT_SHORTCUTS);
     expect(parseShortcutBindings('{"bold":"Mod+V","send":42}')).toEqual(DEFAULT_SHORTCUTS);
+  });
+  it("migrates the former chat send default from Enter to Shift+Enter", () => {
+    expect(parseShortcutBindings('{"send":"Enter"}').send).toBe("Shift+Enter");
   });
   it("sanitizes overlapping persisted shortcuts", () => {
     const bindings = parseShortcutBindings('{"bold":"Mod+O"}');

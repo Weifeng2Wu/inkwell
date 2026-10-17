@@ -190,6 +190,7 @@ export default function EditorPage() {
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const switchingProjectRef = useRef(false);
+  const restoredWorkspaceRef = useRef(false);
   const [isSwitchingProject, setIsSwitchingProject] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "agent">("general");
@@ -1828,6 +1829,24 @@ export default function EditorPage() {
 
   const handleOpenRecentProject = changeWorkspace;
 
+  useEffect(() => {
+    if (!recentProjects.loaded || restoredWorkspaceRef.current || daemon.projectPath || !isTauri())
+      return;
+    restoredWorkspaceRef.current = true;
+    const lastWorkspace = recentProjects.projects[0];
+    if (!lastWorkspace) return;
+
+    void daemon
+      .setProject(lastWorkspace.path)
+      .then(() => {
+        setShowSidebar(true);
+        setShowRightPanel(true);
+      })
+      .catch(() => {
+        // The recent workspace may have been moved or deleted.
+      });
+  }, [daemon, recentProjects.loaded, recentProjects.projects]);
+
   const handleStageAll = useCallback(() => {
     if (!gitStatus) return;
     const unstaged = gitStatus.changes
@@ -2610,7 +2629,7 @@ export default function EditorPage() {
                   }}
                 >
                   {
-                    { zh: "审阅 Agent 修改", en: "Review Agent changes", ko: "Agent 변경 검토" }[
+                    { zh: "Agent 修改建议", en: "Agent suggestions", ko: "Agent 제안" }[
                       locale
                     ]
                   }{" "}

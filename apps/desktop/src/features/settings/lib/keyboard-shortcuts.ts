@@ -9,7 +9,7 @@ export const SHORTCUTS = [
   { id: "bold", category: "markdown", scope: "markdown", default: "Mod+B" },
   { id: "italic", category: "markdown", scope: "markdown", default: "Mod+I" },
   { id: "link", category: "markdown", scope: "markdown", default: "Mod+K" },
-  { id: "send", category: "chat", scope: "chat", default: "Enter" },
+  { id: "send", category: "chat", scope: "chat", default: "Shift+Enter" },
 ] as const;
 
 export type ShortcutId = (typeof SHORTCUTS)[number]["id"];
@@ -54,7 +54,7 @@ export function validShortcut(binding: string, id: ShortcutId): boolean {
   if (!binding) return true;
   const functionKey = /(?:^|\+)F(\d+)$/.exec(binding);
   if (functionKey && (Number(functionKey[1]) < 1 || Number(functionKey[1]) > 12)) return false;
-  if (id === "send" && binding === "Enter") return true;
+  if (id === "send" && (binding === "Enter" || binding === "Shift+Enter")) return true;
   if (!/^(Mod\+)?(Alt\+)?(Shift\+)?([A-Z0-9]|,|\/|Enter|F\d{1,2})$/.test(binding)) return false;
   if (!binding.includes("Mod+") && !binding.includes("Alt+") && !/^F\d{1,2}$/.test(binding))
     return false;
@@ -107,7 +107,8 @@ export function parseShortcutBindings(raw: string | null): ShortcutBindings {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return result;
     for (const item of SHORTCUTS) {
       const binding = (parsed as Record<string, unknown>)[item.id];
-      if (typeof binding === "string" && validShortcut(binding, item.id)) result[item.id] = binding;
+      if (typeof binding === "string" && validShortcut(binding, item.id))
+        result[item.id] = item.id === "send" && binding === "Enter" ? "Shift+Enter" : binding;
     }
     for (const item of SHORTCUTS) {
       if (shortcutConflict(result, item.id, result[item.id])) result[item.id] = "";

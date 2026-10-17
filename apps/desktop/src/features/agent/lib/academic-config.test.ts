@@ -8,6 +8,10 @@ describe("Agent configuration defaults and migration", () => {
     expect(DEFAULT_ACADEMIC_CONFIG.permissionMode).toBe("ask");
     expect(DEFAULT_ACADEMIC_CONFIG.protocol).toBe("openai");
     expect(DEFAULT_ACADEMIC_CONFIG.personalPrompt).toBe("");
+    expect(DEFAULT_ACADEMIC_CONFIG.imageGeneration).toEqual({
+      baseUrl: "https://api.openai.com/v1",
+      model: "",
+    });
     expect(DEFAULT_ACADEMIC_CONFIG.answerLanguage).toBe("zh");
   });
   it("preserves explicit permission choices in old configurations", () => {
@@ -69,5 +73,17 @@ describe("Agent configuration defaults and migration", () => {
     };
     vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(config) });
     expect(readConfig("project")).toEqual(config);
+  });
+  it("restores separate image-generation settings and migrates older configs", () => {
+    const config = {
+      ...DEFAULT_ACADEMIC_CONFIG,
+      imageGeneration: { baseUrl: "https://images.example/v1", model: "image-model" },
+    };
+    vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(config) });
+    expect(readConfig("project").imageGeneration).toEqual(config.imageGeneration);
+    vi.stubGlobal("localStorage", {
+      getItem: () => JSON.stringify({ ...config, imageGeneration: undefined }),
+    });
+    expect(readConfig("project").imageGeneration).toEqual(DEFAULT_ACADEMIC_CONFIG.imageGeneration);
   });
 });

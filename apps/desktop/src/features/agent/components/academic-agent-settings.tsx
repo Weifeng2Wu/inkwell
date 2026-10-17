@@ -39,6 +39,11 @@ export function AcademicAgentSettings({
   const [modelList, setModelList] = useState<{ endpoint: string; models: string[] } | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [fetchingModels, setFetchingModels] = useState(false);
+  const [testingImageApi, setTestingImageApi] = useState(false);
+  const [imageApiTest, setImageApiTest] = useState<{ endpoint: string; count: number } | null>(
+    null,
+  );
+  const [imageApiError, setImageApiError] = useState<string | null>(null);
   const endpoint = JSON.stringify([directory, config.protocol, config.baseUrl, apiKey]);
   const currentEndpoint = useRef(endpoint);
   currentEndpoint.current = endpoint;
@@ -186,61 +191,188 @@ export function AcademicAgentSettings({
                 onCommit={setApiKey}
               />
             </label>
+            <div className="space-y-3 border-t border-border pt-4">
+              <div>
+                <h4 className="text-xs font-semibold">{labels.imageGeneration}</h4>
+              </div>
+              <label className="block text-xs" htmlFor={`${fieldId}-image-base-url`}>
+                {labels.imageGenerationBaseUrl}
+                <input
+                  id={`${fieldId}-image-base-url`}
+                  type="url"
+                  className={inputClass}
+                  value={config.imageGeneration.baseUrl}
+                  maxLength={2048}
+                  placeholder="https://api.openai.com/v1"
+                  onChange={(event) =>
+                    setConfig({
+                      ...config,
+                      imageGeneration: { ...config.imageGeneration, baseUrl: event.target.value },
+                    })
+                  }
+                />
+              </label>
+              <label className="block text-xs" htmlFor={`${fieldId}-image-model`}>
+                {labels.imageGenerationModel}
+                <input
+                  id={`${fieldId}-image-model`}
+                  className={inputClass}
+                  value={config.imageGeneration.model}
+                  maxLength={200}
+                  onChange={(event) =>
+                    setConfig({
+                      ...config,
+                      imageGeneration: { ...config.imageGeneration, model: event.target.value },
+                    })
+                  }
+                />
+              </label>
+              <label className="block text-xs" htmlFor={`${fieldId}-image-key`}>
+                {labels.imageGenerationKey}
+                <AgentApiKeyInput
+                  key={apiKeyScope({
+                    protocol: "",
+                    provider: "inkwell-imagegen",
+                    baseUrl: config.imageGeneration.baseUrl,
+                  })}
+                  id={`${fieldId}-image-key`}
+                  className={inputClass}
+                  value={agent.imageGenerationApiKey}
+                  loading={agent.imageGenerationApiKeyLoading}
+                  placeholder={
+                    agent.imageGenerationApiKeyLoading
+                      ? labels.keyLoading
+                      : labels.imageGenerationKeyHint
+                  }
+                  onCommit={agent.setImageGenerationApiKey}
+                />
+              </label>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={
+                    !directory ||
+                    working ||
+                    testingImageApi ||
+                    agent.imageGenerationApiKeyLoading ||
+                    !config.imageGeneration.baseUrl.trim() ||
+                    !config.imageGeneration.model.trim() ||
+                    !agent.imageGenerationApiKey.trim()
+                  }
+                  onClick={async () => {
+                    const imageEndpoint = JSON.stringify([
+                      directory,
+                      config.imageGeneration.baseUrl,
+                      config.imageGeneration.model,
+                      agent.imageGenerationApiKey,
+                    ]);
+                    setTestingImageApi(true);
+                    setImageApiError(null);
+                    setImageApiTest(null);
+                    try {
+                      const result = await fetchModels(
+                        {
+                          ...config,
+                          protocol: "openai",
+                          provider: "inkwell-imagegen",
+                          baseUrl: config.imageGeneration.baseUrl,
+                          model: config.imageGeneration.model,
+                        },
+                        agent.imageGenerationApiKey,
+                      );
+                      setImageApiTest({ endpoint: imageEndpoint, count: result.models.length });
+                    } catch (caught) {
+                      setImageApiError(
+                        formatModelDiscoveryError(
+                          caught,
+                          labels.imageGenerationTestFailed,
+                          agent.imageGenerationApiKey,
+                        ),
+                      );
+                    } finally {
+                      setTestingImageApi(false);
+                    }
+                  }}
+                >
+                  {testingImageApi ? labels.testingImageGeneration : labels.testImageGeneration}
+                </button>
+                {imageApiTest &&
+                  imageApiTest.endpoint ===
+                    JSON.stringify([
+                      directory,
+                      config.imageGeneration.baseUrl,
+                      config.imageGeneration.model,
+                      agent.imageGenerationApiKey,
+                    ]) && (
+                    <p role="status" className="text-xs text-success">
+                      {labels.imageGenerationTestSuccess}
+                    </p>
+                  )}
+                {imageApiError && (
+                  <p role="alert" className="whitespace-pre-wrap break-words text-xs text-error">
+                    {imageApiError}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         )}
-        {showPreferences && <>
-        <label className={selectRowClass} htmlFor={`${fieldId}-permission-mode`}>
-          <span>{labels.permissions}</span>
-          <select
-            id={`${fieldId}-permission-mode`}
-            className={selectClass}
-            value={config.permissionMode}
-            onChange={(event) => {
-              const permissionMode = event.target.value;
-              if (
-                permissionMode === "restricted" ||
-                permissionMode === "ask" ||
-                permissionMode === "auto"
-              )
-                setConfig({ ...config, permissionMode });
-            }}
-          >
-            <option value="restricted">{labels.permissionRestricted}</option>
-            <option value="ask">{labels.permissionAsk}</option>
-            <option value="auto">{labels.permissionAuto}</option>
-          </select>
-        </label>
-        <label className={selectRowClass} htmlFor={`${fieldId}-answer-language`}>
-          <span>{labels.answerLanguage}</span>
-          <select
-            id={`${fieldId}-answer-language`}
-            className={selectClass}
-            value={config.answerLanguage}
-            onChange={(event) => {
-              const answerLanguage = event.target.value;
-              if (answerLanguage === "zh" || answerLanguage === "en" || answerLanguage === "ko")
-                setConfig({ ...config, answerLanguage });
-            }}
-          >
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-            <option value="ko">한국어</option>
-          </select>
-        </label>
-        <div className="space-y-1">
-          <label className="block text-xs" htmlFor={`${fieldId}-personal-prompt`}>
-            {labels.personalPrompt}
-          </label>
-          <textarea
-            id={`${fieldId}-personal-prompt`}
-            className={`${inputClass} h-32 min-h-32 max-h-32 resize-none`}
-            value={config.personalPrompt}
-            maxLength={16_384}
-            placeholder={labels.personalPromptPlaceholder}
-            onChange={(event) => setConfig({ ...config, personalPrompt: event.target.value })}
-          />
-        </div>
-        </>}
+        {showPreferences && (
+          <>
+            <label className={selectRowClass} htmlFor={`${fieldId}-permission-mode`}>
+              <span>{labels.permissions}</span>
+              <select
+                id={`${fieldId}-permission-mode`}
+                className={selectClass}
+                value={config.permissionMode}
+                onChange={(event) => {
+                  const permissionMode = event.target.value;
+                  if (
+                    permissionMode === "restricted" ||
+                    permissionMode === "ask" ||
+                    permissionMode === "auto"
+                  )
+                    setConfig({ ...config, permissionMode });
+                }}
+              >
+                <option value="restricted">{labels.permissionRestricted}</option>
+                <option value="ask">{labels.permissionAsk}</option>
+                <option value="auto">{labels.permissionAuto}</option>
+              </select>
+            </label>
+            <label className={selectRowClass} htmlFor={`${fieldId}-answer-language`}>
+              <span>{labels.answerLanguage}</span>
+              <select
+                id={`${fieldId}-answer-language`}
+                className={selectClass}
+                value={config.answerLanguage}
+                onChange={(event) => {
+                  const answerLanguage = event.target.value;
+                  if (answerLanguage === "zh" || answerLanguage === "en" || answerLanguage === "ko")
+                    setConfig({ ...config, answerLanguage });
+                }}
+              >
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+                <option value="ko">한국어</option>
+              </select>
+            </label>
+            <div className="space-y-1">
+              <label className="block text-xs" htmlFor={`${fieldId}-personal-prompt`}>
+                {labels.personalPrompt}
+              </label>
+              <textarea
+                id={`${fieldId}-personal-prompt`}
+                className={`${inputClass} h-32 min-h-32 max-h-32 resize-none`}
+                value={config.personalPrompt}
+                maxLength={16_384}
+                placeholder={labels.personalPromptPlaceholder}
+                onChange={(event) => setConfig({ ...config, personalPrompt: event.target.value })}
+              />
+            </div>
+          </>
+        )}
       </fieldset>
       {session && dirty && <p className="text-xs text-warning">{labels.dirty}</p>}
       {error && (

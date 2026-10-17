@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRightIcon, GearSixIcon, SparkleIcon } from "@phosphor-icons/react";
+import Image from "next/image";
 import { useState } from "react";
 import type { FileNode } from "@/types/files";
 import { archiveKey } from "../lib/conversation-archive";
@@ -135,7 +136,26 @@ export function AcademicAgentPanel({
                         {message.content || (working ? labels.busy : "")}
                       </p>
                     ) : (
-                      <MarkdownText text={message.content || (working ? labels.busy : "")} />
+                      <>
+                        <MarkdownText text={message.content || (working ? labels.busy : "")} />
+                        {message.generatedImages?.map((image) => (
+                          <figure key={image.path} className="mt-3 max-w-lg">
+                            <a href={image.src} target="_blank" rel="noreferrer">
+                              <Image
+                                unoptimized
+                                src={image.src ?? ""}
+                                alt={labels.generatedReference}
+                                width={512}
+                                height={768}
+                                className="max-h-[28rem] w-auto max-w-full border border-border object-contain"
+                              />
+                            </a>
+                            <figcaption className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                              {labels.generatedReference}: {image.relativePath}
+                            </figcaption>
+                          </figure>
+                        ))}
+                      </>
                     )}
                   </div>
                 </article>
@@ -194,7 +214,10 @@ export function AcademicAgentPanel({
       <ChatComposer
         value={input}
         onChange={setInput}
-        onSend={send}
+        onSend={(text, images) => {
+          scroll.scrollToBottom();
+          return send(text, images);
+        }}
         onStop={stop}
         working={working}
         canStop={Boolean(session && streaming)}

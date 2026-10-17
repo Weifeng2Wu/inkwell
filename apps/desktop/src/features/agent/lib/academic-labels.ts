@@ -19,8 +19,7 @@ const en = {
   conversationTitle: "Conversation title",
   saveConversation: "Save",
   cancelHistoryAction: "Cancel",
-  confirmDeleteConversation:
-    "Permanently delete this local conversation? This cannot be undone. Deleting the current conversation also ends it.",
+  confirmDeleteConversation: "Delete this conversation? The active session will end.",
   protocol: "API protocol",
   openaiCompatible: "OpenAI compatible",
   anthropicCompatible: "Anthropic compatible",
@@ -88,6 +87,16 @@ const en = {
   keyHint:
     "Enter a key to save securely, or overwrite the saved key. Saved when you leave this field.",
   keyLoading: "Loading API key…",
+  imageGeneration: "Image generation",
+  imageGenerationBaseUrl: "Image API Base URL",
+  imageGenerationModel: "Image model",
+  imageGenerationKey: "Image API key",
+  imageGenerationKeyHint: "Enter an image API key to store it securely.",
+  testImageGeneration: "Test image API",
+  testingImageGeneration: "Testing…",
+  imageGenerationTestSuccess: "Image API is reachable",
+  imageGenerationTestFailed: "Could not connect to the image API. Check the Base URL and API key.",
+  generatedReference: "Generated image",
   keyLoadFailed:
     "Could not read the saved API key. You can still edit settings and enter a key to overwrite it. If this persists, restart the desktop app and check system credential storage.",
   keySaveFailed:
@@ -95,8 +104,7 @@ const en = {
   personalPrompt: "Response preferences (optional)",
   personalPromptPlaceholder:
     "For example: Reply in English, stay concise, and preserve LaTeX commands.",
-  personalPromptHint:
-    "Set your preferred tone, length, and writing style. Leave blank to use the defaults. These preferences do not change file permissions.",
+  personalPromptHint: "Set a preferred tone, length, or writing style.",
   newSession: "New session",
   resume: "Resume compatible session",
   skills: "Skills library",
@@ -156,8 +164,7 @@ export const academicLabels: Record<Locale, typeof en> = {
     conversationTitle: "对话名称",
     saveConversation: "保存",
     cancelHistoryAction: "取消",
-    confirmDeleteConversation:
-      "确定永久删除这条本地对话吗？此操作不可撤销。删除当前对话也会结束该会话。",
+    confirmDeleteConversation: "删除这条对话？当前会话也会结束。",
     protocol: "API 协议",
     openaiCompatible: "OpenAI 兼容",
     anthropicCompatible: "Anthropic 兼容",
@@ -203,11 +210,9 @@ export const academicLabels: Record<Locale, typeof en> = {
       "受限模式仅读取文件；每次询问需确认工作副本修改；自动批准跳过工具确认。所有修改均需审阅接受后才写入原文件。",
     personalPrompt: "回答偏好（选填）",
     personalPromptPlaceholder: "例如：默认使用中文回复，回答简洁，保留原有 LaTeX 命令。",
-    personalPromptHint:
-      "设置回答的语气、长度或写作风格，留空则使用默认设置。回答偏好不会改变文件访问权限。",
+    personalPromptHint: "设置回答的语气、长度或写作风格。",
     settings: "Agent 设置",
-    settingsDescription:
-      "设置自动保存。未打开项目时可配置默认设置，打开后可单独调整当前项目。新建对话后生效，API Key 安全保存在本机。",
+    settingsDescription: "模型与回答偏好",
     connectForSkills: "加载 Skills 后，可选择当前项目要启用的 Skill。",
     title: "Inkwell Agent",
     setupTitle: "让写作助手准备就绪",
@@ -224,6 +229,16 @@ export const academicLabels: Record<Locale, typeof en> = {
     key: "API Key",
     keyHint: "输入密钥或直接覆盖，离开输入框后自动安全保存。",
     keyLoading: "正在读取 API Key…",
+    imageGeneration: "图片生成",
+    imageGenerationBaseUrl: "图片 API Base URL",
+    imageGenerationModel: "图片模型",
+    imageGenerationKey: "图片 API Key",
+    imageGenerationKeyHint: "输入图片 API Key 后会安全保存。",
+    testImageGeneration: "测试图片 API",
+    testingImageGeneration: "正在测试…",
+    imageGenerationTestSuccess: "图片 API 已连通",
+    imageGenerationTestFailed: "无法连接图片 API，请检查 Base URL 和 API Key。",
+    generatedReference: "生成的图片",
     keyLoadFailed:
       "暂时无法读取已保存的 API Key，仍可修改设置或输入密钥覆盖。若问题持续，请重启桌面应用并检查系统凭据存储。",
     keySaveFailed: "API Key 安全保存失败，请检查系统凭据存储，重新输入密钥后重试。",
@@ -278,8 +293,7 @@ export const academicLabels: Record<Locale, typeof en> = {
     conversationTitle: "대화 제목",
     saveConversation: "저장",
     cancelHistoryAction: "취소",
-    confirmDeleteConversation:
-      "로컬 대화를 영구 삭제하시겠습니까? 되돌릴 수 없으며 현재 대화는 종료됩니다.",
+    confirmDeleteConversation: "이 대화를 삭제할까요? 현재 세션도 종료됩니다.",
     protocol: "API 프로토콜",
     openaiCompatible: "OpenAI 호환",
     anthropicCompatible: "Anthropic 호환",
@@ -327,11 +341,9 @@ export const academicLabels: Record<Locale, typeof en> = {
       "제한 모드는 읽기만 허용합니다. 매번 확인은 작업 사본 수정을 승인하고 자동 승인은 도구 확인을 생략합니다. 원본은 차이를 검토하고 수락한 뒤에만 변경됩니다.",
     personalPrompt: "응답 선호 (선택 사항)",
     personalPromptPlaceholder: "예: 한국어로 간결하게 답하고 기존 LaTeX 명령을 유지하세요.",
-    personalPromptHint:
-      "원하는 말투, 길이, 글쓰기 스타일을 설정하세요. 비워 두면 기본 설정을 사용합니다. 파일 접근 권한은 변경되지 않습니다.",
+    personalPromptHint: "원하는 말투, 길이 또는 글쓰기 스타일을 설정하세요.",
     settings: "Agent 설정",
-    settingsDescription:
-      "설정은 자동 저장됩니다. 프로젝트를 열기 전에 기본값을 설정하거나 현재 프로젝트를 개별 설정하세요. 변경 사항은 새 대화에서 적용되며 API 키는 이 기기에 안전하게 저장됩니다.",
+    settingsDescription: "모델 및 응답 설정",
     connectForSkills: "Skills를 불러와 이 프로젝트에서 사용할 항목을 선택하세요.",
     title: "Inkwell Agent",
     setupTitle: "글쓰기 도우미를 준비하세요",
@@ -350,6 +362,16 @@ export const academicLabels: Record<Locale, typeof en> = {
     key: "API 키",
     keyHint: "키를 입력하거나 덮어쓰세요. 입력란을 벗어나면 안전하게 자동 저장됩니다.",
     keyLoading: "API 키 불러오는 중…",
+    imageGeneration: "이미지 생성",
+    imageGenerationBaseUrl: "이미지 API Base URL",
+    imageGenerationModel: "이미지 모델",
+    imageGenerationKey: "이미지 API 키",
+    imageGenerationKeyHint: "이미지 API 키를 입력하면 안전하게 저장됩니다.",
+    testImageGeneration: "이미지 API 테스트",
+    testingImageGeneration: "테스트 중…",
+    imageGenerationTestSuccess: "이미지 API에 연결되었습니다",
+    imageGenerationTestFailed: "이미지 API에 연결할 수 없습니다. Base URL과 API 키를 확인하세요.",
+    generatedReference: "생성된 이미지",
     keyLoadFailed:
       "저장된 API 키를 읽지 못했습니다. 설정을 수정하거나 새 키를 입력할 수 있습니다. 문제가 계속되면 데스크톱 앱을 다시 시작하고 시스템 자격 증명 저장소를 확인하세요.",
     keySaveFailed:

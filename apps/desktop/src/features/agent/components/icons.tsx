@@ -39,6 +39,8 @@ export function ToolIcon({ tool }: { tool: string }) {
     // File writing - file plus icon in green
     case "write":
       return <FilePlusIcon className={`${baseClassName} text-success`} />;
+    case "generate_image":
+      return <PhosphorImageIcon className={`${baseClassName} text-accent`} />;
 
     // File editing - pencil icon in amber
     case "edit":

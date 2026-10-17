@@ -1977,6 +1977,7 @@ dependencies = [
 name = "inkwell"
 version = "0.1.3"
 dependencies = [
+ "base64 0.22.1",
  "encoding_rs",
  "keyring",
  "notify",

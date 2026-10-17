@@ -2,7 +2,6 @@ import type { TranslationDictionary } from "./en";
 
 export const ko: TranslationDictionary = {
   skillCatalog: {
-    posterName: "학술 포스터",
     posterDescription:
       "논문으로 편집 가능한 학술 포스터를 만듭니다. 클래식·미니멀·모던 스타일과 다양한 용지 크기 및 방향을 지원합니다. Inkwell에서 텍스트, 글꼴 크기, 이미지와 배치를 편집하고 PPTX 또는 SVG로 내보낼 수 있습니다.",
     builtIn: "Inkwell 기본 제공",
@@ -87,7 +86,7 @@ export const ko: TranslationDictionary = {
   shortcuts: {
     title: "키보드 단축키",
     description: "분류별 단축키 보기 및 사용자 지정",
-    hint: "단축키를 클릭한 뒤 새 조합을 누르세요. Esc로 취소하고 Backspace로 해제합니다. 변경 사항은 즉시 적용됩니다. 채팅에서 Shift+Enter는 줄 바꿈입니다.",
+    hint: "단축키 편집",
     reset: "기본 단축키 복원",
     resetTitle: "기본 단축키를 복원할까요?",
     resetMessage: "사용자 지정 단축키가 모두 초기화됩니다. 다른 설정은 변경되지 않습니다.",
@@ -143,7 +142,11 @@ export const ko: TranslationDictionary = {
     notice: "대화가 보관되었습니다",
     localOnly: "Inkwell 로컬 기록만 삭제합니다. CLI 기록과 프로젝트 파일은 유지됩니다.",
     addImages: "이미지 추가",
+    skill: "스킬",
     file: "파일",
+    emptyChat: "메시지를 보내 대화를 시작하세요",
+    attachedImage: "첨부 이미지",
+    thinking: "생각 중",
     analyzeImages: "첨부한 이미지를 분석해 주세요.",
     imageLimit: "최대 4개 이미지, 이미지당 240 KB",
     mentionLabel: "파일 또는 활성화된 Skills 참조",
@@ -152,6 +155,7 @@ export const ko: TranslationDictionary = {
     imageType: "PNG / JPEG / WebP 이미지만 지원합니다",
     imageSize: "이미지당 최대 크기는 240 KB입니다",
     imageRead: "이미지를 읽을 수 없습니다",
+    generatedImageSaveError: "Agent가 생성한 이미지를 현재 프로젝트에 저장할 수 없습니다.",
     noFiles: "파일 없음",
     fileExplorer: "파일 탐색기",
     refreshGit: "Git 상태 새로고침",

@@ -296,7 +296,10 @@ describe("shared preferences and permissions", () => {
     expect(prompt).toContain("Korean");
     expect(prompt).toContain("Be concise");
     expect(prompt).toContain("Preserve citations");
-    expect(prompt).toContain("restricted");
+    expect(prompt).toContain("current authoritative versions");
+    expect(prompt).toContain("never describe a required step as optional");
+    expect(prompt).toContain("Do not narrate internal script creation or cleanup");
+    expect(prompt).toContain("Permission mode: ask");
     expect(prompt).toContain("My task");
     expect(prompt).toContain("review copy");
     expect(prompt).toContain("only the user can accept or reject");
@@ -387,6 +390,94 @@ describe("ACP transport isolation", () => {
     expect(onEvent).not.toHaveBeenCalled();
     emit(update);
     expect(onEvent).toHaveBeenCalledWith({ type: "text", text: "Hello" });
+    await client.disconnect();
+  });
+  it("shows tool activity from the ACP title and input instead of an opaque call id", async () => {
+    const onEvent = vi.fn();
+    const client = new AcpClient(onEvent, () => "ask");
+    await client.connect("pi", "/project");
+    emit({
+      method: "session/update",
+      params: {
+        sessionId: "session",
+        update: {
+          sessionUpdate: "tool_call_update",
+          title: "Read file",
+          status: "completed",
+          toolCallId: "opaque-call-id",
+          rawInput: { path: "paper.tex" },
+        },
+      },
+    });
+    expect(onEvent).toHaveBeenCalledWith({
+      type: "activity",
+      text: "Read file · completed · path: paper.tex",
+    });
+    await client.disconnect();
+  });
+  it("saves image blocks returned by ACP into the connected workspace", async () => {
+    const onEvent = vi.fn();
+    const fallback = transport.invoke.getMockImplementation();
+    transport.invoke.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
+      if (name === "save_generated_image")
+        return {
+          path: "/project/generated-images/image-01.png",
+          relativePath: "generated-images/image-01.png",
+          mimeType: "image/png",
+        };
+      return fallback?.(name, args as { message?: Record<string, unknown> });
+    });
+    const client = new AcpClient(onEvent, () => "ask");
+    await client.connect("pi", "/project");
+    emit({
+      method: "session/update",
+      params: {
+        sessionId: "session",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" },
+        },
+      },
+    });
+    await vi.waitFor(() =>
+      expect(onEvent).toHaveBeenCalledWith({
+        type: "image_saved",
+        path: "/project/generated-images/image-01.png",
+        relativePath: "generated-images/image-01.png",
+        mimeType: "image/png",
+      }),
+    );
+    expect(transport.invoke).toHaveBeenCalledWith("save_generated_image", {
+      data: "iVBORw0KGgo=",
+      mimeType: "image/png",
+      expectedProject: "/project",
+    });
+    await client.disconnect();
+  });
+  it("hides absolute filesystem paths from tool activity", async () => {
+    const onEvent = vi.fn();
+    const client = new AcpClient(onEvent, () => "ask");
+    await client.connect("pi", "/project");
+    emit({
+      method: "session/update",
+      params: {
+        sessionId: "session",
+        update: {
+          sessionUpdate: "tool_call_update",
+          title: "Read file",
+          status: "in_progress",
+          rawInput: {
+            AbsolutePath:
+              "/Users/wu/Library/Application Support/inkwell/workspace/posters/draft.poster.json",
+            path: "posters/draft.poster.json",
+          },
+        },
+      },
+    });
+    expect(onEvent).toHaveBeenCalledWith({
+      type: "activity",
+      text: "Read file · in_progress · path: posters/draft.poster.json",
+    });
     await client.disconnect();
   });
   it("presents one-time permissions and rejects persistent approval", async () => {

@@ -7,6 +7,7 @@ import { ChevronRightIcon } from "@/features/agent/components/icons";
 import { MarkdownText } from "@/features/agent/components/markdown-text";
 import { AskUserQuestionDisplay } from "@/features/agent/components/question-wizard";
 import { ToolDisplay } from "@/features/agent/components/tool-display";
+import { useI18n } from "@/features/i18n";
 import type {
   AssistantMessage,
   FilePart,
@@ -28,6 +29,7 @@ export function MessageList({
   onFileClick?: (path: string) => void;
   onAnswer?: (questionID: string, answers: string[][]) => void;
 }) {
+  const { t } = useI18n();
   const turns = useMemo(() => {
     const result: { user: Message; assistantMessages: Message[]; assistantParts: Part[] }[] = [];
     let currentTurn: {
@@ -55,7 +57,7 @@ export function MessageList({
   if (messages.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-muted text-xs">
-        <p>Send a message to get started</p>
+        <p>{t("interface.emptyChat")}</p>
       </div>
     );
   }
@@ -114,6 +116,7 @@ function MessageTurn({
   endTime?: number;
   onAnswer?: (questionID: string, answers: string[][]) => void;
 }) {
+  const { t } = useI18n();
   const [stepsParent] = useAutoAnimate({ duration: 150 });
   const [now, setNow] = useState(() => Date.now());
 
@@ -182,7 +185,7 @@ function MessageTurn({
                 <Image
                   unoptimized
                   src={img.url}
-                  alt="Attached"
+                  alt={t("interface.attachedImage")}
                   width={200}
                   height={128}
                   className="max-h-32 max-w-[200px] object-contain rounded border border-border hover:border-border-dark transition-colors cursor-zoom-in"
@@ -248,6 +251,7 @@ function MessageTurn({
 }
 
 function ReasoningDisplay({ parts }: { parts: ReasoningPart[] }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const combinedText = parts.map((p) => p.text).join("\n\n");
   const preview = combinedText.slice(0, 100);
@@ -263,7 +267,7 @@ function ReasoningDisplay({ parts }: { parts: ReasoningPart[] }) {
         <ChevronRightIcon
           className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
         />
-        <span className="font-medium">Thinking</span>
+        <span className="font-medium">{t("interface.thinking")}</span>
         {!expanded && needsExpand && (
           <span className="text-muted-foreground truncate flex-1">{preview}...</span>
         )}

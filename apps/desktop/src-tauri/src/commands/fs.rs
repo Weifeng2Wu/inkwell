@@ -32,6 +32,105 @@ pub async fn read_poster_image(
     Ok(bytes)
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedGeneratedImage {
+    pub path: String,
+    pub relative_path: String,
+    pub mime_type: String,
+}
+
+fn save_generated_image_in_project(
+    project_path: &str,
+    bytes: &[u8],
+    mime_type: &str,
+) -> Result<SavedGeneratedImage, String> {
+    if bytes.is_empty() || bytes.len() > 8 * 1024 * 1024 {
+        return Err("Generated image must be between 1 byte and 8 MiB.".into());
+    }
+    let extension = match mime_type {
+        "image/png" if bytes.starts_with(b"\x89PNG\r\n\x1a\n") => "png",
+        "image/jpeg" if bytes.starts_with(&[0xff, 0xd8, 0xff]) => "jpg",
+        "image/webp" if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" => {
+            "webp"
+        }
+        _ => return Err("Generated image has an unsupported or invalid format.".into()),
+    };
+    let root = std::fs::canonicalize(project_path)
+        .map_err(|_| "Project directory is unavailable.".to_string())?;
+    let directory = root.join("generated-images");
+    match std::fs::symlink_metadata(&directory) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err("The generated-images path is not a safe directory.".into());
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir(&directory).map_err(|error| error.to_string())?;
+        }
+        Err(error) => return Err(error.to_string()),
+    }
+    let canonical_directory =
+        std::fs::canonicalize(&directory).map_err(|error| error.to_string())?;
+    if !canonical_directory.starts_with(&root) {
+        return Err("Generated image directory escapes the project.".into());
+    }
+    for index in 1..=999 {
+        let filename = format!("image-{index:02}.{extension}");
+        let target = canonical_directory.join(&filename);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)
+        {
+            Ok(mut file) => {
+                use std::io::Write;
+                if let Err(error) = file.write_all(bytes).and_then(|_| file.sync_all()) {
+                    let _ = std::fs::remove_file(&target);
+                    return Err(error.to_string());
+                }
+                return Ok(SavedGeneratedImage {
+                    path: target.to_string_lossy().into_owned(),
+                    relative_path: format!("generated-images/{filename}"),
+                    mime_type: mime_type.to_string(),
+                });
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Err("Could not choose a unique generated image filename.".into())
+}
+
+#[tauri::command]
+pub fn save_generated_image(
+    state: tauri::State<'_, Mutex<ProjectState>>,
+    data: String,
+    mime_type: String,
+    expected_project: String,
+) -> Result<SavedGeneratedImage, String> {
+    use base64::Engine;
+    if data.len() > 11_184_812 {
+        return Err("Generated image exceeds the 8 MiB limit.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| "Generated image data is invalid.".to_string())?;
+    let project = state
+        .lock()
+        .map_err(|error| error.to_string())?
+        .project_path
+        .clone()
+        .ok_or_else(|| "Open a project first.".to_string())?;
+    let active_project = std::fs::canonicalize(&project)
+        .map_err(|_| "Project directory is unavailable.".to_string())?;
+    let expected_project = std::fs::canonicalize(expected_project)
+        .map_err(|_| "ACP workspace is unavailable.".to_string())?;
+    if active_project != expected_project {
+        return Err("The workspace changed before the Agent image could be saved.".into());
+    }
+    save_generated_image_in_project(&project, &bytes, &mime_type)
+}
+
 /// The native save dialog chooses the destination; callers cannot supply a path.
 #[tauri::command]
 pub async fn save_poster_export(
@@ -503,6 +602,46 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use tempfile::TempDir;
+
+    #[test]
+    fn saves_generated_images_with_unique_names_inside_the_project() {
+        let temp_dir = TempDir::new().unwrap();
+        let project = temp_dir.path().join("project");
+        fs::create_dir_all(&project).unwrap();
+        let png = b"\x89PNG\r\n\x1a\nimage";
+        let first =
+            save_generated_image_in_project(&project.to_string_lossy(), png, "image/png").unwrap();
+        let second =
+            save_generated_image_in_project(&project.to_string_lossy(), png, "image/png").unwrap();
+        assert_eq!(first.relative_path, "generated-images/image-01.png");
+        assert_eq!(second.relative_path, "generated-images/image-02.png");
+        assert!(std::path::Path::new(&first.path).starts_with(fs::canonicalize(&project).unwrap()));
+        assert_eq!(fs::read(first.path).unwrap(), png);
+    }
+
+    #[test]
+    fn rejects_invalid_generated_image_data_and_symlink_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        let project = temp_dir.path().join("project");
+        let outside = temp_dir.path().join("outside");
+        fs::create_dir_all(&project).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        assert!(
+            save_generated_image_in_project(&project.to_string_lossy(), b"bad", "image/png")
+                .is_err()
+        );
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&outside, project.join("generated-images")).unwrap();
+            assert!(save_generated_image_in_project(
+                &project.to_string_lossy(),
+                b"\x89PNG\r\n\x1a\nimage",
+                "image/png"
+            )
+            .is_err());
+            assert_eq!(fs::read_dir(outside).unwrap().count(), 0);
+        }
+    }
 
     #[test]
     fn test_validate_path_within_project_allows_file_within_project() {

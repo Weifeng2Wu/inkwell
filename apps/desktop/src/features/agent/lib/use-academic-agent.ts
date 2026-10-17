@@ -1,6 +1,6 @@
 "use client";
 
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import { appStorage } from "@/lib/storage/app-storage";
@@ -12,6 +12,7 @@ import {
   type ConversationPreview,
   type ConversationSummary,
   type EditPermission,
+  type GeneratedImage,
   type MarketSkill,
   type SessionResult,
   type SkillMetadata,
@@ -50,6 +51,18 @@ export function useAcademicAgent({
   const [configSaveError, setConfigSaveError] = useState<string | null>(null);
   const [loadedDirectory, setLoadedDirectory] = useState(directory);
   const { apiKey, setApiKey, apiKeyLoading, apiKeySaved, apiKeyError } = useAgentApiKey(config);
+  const imageGenerationCredential = {
+    protocol: "" as const,
+    provider: "inkwell-imagegen",
+    baseUrl: config.imageGeneration.baseUrl,
+  };
+  const {
+    apiKey: imageGenerationApiKey,
+    setApiKey: setImageGenerationApiKey,
+    apiKeyLoading: imageGenerationApiKeyLoading,
+    apiKeySaved: imageGenerationApiKeySaved,
+    apiKeyError: imageGenerationApiKeyError,
+  } = useAgentApiKey(imageGenerationCredential);
   const settingsSaveError =
     configSaveError ??
     (!enabled
@@ -58,7 +71,11 @@ export function useAcademicAgent({
         ? labels.keyLoadFailed
         : apiKeyError === "save"
           ? labels.keySaveFailed
-          : null);
+          : imageGenerationApiKeyError === "load"
+            ? labels.keyLoadFailed
+            : imageGenerationApiKeyError === "save"
+              ? labels.keySaveFailed
+              : null);
   const [catalog, setCatalog] = useState<SkillMetadata[]>([]);
   const [market, setMarket] = useState<MarketSkill[]>([]);
   const [connectionTest, setConnectionTest] = useState<{
@@ -80,16 +97,18 @@ export function useAcademicAgent({
   const clientRef = useRef<AcademicClient | null>(null);
   const receivedPending = useRef<string | null>(null);
   const streamingId = useRef<string | null>(null);
+  const generatedImages = useRef<GeneratedImage[]>([]);
   const visionAbort = useRef<AbortController | null>(null);
   const lifecycle = useRef(0);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
-  const configuration = JSON.stringify({ ...config, apiKey });
+  const configuration = JSON.stringify({ ...config, apiKey, imageGenerationApiKey });
   const dirty = configured !== configuration;
   const settingsSaved =
     loadedDirectory === directory &&
     persistedConfig === JSON.stringify(config) &&
     (!enabled || apiKeySaved) &&
+    imageGenerationApiKeySaved &&
     !settingsSaveError;
 
   useEffect(() => {
@@ -202,6 +221,16 @@ export function useAcademicAgent({
         setPermissions((current) => current.filter((permission) => permission.id !== event.id));
       } else if (event.type === "tool_start" || event.type === "tool_end") {
         setActivity(`${event.tool}${event.isError ? " · error" : ""}`);
+      } else if (event.type === "image_generated" && streamingId.current) {
+        const image = { ...event, src: convertFileSrc(event.path) };
+        generatedImages.current.push(image);
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === streamingId.current
+              ? { ...message, generatedImages: [...(message.generatedImages ?? []), image] }
+              : message,
+          ),
+        );
       } else if (event.type === "status") setActivity(event.status);
       else if (event.type === "fatal" || event.type === "exit") {
         setConnected(false);
@@ -453,9 +482,12 @@ export function useAcademicAgent({
 
   async function configure(resume: boolean, sessionKey?: string) {
     try {
+      if (config.imageGeneration.model.trim() && imageGenerationApiKeyLoading)
+        throw new Error(labels.keyLoading);
       const result = await requestOperation<SessionResult>("configure", {
         ...config,
         apiKey,
+        imageGenerationApiKey,
         resume,
         ...(sessionKey ? { sessionKey } : {}),
       });
@@ -487,6 +519,7 @@ export function useAcademicAgent({
     const text = draft.trim();
     const assistantId = crypto.randomUUID();
     streamingId.current = assistantId;
+    generatedImages.current = [];
     setMessages((current) => [
       ...current,
       { id: crypto.randomUUID(), role: "user", content: text },
@@ -514,7 +547,15 @@ export function useAcademicAgent({
         text: prepared.text,
         ...(prepared.images.length ? { images: prepared.images } : {}),
       });
-      if (clientRef.current === client) setMessages(displayMessages(result.messages));
+      if (clientRef.current === client) {
+        const nextMessages = displayMessages(result.messages);
+        const lastAssistant = [...nextMessages]
+          .reverse()
+          .find((message) => message.role === "assistant");
+        if (lastAssistant && generatedImages.current.length)
+          lastAssistant.generatedImages = [...generatedImages.current];
+        setMessages(nextMessages);
+      }
       return true;
     } catch (caught) {
       if (clientRef.current === client) setError(String(caught));
@@ -567,6 +608,9 @@ export function useAcademicAgent({
     setConfig,
     apiKey,
     apiKeyLoading,
+    imageGenerationApiKey,
+    setImageGenerationApiKey,
+    imageGenerationApiKeyLoading,
     settingsSaved,
     settingsSaveError,
     fetchModels,

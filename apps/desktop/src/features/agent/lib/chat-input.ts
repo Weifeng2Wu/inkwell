@@ -15,6 +15,35 @@ export function fileMentions(files: FileNode[], directory?: string): string[] {
         ],
   );
 }
+export function workspaceMentions(
+  files: FileNode[],
+  directory: string | undefined,
+  query: string,
+): { path: string; name: string; folder: boolean }[] {
+  const root = directory?.replace(/\\/g, "/").replace(/\/$/, "");
+  const slash = query.lastIndexOf("/");
+  const parent = slash < 0 ? "" : query.slice(0, slash);
+  const leaf = query.slice(slash + 1).toLowerCase();
+  const entries: { path: string; name: string; folder: boolean }[] = [];
+  const collect = (nodes: FileNode[]) => {
+    for (const node of nodes) {
+      let path = node.path.replace(/\\/g, "/");
+      if (root && path.startsWith(`${root}/`)) path = path.slice(root.length + 1);
+      else path = path.replace(/^\/+/, "");
+      entries.push({
+        path,
+        name: path.split("/").at(-1) ?? node.name,
+        folder: node.type === "directory",
+      });
+      if (node.type === "directory") collect(node.children ?? []);
+    }
+  };
+  collect(files);
+  return entries.filter((entry) => {
+    const entryParent = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/")) : "";
+    return entryParent === parent && entry.name.toLowerCase().includes(leaf);
+  });
+}
 export function mentionQuery(text: string, caret: number) {
   const match = /(?:^|\s)@([^\s@]*)$/.exec(text.slice(0, caret));
   return match

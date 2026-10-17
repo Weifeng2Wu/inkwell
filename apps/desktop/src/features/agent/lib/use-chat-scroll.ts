@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 export function useChatScroll(scope: string) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const scrollToBottom = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (!scope) return;
@@ -26,6 +27,11 @@ export function useChatScroll(scope: string) {
         container.scrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
         previousTop = container.scrollTop;
       });
+    };
+    scrollToBottom.current = () => {
+      following = true;
+      cancel();
+      follow();
     };
     const onScroll = () => {
       const top = container.scrollTop;
@@ -54,6 +60,7 @@ export function useChatScroll(scope: string) {
     follow();
     return () => {
       cancel();
+      scrollToBottom.current = () => {};
       resize.disconnect();
       mutations.disconnect();
       container.removeEventListener("scroll", onScroll);
@@ -61,5 +68,5 @@ export function useChatScroll(scope: string) {
     };
   }, [scope]);
 
-  return { viewport, content };
+  return { viewport, content, scrollToBottom: () => scrollToBottom.current() };
 }

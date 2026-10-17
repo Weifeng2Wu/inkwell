@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { AcademicConfig } from "./academic-client";
+import type { ApiKeyConfig } from "./academic-client";
 
-export function apiKeyScope(config: AcademicConfig): string {
+export function apiKeyScope(config: ApiKeyConfig): string {
   let endpoint = config.baseUrl.trim().replace(/\/+$/, "");
   try {
     endpoint = new URL(endpoint).toString().replace(/\/+$/, "");

@@ -1,7 +1,8 @@
 "use client";
 
-import { invoke } from "@tauri-apps/api/core";
 import * as Dialog from "@radix-ui/react-dialog";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import type { FileNode } from "@/types/files";
@@ -139,7 +140,9 @@ export function ExternalAgentPanel({
           {!directory && <p className="text-sm text-muted-foreground">{labels.noProject}</p>}
           {agent.authentication && (
             <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
-              <p className="text-sm font-medium">{labels.authRequired} · {name}</p>
+              <p className="text-sm font-medium">
+                {labels.authRequired} · {name}
+              </p>
               <p className="text-xs text-muted-foreground">{labels.authExplanation}</p>
               {agent.authentication.methods.map((method) => (
                 <div key={method.id} className="space-y-1">
@@ -154,18 +157,48 @@ export function ExternalAgentPanel({
               ))}
             </div>
           )}
-          {agent.messages.map((message) => (
-            <article
-              key={message.id}
-              className={`min-w-0 rounded-lg border border-border p-3 ${message.role === "user" ? "bg-surface" : "bg-background"}`}
-            >
-              {message.role === "user" ? (
-                <p className="whitespace-pre-wrap break-words text-sm">{message.content || "…"}</p>
-              ) : (
-                <MarkdownText text={message.content || "…"} />
-              )}
-            </article>
-          ))}
+          {agent.messages.map((message) =>
+            message.role === "assistant" &&
+            !message.content &&
+            !message.generatedImages?.length &&
+            !agent.working ? null : (
+              <article
+                key={message.id}
+                className={`min-w-0 rounded-lg border border-border p-3 ${message.role === "user" ? "bg-surface" : "bg-background"}`}
+              >
+                {message.role === "user" ? (
+                  <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+                ) : (
+                  <>
+                    {message.content ? (
+                      <MarkdownText text={message.content} />
+                    ) : (
+                      !message.generatedImages?.length && (
+                        <p className="text-sm text-muted-foreground">{labels.thinking}</p>
+                      )
+                    )}
+                    {message.generatedImages?.map((image) => (
+                      <figure key={image.path} className="mt-3 space-y-1.5">
+                        <a href={convertFileSrc(image.path)} target="_blank" rel="noreferrer">
+                          <Image
+                            unoptimized
+                            src={convertFileSrc(image.path)}
+                            alt={image.relativePath}
+                            width={512}
+                            height={512}
+                            className="max-h-80 max-w-full rounded-md border border-border object-contain"
+                          />
+                        </a>
+                        <figcaption className="text-xs text-muted-foreground">
+                          {image.relativePath}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </>
+                )}
+              </article>
+            ),
+          )}
           {agent.activity && (
             <p role="status" className="break-words text-xs text-muted-foreground">
               {labels.activity}: {agent.activity}
@@ -222,11 +255,22 @@ export function ExternalAgentPanel({
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[9999] bg-black/45" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-[10000] w-[min(92vw,30rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-5 shadow-2xl focus:outline-none">
-            <Dialog.Title className="text-base font-semibold">{labels.replaceConfirmTitle}</Dialog.Title>
-            <Dialog.Description className="mt-2 text-sm text-muted-foreground">{labels.replaceConfirm}</Dialog.Description>
+            <Dialog.Title className="text-base font-semibold">
+              {labels.replaceConfirmTitle}
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm text-muted-foreground">
+              {labels.replaceConfirm}
+            </Dialog.Description>
             <div className="mt-5 flex justify-end gap-2">
               <Dialog.Close className="btn btn-sm">{labels.cancel}</Dialog.Close>
-              <button type="button" className="btn btn-sm btn-primary" onClick={() => { setConfirmReconnect(false); void agent.connect(true); }}>
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={() => {
+                  setConfirmReconnect(false);
+                  void agent.connect(true);
+                }}
+              >
                 {labels.replaceAction}
               </button>
             </div>
@@ -236,7 +280,10 @@ export function ExternalAgentPanel({
       <ChatComposer
         value={agent.input}
         onChange={agent.setInput}
-        onSend={agent.send}
+        onSend={(text, images) => {
+          scroll.scrollToBottom();
+          return agent.send(text, images);
+        }}
         onStop={agent.stop}
         working={agent.working && agent.connected}
         canStop={agent.connected}

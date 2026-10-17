@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AcademicConfig } from "./academic-client";
+import type { ApiKeyConfig } from "./academic-client";
 import { apiKeyScope, readAgentApiKey, writeAgentApiKey } from "./agent-api-key-store";
 
 type KeyState = {
@@ -10,7 +10,7 @@ type KeyState = {
   error: "load" | "save" | null;
 };
 
-export function useAgentApiKey(config: AcademicConfig) {
+export function useAgentApiKey(config: ApiKeyConfig) {
   const scope = apiKeyScope(config);
   const currentScope = useRef(scope);
   currentScope.current = scope;

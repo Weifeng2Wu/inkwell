@@ -78,7 +78,7 @@ export function useAgentReview({
   ) {
     if (scope.current !== directory) throw new Error("Project changed.");
     const buffer = latest.current.buffers().find((entry) => entry.path === change.path);
-    if (accept && buffer && buffer.content !== change.before)
+    if (accept && buffer && buffer.content !== (change.before ?? ""))
       throw new Error(
         "The editor content changed. Original content was preserved; reject and regenerate this suggestion.",
       );

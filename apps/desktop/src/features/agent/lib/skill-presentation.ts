@@ -6,7 +6,6 @@ export function localizeSkill<T extends SkillMetadata>(skill: T, t: I18nContextV
   if (skill.id !== "academic-poster" || skill.source !== "Inkwell built-in") return skill;
   return {
     ...skill,
-    name: t("skillCatalog.posterName"),
     description: t("skillCatalog.posterDescription"),
     source: t("skillCatalog.builtIn"),
   };

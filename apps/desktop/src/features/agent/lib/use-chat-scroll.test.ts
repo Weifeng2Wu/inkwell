@@ -22,6 +22,7 @@ class Viewport extends EventTarget {
 let viewport: Viewport;
 let resized: () => void;
 let mutated: () => void;
+let scrollToBottom: () => void;
 let frames: Map<number, FrameRequestCallback>;
 let sequence: number;
 const disconnectResize = vi.fn();
@@ -70,6 +71,7 @@ beforeEach(() => {
     },
   );
   const scroll = useChatScroll("project:session");
+  scrollToBottom = scroll.scrollToBottom;
   viewport = new Viewport();
   scroll.viewport.current = viewport as unknown as HTMLDivElement;
   scroll.content.current = {} as HTMLDivElement;
@@ -105,6 +107,18 @@ describe("chat scroll following", () => {
     resized();
     flush();
     expect(viewport.scrollTop).toBe(790);
+  });
+
+  it("returns to the bottom when the user sends a message after reading older content", () => {
+    flush();
+    scrollTo(300);
+    scrollToBottom();
+    flush();
+    expect(viewport.scrollTop).toBe(800);
+    viewport.scrollHeight = 1200;
+    mutated();
+    flush();
+    expect(viewport.scrollTop).toBe(1000);
   });
 
   it("cancels an already queued update when the user wheels upward", () => {

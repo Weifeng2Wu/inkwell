@@ -25,6 +25,9 @@ describe("secure API key storage", () => {
       apiKeyScope({ ...DEFAULT_ACADEMIC_CONFIG, baseUrl: "https://other.example/v1" }),
     ).not.toBe(scope);
     expect(apiKeyScope({ ...DEFAULT_ACADEMIC_CONFIG, protocol: "anthropic" })).not.toBe(scope);
+    expect(
+      apiKeyScope({ protocol: "", provider: "inkwell-imagegen", baseUrl: "https://api.openai.com/v1" }),
+    ).not.toBe(scope);
   });
   it("reads and writes exclusively through the secure IPC commands", async () => {
     const scope = apiKeyScope(DEFAULT_ACADEMIC_CONFIG);

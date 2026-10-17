@@ -2,17 +2,17 @@
 
 import { ArrowUpIcon, PlusIcon, StopIcon, XIcon } from "@phosphor-icons/react";
 import Image from "next/image";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import { matchesShortcut, useKeyboardShortcuts } from "@/features/settings";
 import type { FileNode } from "@/types/files";
 import type { SkillMetadata } from "../lib/academic-client";
 import {
   type ChatImage,
-  fileMentions,
   MAX_CHAT_IMAGES,
   mentionQuery,
   readChatImage,
+  workspaceMentions,
 } from "../lib/chat-input";
 import { localizeSkill } from "../lib/skill-presentation";
 
@@ -45,12 +45,12 @@ export function ChatComposer({
   skills?: SkillMetadata[];
   directory?: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { bindings } = useKeyboardShortcuts();
   const addLabel = t("interface.addImages");
   const [images, setImages] = useState<ChatImage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [caret, setCaret] = useState(0);
+  const [caret, setCaret] = useState(value.length);
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const loading = useRef(false);
@@ -58,36 +58,59 @@ export function ChatComposer({
   const [reading, setReading] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const upload = useRef<HTMLInputElement>(null);
+  const mentionList = useRef<HTMLDivElement>(null);
   const listId = useId();
   const mention = dismissed ? null : mentionQuery(value, caret);
-  const options = mention
-    ? [
-        ...fileMentions(files, directory).map((path) => ({
-          key: `file:${path}`,
-          name: path,
-          token: `@file:${JSON.stringify(path)}`,
-          type: t("interface.file"),
-        })),
+  const slashMatch = dismissed ? null : /(?:^|\s)\/([^\s/]*)$/.exec(value.slice(0, caret));
+  const slashQuery = slashMatch
+    ? {
+        query: slashMatch[1] ?? "",
+        start: caret - slashMatch[0].trimStart().length,
+        end: caret,
+      }
+    : null;
+  const skillQuery = slashQuery ?? (mention ? { ...mention, skillsOnly: false } : null);
+  const options: { key: string; name: string; token: string; type: string; folder?: boolean }[] = [];
+  if (skillQuery) {
+    if (slashQuery) {
+      options.push(
         ...skills.map((skill) => ({
           key: `skill:${skill.id}`,
           name: localizeSkill(skill, t).name,
           token: `@skill:${JSON.stringify(skill.id)}`,
-          type: "Skill",
+          type: t("interface.skill"),
         })),
-      ]
-        .filter((item) =>
-          `${item.name} ${item.key}`.toLowerCase().includes(mention.query.toLowerCase()),
-        )
-        .slice(0, 12)
-    : [];
+      );
+    } else {
+      options.push(
+        ...workspaceMentions(files, directory, mention?.query ?? "").map((entry) => ({
+            key: `${entry.folder ? "folder" : "file"}:${entry.path}`,
+            name: entry.name,
+            token: entry.folder ? `@${entry.path}/` : `@file:${JSON.stringify(entry.path)}`,
+            type: entry.folder ? ({ zh: "文件夹", en: "Folder", ko: "폴더" }[locale]) : t("interface.file"),
+            folder: entry.folder,
+          })),
+      );
+    }
+    options.splice(0, options.length, ...options.filter((item) =>
+          `${item.name} ${item.key}`.toLowerCase().includes(skillQuery.query.toLowerCase()),
+        ));
+  }
+  useEffect(() => {
+    mentionList.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [active, options.length]);
   function choose(index: number) {
     const item = options[index];
-    if (!item || !mention) return;
-    const next = `${value.slice(0, mention.start)}${item.token} ${value.slice(mention.end)}`;
+    if (!item || !skillQuery) return;
+    const suffix = item.folder ? "" : " ";
+    const next = `${value.slice(0, skillQuery.start)}${item.token}${suffix}${value.slice(skillQuery.end)}`;
     onChange(next);
-    const position = mention.start + item.token.length + 1;
+    const position = skillQuery.start + item.token.length + suffix.length;
     setCaret(position);
-    setDismissed(true);
+    setActive(0);
+    setDismissed(!item.folder);
     requestAnimationFrame(() => {
       textarea.current?.focus();
       textarea.current?.setSelectionRange(position, position);
@@ -138,6 +161,7 @@ export function ChatComposer({
         {options.length > 0 && (
           <div
             id={listId}
+            ref={mentionList}
             role="listbox"
             aria-label={t("interface.mentionLabel")}
             className="absolute bottom-full mb-2 max-h-60 w-full overflow-auto rounded-lg border border-border bg-background p-1 shadow-lg"
@@ -266,6 +290,11 @@ export function ChatComposer({
               <ArrowUpIcon size={18} weight="bold" aria-hidden="true" />
             )}
           </button>
+          {!working && (
+            <span className="pointer-events-none absolute right-10 bottom-2.5 text-[10px] text-muted-foreground">
+              Shift+Enter
+            </span>
+          )}
         </div>
       </div>
       {error && (

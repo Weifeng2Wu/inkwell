@@ -3,14 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/features/i18n";
 import { ChatComposer } from "./chat-composer";
+import type { FileNode } from "@/types/files";
 
-function render(working: boolean) {
+function render(working: boolean, value = "Hello", files: FileNode[] = []) {
   return renderToStaticMarkup(
     createElement(
       I18nProvider,
       null,
       createElement(ChatComposer, {
-        value: "Hello",
+        value,
         onChange: vi.fn(),
         onSend: vi.fn(async () => true),
         onStop: vi.fn(async () => {}),
@@ -19,6 +20,7 @@ function render(working: boolean) {
         placeholder: "Message",
         sendLabel: "Send",
         stopLabel: "Stop",
+        files,
       }),
     ),
   );
@@ -57,5 +59,15 @@ describe("chat composer", () => {
       /<button[^>]*class="[^"]*pointer-events-auto[^>]*aria-label="Add images"/,
     );
     expect(markup).toMatch(/<button[^>]*aria-label="Send"[^>]*class="pointer-events-auto/);
+  });
+  it("shows all matching file choices instead of truncating the list", () => {
+    const files = Array.from({ length: 15 }, (_, index) => ({
+      name: `paper-${index}.tex`,
+      path: `paper-${index}.tex`,
+      type: "file" as const,
+    }));
+    const markup = render(false, "@", files);
+    expect(markup).toContain("paper-14.tex");
+    expect((markup.match(/role="option"/g) ?? []).length).toBe(15);
   });
 });

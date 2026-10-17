@@ -18,7 +18,12 @@ import {
 } from "./external-chat-history";
 import type { AgentSelectionController } from "./use-agent-selection";
 
-type Message = { id: string; role: "user" | "assistant"; content: string };
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  generatedImages?: { path: string; relativePath: string; mimeType: string }[];
+};
 
 export function useExternalAgent({
   selection,
@@ -289,103 +294,123 @@ export function useExternalAgent({
     onPendingMessageSent();
   }, [pendingMessage, selection.selected, selection.ready, onPendingMessageSent]);
 
-  const connect = useCallback(async (replaceExisting = false) => {
-    if (
-      !directory ||
-      selection.selected === "builtin" ||
-      !selection.ready ||
-      !configReady ||
-      busy.current
-    )
-      return;
-    if (clientRef.current?.sessionId) return clientRef.current;
-    busy.current = true;
-    setWorking(true);
-    setError(null);
-    setActivity("");
-    const version = generation.current;
-    const scope = scopeRef.current;
-    try {
-      await cleanupRef.current;
-      if (version !== generation.current) return;
-      await clientRef.current?.disconnect();
-    } catch (caught) {
-      if (version === generation.current) {
-        busy.current = false;
-        setWorking(false);
-        setConnected(false);
-        setError(String(caught));
-      }
-      return;
-    }
-    if (version !== generation.current) return;
-    const client = new AcpClient(
-      (event) => {
-        if (clientRef.current !== client || version !== generation.current) return;
-        if (event.type === "text") {
-          answer.current += event.text;
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId.current
-                ? { ...message, content: message.content + event.text }
-                : message,
-            ),
-          );
-        } else if (event.type === "permission")
-          setPermissions((current) => [...current, event.permission]);
-        else if (event.type === "activity") setActivity(event.text);
-        else {
-          clientRef.current = null;
-          cleanupRef.current = client.disconnect().catch(() => {});
-          setConnected(false);
-          setWorking(false);
-          setPermissions([]);
-          setError("ACP process exited. Reconnect to start a new session.");
-          busy.current = false;
-          assistantId.current = null;
-        }
-      },
-      () => (formatUtility.current ? "restricted" : configRef.current.permissionMode),
-      (methods, signal) =>
-        new Promise<string | null>((resolve) => {
-          const choose = (methodId: string | null) => {
-            signal.removeEventListener("abort", cancel);
-            setAuthentication((current) => (current?.choose === choose ? null : current));
-            resolve(methodId);
-          };
-          const cancel = () => choose(null);
-          if (signal.aborted) return resolve(null);
-          signal.addEventListener("abort", cancel, { once: true });
-          setAuthentication({ methods, choose });
-        }),
-    );
-    clientRef.current = client;
-    try {
-      if (replaceExisting) await client.connect(selection.selected, directory, launch, true);
-      else await client.connect(selection.selected, directory, launch);
+  const connect = useCallback(
+    async (replaceExisting = false) => {
       if (
-        version !== generation.current ||
-        scopeRef.current !== scope ||
-        clientRef.current !== client
+        !directory ||
+        selection.selected === "builtin" ||
+        !selection.ready ||
+        !configReady ||
+        busy.current
       )
         return;
-      setConnected(true);
+      if (clientRef.current?.sessionId) return clientRef.current;
+      busy.current = true;
+      setWorking(true);
+      setError(null);
       setActivity("");
-      return client;
-    } catch (caught) {
-      if (clientRef.current === client && version === generation.current) {
-        clientRef.current = null;
-        setError(String(caught));
-        setReplaceRequired(String(caught).includes("ACP runtime already connected"));
-        setConnected(false);
+      const version = generation.current;
+      const scope = scopeRef.current;
+      try {
+        await cleanupRef.current;
+        if (version !== generation.current) return;
+        await clientRef.current?.disconnect();
+      } catch (caught) {
+        if (version === generation.current) {
+          busy.current = false;
+          setWorking(false);
+          setConnected(false);
+          setError(String(caught));
+        }
+        return;
       }
-    } finally {
-      if (version === generation.current) {
-        busy.current = false;
-        setWorking(false);
+      if (version !== generation.current) return;
+      const client = new AcpClient(
+        (event) => {
+          if (clientRef.current !== client || version !== generation.current) return;
+          if (event.type === "text") {
+            answer.current += event.text;
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantId.current
+                  ? { ...message, content: message.content + event.text }
+                  : message,
+              ),
+            );
+          } else if (event.type === "image_saved") {
+            const messageId = assistantId.current;
+            if (!messageId) return;
+            const image = {
+              path: event.path,
+              relativePath: event.relativePath,
+              mimeType: event.mimeType,
+            };
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === messageId
+                  ? { ...message, generatedImages: [...(message.generatedImages ?? []), image] }
+                  : message,
+              ),
+            );
+          } else if (event.type === "image_error") {
+            setError(t("interface.generatedImageSaveError"));
+          } else if (event.type === "permission")
+            setPermissions((current) => [...current, event.permission]);
+          else if (event.type === "activity") setActivity(event.text);
+          else {
+            clientRef.current = null;
+            cleanupRef.current = client.disconnect().catch(() => {});
+            setConnected(false);
+            setWorking(false);
+            setPermissions([]);
+            setError("ACP process exited. Reconnect to start a new session.");
+            busy.current = false;
+            assistantId.current = null;
+          }
+        },
+        () => (formatUtility.current ? "restricted" : configRef.current.permissionMode),
+        (methods, signal) =>
+          new Promise<string | null>((resolve) => {
+            const choose = (methodId: string | null) => {
+              signal.removeEventListener("abort", cancel);
+              setAuthentication((current) => (current?.choose === choose ? null : current));
+              resolve(methodId);
+            };
+            const cancel = () => choose(null);
+            if (signal.aborted) return resolve(null);
+            signal.addEventListener("abort", cancel, { once: true });
+            setAuthentication({ methods, choose });
+          }),
+      );
+      clientRef.current = client;
+      try {
+        if (replaceExisting) await client.connect(selection.selected, directory, launch, true);
+        else await client.connect(selection.selected, directory, launch);
+        if (
+          version !== generation.current ||
+          scopeRef.current !== scope ||
+          clientRef.current !== client
+        )
+          return;
+        setConnected(true);
+        setActivity("");
+        return client;
+      } catch (caught) {
+        if (clientRef.current === client && version === generation.current) {
+          clientRef.current = null;
+          setError(String(caught));
+          setReplaceRequired(String(caught).includes("ACP runtime already connected"));
+          setConnected(false);
+        }
+      } finally {
+        if (version === generation.current) {
+          busy.current = false;
+          setWorking(false);
+        }
       }
-    }
-  }, [directory, selection.selected, selection.ready, launch, configReady]);
+    },
+    [directory, selection.selected, selection.ready, launch, configReady, t],
+  );
 
   useEffect(() => {
     if (

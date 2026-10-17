@@ -1,6 +1,11 @@
 import { desktopStorage, storageRequest } from "@/lib/storage/app-storage";
 
-export type ExternalChatMessage = { id: string; role: "user" | "assistant"; content: string };
+export type ExternalChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  generatedImages?: { path: string; relativePath: string; mimeType: string }[];
+};
 export type ExternalChatRecord = {
   id: string;
   title: string;
@@ -27,7 +32,16 @@ export function readChatHistory(key: string): ExternalChatRecord[] {
           message &&
           typeof message.id === "string" &&
           ["user", "assistant"].includes(message.role) &&
-          typeof message.content === "string",
+          typeof message.content === "string" &&
+          (message.generatedImages === undefined ||
+            (Array.isArray(message.generatedImages) &&
+              message.generatedImages.every(
+                (image) =>
+                  image &&
+                  typeof image.path === "string" &&
+                  typeof image.relativePath === "string" &&
+                  typeof image.mimeType === "string",
+              ))),
       ),
   );
 }

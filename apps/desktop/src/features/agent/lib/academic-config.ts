@@ -6,6 +6,7 @@ export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
   protocol: "openai",
   baseUrl: "https://api.openai.com/v1",
   model: "",
+  imageGeneration: { baseUrl: "https://api.openai.com/v1", model: "" },
   personalPrompt: "",
   answerLanguage: "zh",
   skillIds: [],
@@ -39,6 +40,19 @@ export function readConfig(storageKey: string): AcademicConfig {
             : "",
         baseUrl: "baseUrl" in value && typeof value.baseUrl === "string" ? value.baseUrl : "",
         model: value.model,
+        imageGeneration:
+          "imageGeneration" in value &&
+          value.imageGeneration &&
+          typeof value.imageGeneration === "object" &&
+          "baseUrl" in value.imageGeneration &&
+          typeof value.imageGeneration.baseUrl === "string" &&
+          "model" in value.imageGeneration &&
+          typeof value.imageGeneration.model === "string"
+            ? {
+                baseUrl: value.imageGeneration.baseUrl,
+                model: value.imageGeneration.model,
+              }
+            : DEFAULT_ACADEMIC_CONFIG.imageGeneration,
         personalPrompt:
           "personalPrompt" in value && typeof value.personalPrompt === "string"
             ? value.personalPrompt

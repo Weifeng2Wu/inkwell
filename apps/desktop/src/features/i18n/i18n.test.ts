@@ -4,10 +4,12 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { academicLabels } from "../agent/lib/academic-labels";
 import { externalAgentLabels } from "../agent/lib/external-agent-labels";
+import { localizeSkill } from "../agent/lib/skill-presentation";
 import { en } from "./locales/en";
 import { ko } from "./locales/ko";
 import { zh } from "./locales/zh";
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LOCALES } from "./types";
+import { posterLabels } from "../poster/lib/labels";
 
 function getLeafEntries(obj: Record<string, unknown>, prefix = ""): Record<string, string> {
   const result: Record<string, string> = {};
@@ -28,6 +30,21 @@ function extractParams(str: string): string[] {
 }
 
 describe("Agent translations", () => {
+  it("preserves skill names while localizing app-owned descriptions", () => {
+    const translated = localizeSkill(
+      {
+        id: "academic-poster",
+        name: "Academic Poster",
+        description: "Original description",
+        version: "1",
+        source: "Inkwell built-in",
+      },
+      (key) => (key === "skillCatalog.posterDescription" ? "Localized description" : key),
+    );
+    expect(translated.name).toBe("Academic Poster");
+    expect(translated.description).toBe("Localized description");
+  });
+
   for (const [name, dictionaries] of Object.entries({
     academic: academicLabels,
     external: Object.fromEntries(LOCALES.map(({ id }) => [id, externalAgentLabels(id)])),
@@ -51,6 +68,14 @@ describe("Agent translations", () => {
       for (const [key, text] of Object.entries(getLeafEntries(dictionary.interface))) {
         expect(text, key).not.toBe(baseline[key]);
       }
+    }
+  });
+});
+
+describe("poster translations", () => {
+  it("does not fall back to English for Korean poster controls", () => {
+    for (const key of ["help", "width", "height", "resize"] as const) {
+      expect(posterLabels("ko")[key], key).not.toBe(posterLabels("en")[key]);
     }
   });
 });

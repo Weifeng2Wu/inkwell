@@ -106,6 +106,10 @@ mod tests {
             first,
             credential_account(r#"["openai","","https://other.example/v1"]"#).unwrap()
         );
+        assert_ne!(
+            first,
+            credential_account(r#"["","inkwell-imagegen","https://example.com/v1"]"#).unwrap()
+        );
         assert_eq!(first.len(), 64);
     }
 
