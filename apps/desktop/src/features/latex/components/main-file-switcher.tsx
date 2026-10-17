@@ -34,6 +34,7 @@ export function MainFileSwitcher({
       disabled={disabled || texFiles.length === 0}
     >
       <SelectPrimitive.Trigger
+        data-tour="main-file"
         aria-label={t("header.switchMainFile")}
         title={title}
         className="toolbar-icon-button"

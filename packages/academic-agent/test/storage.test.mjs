@@ -23,6 +23,18 @@ const record = (id = "one", modified = "2026-10-17T00:00:00Z") => ({
   messages: [{ id: "message", role: "user", content: "Check the format" }],
 });
 
+test("quick start progress survives a database restart", async (context) => {
+  const { database, filename } = await fixture(context);
+  const state = JSON.stringify({ step: 3, completed: false, dismissed: true });
+  database.request({ type: "settings_write", entries: [["inkwell-quick-start-v1", state]] });
+  const reopened = new AppDatabase(filename);
+  try {
+    assert.equal(reopened.request({ type: "bootstrap" }).settings["inkwell-quick-start-v1"], state);
+  } finally {
+    reopened.close();
+  }
+});
+
 test("legacy migration is transactional, durable and idempotent", async (context) => {
   const { database, filename } = await fixture(context);
   const entries = [

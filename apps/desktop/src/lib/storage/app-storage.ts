@@ -9,6 +9,7 @@ const keys = new Set([
   "terminalHeight",
   "inkwell-agent-selection-v1",
   "inkwell-layout-parser-v1",
+  "inkwell-quick-start-v1",
   "inkwell-keyboard-shortcuts-v1",
   "inkwell-locale",
   "opencode-selected-agent",

@@ -35,6 +35,8 @@ import {
 } from "@/features/agent";
 import { GitHubAuthSettings } from "@/features/git";
 import { type Locale, useI18n } from "@/features/i18n";
+import { quickStartLabels } from "@/features/onboarding/lib/labels";
+import { QUICK_START_STEPS } from "@/features/onboarding/lib/quick-start-state";
 import {
   DEFAULT_EDITOR_SETTINGS,
   type EditorSettings,
@@ -42,6 +44,7 @@ import {
 } from "@/features/settings/lib/editor-settings";
 import { THEMES } from "@/features/settings/lib/theme";
 import { useEditorSettings } from "@/features/settings/lib/use-editor-settings";
+import { AgentConnectionSettings } from "./agent-connection-settings";
 import { FontSettings } from "./font-settings";
 import { KeyboardShortcutSettings } from "./keyboard-shortcut-settings";
 import { LayoutParserSettings } from "./layout-parser-settings";
@@ -51,6 +54,15 @@ import { ThemeGrid } from "./theme-grid";
 export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts";
 
 export interface SettingsPageProps {
+  quickStart?: {
+    step: number;
+    saveError: boolean;
+    onNext: () => void;
+    onBack: () => void;
+    onClose: () => void;
+  };
+  onOpenTerminal?: () => void;
+  onOpenQuickStart?: () => void;
   onClose?: () => void;
   editorSettings?: EditorSettings;
   onUpdateEditorSettings?: (updates: Partial<EditorSettings>) => void;
@@ -193,6 +205,9 @@ function NumberStepper({
 }
 
 export function SettingsPage({
+  quickStart,
+  onOpenTerminal,
+  onOpenQuickStart,
   onClose,
   editorSettings: externalEditorSettings,
   onUpdateEditorSettings: externalUpdateEditorSettings,
@@ -215,6 +230,33 @@ export function SettingsPage({
     initialTab === "editor" ? "general" : initialTab,
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const guidedTab: SettingsTabId | undefined = quickStart
+    ? ({ 4: "agent", 5: "general", 6: "skills", 7: "terminalGit" } as const)[
+        quickStart.step as 4 | 5 | 6 | 7
+      ]
+    : undefined;
+  const currentTab = guidedTab ?? activeTab;
+  const guideLabels = quickStartLabels[locale];
+  useEffect(() => {
+    if (!guidedTab) return;
+    setActiveTab(guidedTab);
+    setSearchQuery("");
+    const frame = requestAnimationFrame(() => {
+      const container = document.querySelector<HTMLElement>('[data-settings-section="content"]');
+      if (!container) return;
+      const section = document.querySelector<HTMLElement>(
+        `[data-settings-section="${quickStart?.step === 5 ? "layout" : quickStart?.step === 7 ? "github" : "content"}"]`,
+      );
+      container.scrollTop =
+        section && section !== container
+          ? section.getBoundingClientRect().top -
+            container.getBoundingClientRect().top +
+            container.scrollTop -
+            16
+          : 0;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [guidedTab, quickStart?.step]);
 
   // Close on Escape key
   useEffect(() => {
@@ -227,20 +269,21 @@ export function SettingsPage({
           e.target.closest('[data-shortcut-recorder], [role="dialog"]')
         )
       ) {
-        onClose?.();
+        if (quickStart) quickStart.onClose();
+        else onClose?.();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, quickStart]);
 
   const handleResetCurrent = useCallback(() => {
-    if (activeTab === "agent") {
+    if (currentTab === "agent") {
       academicAgent?.setConfig(DEFAULT_ACADEMIC_CONFIG);
     } else {
       onUpdateEditorSettings(DEFAULT_EDITOR_SETTINGS);
     }
-  }, [activeTab, academicAgent, onUpdateEditorSettings]);
+  }, [currentTab, academicAgent, onUpdateEditorSettings]);
 
   const navItems = useMemo(
     () => [
@@ -293,13 +336,16 @@ export function SettingsPage({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-background text-foreground flex flex-col h-screen w-screen overflow-hidden select-none">
+    <div
+      data-settings-page
+      className="fixed inset-0 z-50 bg-background text-foreground flex flex-col h-screen w-screen overflow-hidden select-none"
+    >
       {/* Top Navigation Bar */}
       <header className="h-14 border-b border-border bg-background px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={quickStart ? quickStart.onClose : onClose}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground-secondary hover:text-foreground hover:bg-accent-hover border border-border hover:border-border-dark rounded-md transition-colors"
             title={`${t("settings.backToEditor")} (Esc)`}
           >
@@ -338,6 +384,7 @@ export function SettingsPage({
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
+            disabled={Boolean(quickStart)}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("settings.searchPlaceholder")}
@@ -358,11 +405,16 @@ export function SettingsPage({
 
         {/* Quick Actions */}
         <div className="flex items-center gap-2">
-          {activeTab !== "shortcuts" && (
+          {!quickStart && onOpenQuickStart && (
+            <button type="button" onClick={onOpenQuickStart} className="btn btn-sm">
+              {{ zh: "快速引导", en: "Quick start", ko: "빠른 시작" }[locale]}
+            </button>
+          )}
+          {currentTab !== "shortcuts" && (
             <button
               type="button"
               onClick={handleResetCurrent}
-              disabled={activeTab === "agent" && academicAgent?.working}
+              disabled={Boolean(quickStart) || (currentTab === "agent" && academicAgent?.working)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted hover:text-foreground hover:bg-accent-hover border border-border rounded-md transition-colors"
               title={t("settings.resetCurrentTab")}
             >
@@ -373,7 +425,7 @@ export function SettingsPage({
           {onClose && (
             <button
               type="button"
-              onClick={onClose}
+              onClick={quickStart ? quickStart.onClose : onClose}
               className="px-4 py-1.5 text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/90 rounded-md transition-colors"
             >
               {t("settings.done")}
@@ -382,6 +434,55 @@ export function SettingsPage({
         </div>
       </header>
 
+      {quickStart && (
+        <section
+          data-quick-start
+          data-tour-step={
+            quickStart.step === 4
+              ? "ai"
+              : quickStart.step === 5
+                ? "layout"
+                : quickStart.step === 6
+                  ? "skills"
+                  : "github"
+          }
+          aria-labelledby="settings-guide-heading"
+          className="shrink-0 border-b border-accent/25 bg-accent/5 px-6 py-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-accent">
+                {guideLabels.quickStart} · {quickStart.step + 1} / {QUICK_START_STEPS}
+              </p>
+              <h2 id="settings-guide-heading" className="mt-1 text-sm font-semibold">
+                {guideLabels.steps[quickStart.step]}
+              </h2>
+              <p className="mt-1 text-xs leading-6 text-muted">
+                {guideLabels.descriptions[quickStart.step]}
+              </p>
+              {quickStart.saveError && (
+                <p role="alert" className="text-xs text-error">
+                  {guideLabels.storageError}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button type="button" className="btn btn-sm" onClick={quickStart.onBack}>
+                {guideLabels.back}
+              </button>
+              {quickStart.step < QUICK_START_STEPS - 1 && (
+                <button type="button" className="text-xs text-muted" onClick={quickStart.onNext}>
+                  {guideLabels.later}
+                </button>
+              )}
+              <button type="button" className="btn btn-primary" onClick={quickStart.onNext}>
+                {quickStart.step === QUICK_START_STEPS - 1 ? guideLabels.finish : guideLabels.next}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Main Two-Column Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar Category Navigation */}
@@ -389,11 +490,12 @@ export function SettingsPage({
           <div className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = !searchQuery && activeTab === item.id;
+              const isActive = !searchQuery && currentTab === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
+                  disabled={Boolean(quickStart)}
                   onClick={() => {
                     setActiveTab(item.id);
                     setSearchQuery("");
@@ -426,7 +528,10 @@ export function SettingsPage({
         </aside>
 
         {/* Right Main Settings Panel */}
-        <main className="flex-1 h-full overflow-y-auto p-6 md:p-8 lg:p-10">
+        <main
+          data-settings-section="content"
+          className="flex-1 h-full overflow-y-auto p-6 md:p-8 lg:p-10"
+        >
           <div className="max-w-3xl mx-auto pb-12">
             {/* SEARCH RESULTS VIEW */}
             {searchQuery ? (
@@ -654,28 +759,24 @@ export function SettingsPage({
             ) : (
               /* TAB VIEW */
               <div className="space-y-6">
-                {activeTab === "shortcuts" && <KeyboardShortcutSettings />}
-                {activeTab === "skills" && academicAgent && (
+                {currentTab === "shortcuts" && <KeyboardShortcutSettings />}
+                {currentTab === "skills" && academicAgent && (
                   <SkillsSettings
                     agent={academicAgent}
                     selection={agentSelection}
                     externalAgent={externalAgent}
                   />
                 )}
-                {activeTab === "agent" && academicAgent && (
-                  <AcademicAgentSettings
+                {currentTab === "agent" && (
+                  <AgentConnectionSettings
                     agent={academicAgent}
-                    external={
-                      agentSelection?.selected !== undefined &&
-                      agentSelection.selected !== "builtin"
-                    }
+                    selection={agentSelection}
+                    externalAgent={externalAgent}
+                    onOpenTerminal={onOpenTerminal}
                   />
                 )}
-                {activeTab === "agent" && agentSelection && (
-                  <ExternalAgentSettings selection={agentSelection} />
-                )}
                 {/* ===== 1. GENERAL TAB ===== */}
-                {activeTab === "general" && (
+                {currentTab === "general" && (
                   <>
                     {agentSelection && <AgentSelectionSettings selection={agentSelection} />}
                     <div className="mb-6">
@@ -715,7 +816,9 @@ export function SettingsPage({
                     </SectionCard>
 
                     {/* Keybindings */}
-                    <LayoutParserSettings />
+                    <div data-settings-section="layout">
+                      <LayoutParserSettings />
+                    </div>
                     <SectionCard title={t("settings.keybindings.title")}>
                       <SettingRow
                         label={t("settings.keybindings.vimMode")}
@@ -992,7 +1095,7 @@ export function SettingsPage({
                 )}
 
                 {/* ===== 3. TERMINAL & GIT TAB ===== */}
-                {activeTab === "terminalGit" && (
+                {currentTab === "terminalGit" && (
                   <>
                     <div className="mb-6">
                       <h2 className="text-xl font-bold tracking-tight text-foreground">
@@ -1065,7 +1168,9 @@ export function SettingsPage({
                     </SectionCard>
 
                     <SectionCard title={t("settings.gitSection.title")}>
-                      <GitHubAuthSettings />
+                      <div data-settings-section="github">
+                        <GitHubAuthSettings />
+                      </div>
                       <SettingRow
                         label={t("settings.gitSection.autoFetch")}
                         description={t("settings.gitSection.autoFetchDesc")}

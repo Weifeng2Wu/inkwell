@@ -77,6 +77,8 @@ import {
   useLatexCompiler,
   useLatexSettings,
 } from "@/features/latex";
+import { QuickStart } from "@/features/onboarding/components/quick-start";
+import { useQuickStart } from "@/features/onboarding/lib/use-quick-start";
 import {
   matchesShortcut,
   SettingsPage,
@@ -141,8 +143,12 @@ export default function EditorPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(() => storedPanelWidth("sidebarWidth", 150, 600));
-  const [rightPanelWidth, setRightPanelWidth] = useState(() => storedPanelWidth("rightPanelWidth", 280, 700));
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    storedPanelWidth("sidebarWidth", 150, 600),
+  );
+  const [rightPanelWidth, setRightPanelWidth] = useState(() =>
+    storedPanelWidth("rightPanelWidth", 280, 700),
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -181,6 +187,13 @@ export default function EditorPage() {
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
+  const workspaceReady = Boolean(
+    daemon.projectInfo &&
+      !daemon.isOpeningProject &&
+      daemon.lastError?.operation !== "open project",
+  );
+  const quickStart = useQuickStart(workspaceReady);
+  const showQuickStart = quickStart.visible;
   const [pendingAcademicMessage, setPendingAcademicMessage] = useState<string | null>(null);
   const agentSelection = useAgentSelection();
   const reviewBuffers = useRef<{ path: string; content: string }[]>([]);
@@ -371,6 +384,7 @@ The AI assistant will read and update this file during compilation.
     }
   }, [daemon.projectPath]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Close the terminal when switching workspaces.
   useEffect(() => {
     setShowTerminal(false);
   }, [daemon.projectPath]);
@@ -2007,6 +2021,7 @@ The AI assistant will read and update this file during compilation.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (typeof e.key !== "string" || e.isComposing || e.defaultPrevented || e.repeat) return;
+      if (showQuickStart) return;
       if (
         e.target instanceof Element &&
         e.target.closest('[data-shortcut-recorder], [role="dialog"]')
@@ -2060,6 +2075,7 @@ The AI assistant will read and update this file during compilation.
     handleCompileWithDetection,
     keyboardShortcuts,
     showSettingsPage,
+    showQuickStart,
   ]);
 
   const isShowingGitDiff =
@@ -2261,7 +2277,7 @@ The AI assistant will read and update this file during compilation.
 
   return (
     <div className="h-dvh flex flex-col">
-      <div className="flex-shrink-0 flex flex-col">
+      <div data-workspace-shell className="flex-shrink-0 flex flex-col">
         <header className="h-12 border-b border-border flex items-center">
           <div className="w-full px-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
@@ -2332,6 +2348,7 @@ The AI assistant will read and update this file during compilation.
                   <button
                     type="button"
                     onClick={handleCompileWithDetection}
+                    data-tour="compile"
                     disabled={latexSettings.isDetecting || latexCompiler.isCompiling}
                     className="toolbar-icon-button"
                     title={
@@ -2354,7 +2371,10 @@ The AI assistant will read and update this file during compilation.
 
                 <button
                   type="button"
-                  onClick={() => setShowSettingsPage(true)}
+                  data-tour="settings"
+                  onClick={() => {
+                    setShowSettingsPage(true);
+                  }}
                   className="toolbar-icon-button"
                   aria-pressed={showSettingsPage}
                   title={t("header.settingsTooltip")}
@@ -2368,7 +2388,7 @@ The AI assistant will read and update this file during compilation.
         </header>
       </div>
 
-      <main className="flex-1 min-h-0 flex relative overflow-hidden">
+      <main data-workspace-shell className="flex-1 min-h-0 flex relative overflow-hidden">
         <AnimatePresence mode="wait">
           {showSidebar && (
             <motion.div
@@ -2527,7 +2547,12 @@ The AI assistant will read and update this file during compilation.
               ) : (
                 <div className="flex flex-col items-center justify-center text-center px-6">
                   <Logo size="large" className="h-24 w-auto mb-10" />
-                  <button type="button" onClick={handleOpenFolder} className="btn btn-primary">
+                  <button
+                    type="button"
+                    data-tour="workspace"
+                    onClick={handleOpenFolder}
+                    className="btn btn-primary"
+                  >
                     {t("welcome.openFolder")}
                   </button>
                   <RecentProjects
@@ -2536,6 +2561,13 @@ The AI assistant will read and update this file during compilation.
                     onRemove={recentProjects.removeProject}
                     onClearAll={recentProjects.clearAll}
                   />
+                  <button
+                    type="button"
+                    className="mt-6 text-xs text-muted hover:text-foreground"
+                    onClick={() => quickStart.open()}
+                  >
+                    {{ zh: "打开快速引导", en: "Open quick start", ko: "빠른 시작 열기" }[locale]}
+                  </button>
                 </div>
               )}
             </div>
@@ -2640,8 +2672,27 @@ The AI assistant will read and update this file during compilation.
         />
       )}
 
-      {showSettingsPage && (
+      {(showSettingsPage || (showQuickStart && quickStart.step >= 4)) && (
         <SettingsPage
+          quickStart={
+            showQuickStart && quickStart.step >= 4
+              ? {
+                  step: quickStart.step,
+                  saveError: quickStart.saveError,
+                  onNext: quickStart.next,
+                  onBack: quickStart.back,
+                  onClose: () => {
+                    quickStart.close();
+                    setShowSettingsPage(true);
+                  },
+                }
+              : undefined
+          }
+          onOpenTerminal={() => {
+            quickStart.close();
+            setShowSettingsPage(false);
+            setShowTerminal(true);
+          }}
           onClose={() => {
             setShowSettingsPage(false);
           }}
@@ -2650,6 +2701,23 @@ The AI assistant will read and update this file during compilation.
           externalAgent={externalAgent}
           editorSettings={editorSettings.settings}
           onUpdateEditorSettings={editorSettings.updateSettings}
+          onOpenQuickStart={() => {
+            setShowSettingsPage(false);
+            quickStart.open();
+          }}
+        />
+      )}
+
+      {showQuickStart && quickStart.step < 4 && (
+        <QuickStart
+          step={quickStart.step}
+          workspaceReady={workspaceReady}
+          workspaceError={
+            daemon.lastError?.operation === "open project" ? daemon.lastError.message : undefined
+          }
+          saveError={quickStart.saveError}
+          onOpenFolder={handleOpenFolder}
+          onNext={quickStart.next}
         />
       )}
 

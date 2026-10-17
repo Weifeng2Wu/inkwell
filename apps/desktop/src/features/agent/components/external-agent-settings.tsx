@@ -20,7 +20,13 @@ import type { AgentSelectionController } from "../lib/use-agent-selection";
 import { AGENT_INSTALLATION_CHANGED, useInstalledAgents } from "../lib/use-installed-agents";
 import { AgentLogo } from "./agent-logo";
 
-export function AgentSelectionSettings({ selection }: { selection: AgentSelectionController }) {
+export function AgentSelectionSettings({
+  selection,
+  externalOnly = false,
+}: {
+  selection: AgentSelectionController;
+  externalOnly?: boolean;
+}) {
   const { locale } = useI18n();
   const labels = externalAgentLabels(locale);
   const id = useId();
@@ -46,13 +52,23 @@ export function AgentSelectionSettings({ selection }: { selection: AgentSelectio
       <select
         id={id}
         className="settings-control settings-select w-full"
-        value={selected}
+        value={externalOnly && selected === "builtin" ? "" : selected}
         disabled={!selection.ready}
         onChange={(event) => {
           if (isAgentSelection(event.target.value)) selection.setSelected(event.target.value);
         }}
       >
-        <option value="builtin">{labels.builtin}</option>
+        {externalOnly ? (
+          <option value="" disabled>
+            {locale === "zh"
+              ? "选择已安装的第三方 Agent"
+              : locale === "ko"
+                ? "설치된 외부 Agent 선택"
+                : "Choose an installed third-party Agent"}
+          </option>
+        ) : (
+          <option value="builtin">{labels.builtin}</option>
+        )}
         {installedAgents.map((agent) => (
           <option key={agent.id} value={agent.id}>
             {agent.name}

@@ -5,6 +5,32 @@ import { I18nProvider } from "@/features/i18n";
 import { SettingsPage } from "./settings-page";
 
 describe("settings navigation", () => {
+  it.each([
+    { step: 4, section: 'data-tour-step="ai"' },
+    { step: 5, section: 'data-settings-section="layout"' },
+    { step: 7, section: 'data-settings-section="github"' },
+  ])("opens the actual settings category for guide step $step", ({ step, section }) => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        I18nProvider,
+        null,
+        createElement(SettingsPage, {
+          quickStart: {
+            step,
+            saveError: false,
+            onNext: () => {},
+            onBack: () => {},
+            onClose: () => {},
+          },
+        }),
+      ),
+    );
+    expect(markup).toContain("data-settings-page");
+    expect(markup).toContain(section);
+    expect(markup).toContain('id="settings-guide-heading"');
+    expect(markup).not.toContain('role="dialog"');
+  });
+
   it("no longer offers LaTeX and build settings", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(SettingsPage)),
