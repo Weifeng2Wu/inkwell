@@ -29,10 +29,6 @@ jobs:
             os: macos-15
             target: aarch64-apple-darwin
             bundles: dmg
-          - name: macOS-x64
-            os: macos-15-intel
-            target: x86_64-apple-darwin
-            bundles: dmg
           - name: Linux-x64
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
@@ -68,6 +64,10 @@ jobs:
       - name: Rust tests
         working-directory: apps/desktop/src-tauri
         run: cargo test --locked
+      - name: Build and verify frontend export
+        run: |
+          pnpm --filter @inkwell/desktop build
+          node --input-type=module -e "import { access } from 'node:fs/promises'; await access('apps/desktop/out/index.html'); await access('apps/desktop/out/_next'); console.log('Verified apps/desktop/out frontend export.');"
       - name: Configure short Windows runtime staging
         if: runner.os == 'Windows'
         shell: pwsh

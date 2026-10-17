@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import TerserPlugin from "terser-webpack-plugin";
 import type { Configuration } from "webpack";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -14,7 +13,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   turbopack: {},
 
-  webpack: (config: Configuration, { isServer }) => {
+  webpack: (config: Configuration) => {
     config.module = config.module || { rules: [] };
     config.module.rules = config.module.rules || [];
     config.module.rules.push({
@@ -26,35 +25,6 @@ const nextConfig: NextConfig = {
         replace: "",
       },
     });
-
-    if (isProd && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        minimize: true,
-        minimizer: [
-          new TerserPlugin({
-            terserOptions: {
-              compress: {
-                drop_console: true,
-                drop_debugger: true,
-                pure_funcs: ["console.info", "console.debug", "console.warn"],
-                passes: 3,
-              },
-              mangle: {
-                safari10: true,
-                properties: {
-                  regex: /^_/,
-                },
-              },
-              format: {
-                comments: false,
-              },
-            },
-            extractComments: false,
-          }),
-        ],
-      };
-    }
 
     return config;
   },
