@@ -163,7 +163,18 @@ describe("Agent configuration location", () => {
         createElement(
           I18nProvider,
           null,
-          createElement(SettingsPage, { academicAgent: agent, initialTab }),
+          createElement(SettingsPage, {
+            academicAgent: agent,
+            initialTab,
+            agentSelection: {
+              selected: "builtin",
+              setSelected: vi.fn(),
+              launches: {},
+              saveLaunch: vi.fn(),
+              ready: true,
+              error: null,
+            },
+          }),
         ),
       );
     const skillsMarkup = renderSettings("skills");
@@ -439,6 +450,49 @@ describe("Agent configuration location", () => {
     expect(markup).not.toMatch(/<button[^>]*disabled[^>]*aria-label="New session"/);
     expect(markup).not.toContain(">New session</button>");
     expect(markup).not.toContain(agent.labels.resume);
+  });
+
+  it.each(["en", "zh", "ko"] as const)("guides unconfigured users to settings in %s", (locale) => {
+    const agent = createAgent({ labels: academicLabels[locale] });
+    agent.config = { ...agent.config, model: " " };
+    const markup = renderToStaticMarkup(
+      createElement(AcademicAgentPanel, { agent, onOpenSettings: vi.fn() }),
+    );
+    expect(markup).toContain(agent.labels.setupTitle);
+    expect(markup).toContain(agent.labels.setupAction);
+    expect(markup).not.toContain(agent.labels.start);
+    expect(markup).not.toContain('type="password"');
+    expect(markup).toMatch(/<button[^>]*aria-label="[^"]+"[^>]*disabled=""/);
+  });
+
+  it("does not require an API key for a configured local model", () => {
+    const agent = createAgent({ apiKey: "" });
+    const markup = renderToStaticMarkup(
+      createElement(AcademicAgentPanel, { agent, onOpenSettings: vi.fn() }),
+    );
+    expect(markup).not.toContain(agent.labels.setupTitle);
+    expect(markup).toContain(agent.labels.start);
+  });
+
+  it("preserves conversation messages when model settings are cleared", () => {
+    const agent = createAgent({
+      messages: [{ id: "message", role: "user", content: "Keep my conversation visible" }],
+    });
+    agent.config = { ...agent.config, model: "" };
+    const markup = renderToStaticMarkup(
+      createElement(AcademicAgentPanel, { agent, onOpenSettings: vi.fn() }),
+    );
+    expect(markup).not.toContain(agent.labels.setupTitle);
+    expect(markup).toContain("Keep my conversation visible");
+  });
+
+  it("waits for saved configuration before showing the setup prompt", () => {
+    const agent = createAgent({ configReady: false });
+    agent.config = { ...agent.config, model: "" };
+    const markup = renderToStaticMarkup(
+      createElement(AcademicAgentPanel, { agent, onOpenSettings: vi.fn() }),
+    );
+    expect(markup).not.toContain(agent.labels.setupTitle);
   });
 
   it("keeps settings editable while busy but prevents concurrent runtime requests", () => {

@@ -26,8 +26,8 @@ export function AgentConnectionSettings({
 }) {
   const { locale } = useI18n();
   const l = quickStartLabels[locale];
-  const [mode, setMode] = useState<"builtin" | "external" | null>(() =>
-    selection?.selected && selection.selected !== "builtin" ? "external" : null,
+  const [mode, setMode] = useState<"builtin" | "external">(() =>
+    selection?.selected && selection.selected !== "builtin" ? "external" : "builtin",
   );
   if (!agent || !selection) return null;
   return (

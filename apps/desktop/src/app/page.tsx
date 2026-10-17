@@ -187,6 +187,7 @@ export default function EditorPage() {
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "agent">("general");
   const workspaceReady = Boolean(
     daemon.projectInfo &&
       !daemon.isOpeningProject &&
@@ -2654,6 +2655,10 @@ The AI assistant will read and update this file during compilation.
                     key={daemon.projectPath ?? "no-project"}
                     agent={academicAgent}
                     files={daemon.files}
+                    onOpenSettings={() => {
+                      setSettingsInitialTab("agent");
+                      setShowSettingsPage(true);
+                    }}
                   />
                 )}
               </aside>
@@ -2674,6 +2679,7 @@ The AI assistant will read and update this file during compilation.
 
       {(showSettingsPage || (showQuickStart && quickStart.step >= 4)) && (
         <SettingsPage
+          initialTab={settingsInitialTab}
           quickStart={
             showQuickStart && quickStart.step >= 4
               ? {
@@ -2695,6 +2701,7 @@ The AI assistant will read and update this file during compilation.
           }}
           onClose={() => {
             setShowSettingsPage(false);
+            setSettingsInitialTab("general");
           }}
           academicAgent={academicAgent}
           agentSelection={agentSelection}
