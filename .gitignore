@@ -4,6 +4,7 @@ node_modules/
 
 # Local-only project documentation
 /docs/
+/ACADEMIC_POSTERS.md
 /AGENTS.md
 
 # Next.js

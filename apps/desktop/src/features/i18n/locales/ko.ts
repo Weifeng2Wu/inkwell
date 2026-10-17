@@ -1,6 +1,14 @@
 import type { TranslationDictionary } from "./en";
 
 export const ko: TranslationDictionary = {
+  skillCatalog: {
+    posterName: "학술 포스터",
+    posterDescription:
+      "논문으로 편집 가능한 학술 포스터를 만듭니다. 클래식·미니멀·모던 스타일과 다양한 용지 크기 및 방향을 지원합니다. Inkwell에서 텍스트, 글꼴 크기, 이미지와 배치를 편집하고 PPTX 또는 SVG로 내보낼 수 있습니다.",
+    builtIn: "Inkwell 기본 제공",
+    showDescription: "전체 설명 보기",
+    hideDescription: "설명 접기",
+  },
   layoutParser: {
     title: "문서 레이아웃 분석",
     description:
@@ -210,11 +218,15 @@ export const ko: TranslationDictionary = {
     noRecentProjects: "최근 프로젝트가 없습니다",
   },
   workspace: {
+    openWorkspace: "작업 공간 열기",
+    switchWorkspace: "다른 작업 공간 열기",
+    waitForOperations: "현재 Agent 또는 컴파일 작업이 끝난 후 작업 공간을 전환하세요.",
     openProjectFailed: "프로젝트 열기 실패",
   },
   files: {
     title: "파일",
     noFolderOpen: "열린 폴더 없음",
+    newPoster: "새 학술 포스터",
     newFile: "새 파일",
     newFolder: "새 폴더",
     refreshFiles: "파일 새로고침",

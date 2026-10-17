@@ -170,3 +170,7 @@ pnpm tauri:dev
 ## 许可证与致谢
 
 Inkwell 使用 [MIT 许可证](LICENSE)。第三方运行时、Skills 与资源保留各自许可证，详见[第三方声明](packages/academic-agent/THIRD_PARTY_NOTICES.md)和 [Agent 图标来源](apps/desktop/public/agent-logos/LICENSE.txt)。
+
+### 可编辑学术海报
+
+在文件树右键选择“新建学术海报”，即可直接编辑文字、拖动和缩放元素，选择三种风格及横竖版尺寸，并导出可编辑的 PPTX/SVG 或打印用 PDF、PNG、JPEG。在技能市场安装 Academic Poster 后，Agent 可根据论文生成同一格式的海报。详见[调研与使用说明](ACADEMIC_POSTERS.md)。

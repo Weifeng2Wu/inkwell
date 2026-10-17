@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import type { Configuration } from "webpack";
+import { type Configuration, NormalModuleReplacementPlugin } from "webpack";
 
 const isProd = process.env.NODE_ENV === "production";
 const internalHost = process.env.TAURI_DEV_HOST || "localhost";
@@ -13,7 +13,19 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   turbopack: {},
 
-  webpack: (config: Configuration) => {
+  webpack: (config: Configuration, { isServer }) => {
+    if (!isServer) {
+      // PptxGenJS conditionally imports these on Node. Webpack processes node: schemes
+      // before its browser mappings, so normalize them before applying the fallbacks.
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new NormalModuleReplacementPlugin(/^node:(fs|https)$/, (resource) => {
+          resource.request = resource.request.replace(/^node:/, "");
+        }),
+      );
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = { ...config.resolve.fallback, fs: false, https: false };
+    }
     config.module = config.module || { rules: [] };
     config.module.rules = config.module.rules || [];
     config.module.rules.push({

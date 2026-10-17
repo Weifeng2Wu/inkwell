@@ -254,48 +254,23 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
 
   const setProject = useCallback(
     async (path: string) => {
-      let isMounted = true;
-
-      setProjectState((s) => ({ ...s, projectPath: path }));
-      setOperationState((s) => ({
-        ...s,
-        isOpeningProject: true,
-        lastError: null,
-      }));
-
+      setOperationState((s) => ({ ...s, isOpeningProject: true, lastError: null }));
       try {
-        await invoke("set_project_path", { path });
-        if (!isMounted) return;
-
-        const rawFiles = await invoke<unknown[]>("get_file_tree", {
-          dir: path,
-        });
-        if (!isMounted) return;
-
+        // Validate/read the destination before changing the backend's active project.
+        const rawFiles = await invoke<unknown[]>("get_file_tree", { dir: path });
         const files = rawFiles.map((f) =>
           convertFileNode(f as Parameters<typeof convertFileNode>[0]),
         );
-
-        setProjectState((s) => ({
-          ...s,
-          files,
-          projectInfo: { path },
-        }));
-
+        await invoke("set_project_path", { path });
+        setProjectState({ projectPath: path, files, projectInfo: { path } });
         refreshGitStatusInternal(path);
       } catch (error) {
-        if (!isMounted) return;
         console.error("Failed to set project:", error);
         setError(String(error), "open project");
+        throw error;
       } finally {
-        if (isMounted) {
-          setOperationState((s) => ({ ...s, isOpeningProject: false }));
-        }
+        setOperationState((s) => ({ ...s, isOpeningProject: false }));
       }
-
-      return () => {
-        isMounted = false;
-      };
     },
     [setError, refreshGitStatusInternal],
   );

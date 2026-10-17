@@ -1,6 +1,14 @@
 import type { TranslationDictionary } from "./en";
 
 export const zh: TranslationDictionary = {
+  skillCatalog: {
+    posterName: "学术海报",
+    posterDescription:
+      "根据论文生成可编辑的学术海报，提供经典、简约和现代三种风格，支持多种纸张尺寸及横竖版。可在 Inkwell 中编辑文字、字号、图片和布局，并导出 PPTX 或 SVG。",
+    builtIn: "Inkwell 内置",
+    showDescription: "展开介绍",
+    hideDescription: "收起介绍",
+  },
   layoutParser: {
     title: "版面解析",
     description:
@@ -205,11 +213,15 @@ export const zh: TranslationDictionary = {
     noRecentProjects: "暂无最近项目",
   },
   workspace: {
+    openWorkspace: "打开工作区",
+    switchWorkspace: "打开其他工作区",
+    waitForOperations: "请等待当前 Agent 或编译操作结束后再切换工作区。",
     openProjectFailed: "打开项目失败",
   },
   files: {
     title: "文件",
     noFolderOpen: "未打开文件夹",
+    newPoster: "新建学术海报",
     newFile: "新建文件",
     newFolder: "新建文件夹",
     refreshFiles: "刷新文件",

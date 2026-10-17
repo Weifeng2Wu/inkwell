@@ -41,6 +41,59 @@ test("denying an edit never writes it", async () => {
   assert.equal(await readFile(path.join(directory, "paper.tex"), "utf8"), "Original");
 });
 
+const posterContent = JSON.stringify({
+  version: 1,
+  title: "Poster",
+  style: "classic",
+  width: 841,
+  height: 1189,
+  background: "#ffffff",
+  elements: [],
+});
+test("poster tool creates nested proposals, reads them, and updates existing posters", async () => {
+  const proposals = [];
+  const { directory, policy } = await fixture(async (change) => proposals.push(change));
+  await policy.writePoster("posters/research.poster.json", posterContent);
+  assert.equal((await policy.read("posters/research.poster.json")).toString(), posterContent);
+  assert.equal(proposals[0].before, null);
+  const updated = posterContent.replace("Poster", "Updated");
+  await policy.writePoster("posters/research.poster.json", updated);
+  assert.equal(
+    await readFile(path.join(directory, "posters/research.poster.json"), "utf8"),
+    updated,
+  );
+  await writeFile(path.join(directory, "config.json"), "{}");
+  await assert.rejects(policy.read("config.json"));
+});
+
+test("poster creation preserves denied, cancelled, linked, outside and concurrently created files", async () => {
+  const { directory } = await fixture();
+  const denied = new ProjectPolicy(directory, async () => {
+    throw new Error("denied");
+  });
+  await assert.rejects(denied.writePoster("new.poster.json", posterContent), /denied/);
+  const restricted = new ProjectPolicy(directory, async () => assert.fail(), "restricted");
+  await assert.rejects(restricted.writePoster("new.poster.json", posterContent), /disabled/);
+  const automatic = new ProjectPolicy(directory, async () => assert.fail(), "auto");
+  await assert.rejects(
+    automatic.writePoster("new.poster.json", posterContent, AbortSignal.abort()),
+  );
+  for (const target of [
+    "../outside.poster.json",
+    ".hidden.poster.json",
+    "settings.json",
+    "script.js",
+  ])
+    await assert.rejects(automatic.writePoster(target, posterContent));
+  await symlink(directory, path.join(directory, "linked"));
+  await assert.rejects(automatic.writePoster("linked/out.poster.json", posterContent), /Symlinks/);
+  const concurrent = new ProjectPolicy(directory, async () => {
+    await writeFile(path.join(directory, "new.poster.json"), "User content");
+  });
+  await assert.rejects(concurrent.writePoster("new.poster.json", posterContent), /EEXIST/);
+  assert.equal(await readFile(path.join(directory, "new.poster.json"), "utf8"), "User content");
+});
+
 test("restricted mode allows reads but rejects edits before approval", async () => {
   const { directory } = await fixture();
   const policy = new ProjectPolicy(

@@ -11,6 +11,49 @@ use tauri::{AppHandle, Emitter};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
+/// Poster figures are bounded raster assets inside the current project.
+#[tauri::command]
+pub async fn read_poster_image(
+    state: tauri::State<'_, Mutex<ProjectState>>,
+    path: String,
+) -> Result<Vec<u8>, String> {
+    let project = state.lock().map_err(|e| e.to_string())?.project_path.clone()
+        .ok_or_else(|| "No project open".to_string())?;
+    validate_path_within_project(&path, &project)?;
+    let extension = Path::new(&path).extension().and_then(|s| s.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !["png", "jpg", "jpeg", "webp"].contains(&extension.as_str()) {
+        return Err("Unsupported poster image type".into());
+    }
+    let mut file = fs::File::open(&path).await.map_err(|e| e.to_string())?;
+    use tokio::io::AsyncReadExt;
+    let mut bytes = Vec::new();
+    (&mut file).take(8 * 1024 * 1024 + 1).read_to_end(&mut bytes).await.map_err(|e| e.to_string())?;
+    if bytes.len() > 8 * 1024 * 1024 { return Err("Poster figure exceeds 8 MiB".into()); }
+    Ok(bytes)
+}
+
+/// The native save dialog chooses the destination; callers cannot supply a path.
+#[tauri::command]
+pub async fn save_poster_export(
+    app: AppHandle,
+    bytes: Vec<u8>,
+    name: String,
+    extension: String,
+) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+    if !["svg", "pptx", "pdf", "png", "jpeg", "jpg"].contains(&extension.as_str()) || bytes.len() > 64 * 1024 * 1024 {
+        return Err("Invalid poster export".into());
+    }
+    let safe_name = Path::new(&name).file_name().and_then(|s| s.to_str()).unwrap_or("poster").to_string();
+    let destination = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog().file().set_file_name(safe_name).add_filter("Poster", &[extension.as_str()]).blocking_save_file()
+    }).await.map_err(|e| e.to_string())?;
+    let Some(destination) = destination else { return Ok(false); };
+    let path = destination.into_path().map_err(|e| e.to_string())?;
+    fs::write(path, bytes).await.map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileNode {
     pub name: String,

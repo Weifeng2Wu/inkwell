@@ -211,6 +211,29 @@ async function main() {
         }),
       );
     if (allowEdits) {
+      tools.push({
+        name: "write_poster",
+        label: "Write editable poster",
+        description:
+          "Create or update an editable .poster.json document in the review copy. Content must be a complete version 1 poster JSON. Creates parent directories and respects the host permission mode. Read an existing poster before updating it. Use project-relative figure paths; agent writes are limited to 1 MiB.",
+        parameters: {
+          type: "object",
+          properties: {
+            path: stringSchema("Project-relative .poster.json path"),
+            content: { type: "string", description: "Complete poster JSON document" },
+          },
+          required: ["path", "content"],
+          additionalProperties: false,
+        },
+        executionMode: "sequential",
+        async execute(_callId, args, signal) {
+          await policy.writePoster(args.path, args.content, signal);
+          return {
+            content: [{ type: "text", text: `Poster proposal written: ${args.path}` }],
+            details: {},
+          };
+        },
+      });
       let editSignal;
       const editTool = sdk.createEditToolDefinition(project, {
         operations: {
@@ -355,7 +378,10 @@ async function main() {
             result = { sessions: await history.list() };
           } else {
             const selected = await history.resolve(command.sessionKey);
-            const deletedCurrent = currentSessionManager?.getSessionFile() === selected.filename;
+            const deletedCurrent = await history.isCurrent(
+              selected.filename,
+              currentSessionManager,
+            );
             await history.remove(command.sessionKey);
             if (deletedCurrent) {
               unsubscribe?.();

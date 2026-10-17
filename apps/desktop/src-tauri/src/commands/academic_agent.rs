@@ -149,6 +149,7 @@ pub async fn academic_agent_start(
         ("zip-skills.mjs", ZIP_SKILLS),
         ("skills/github-bundle.json", GITHUB_BUNDLE),
         ("skills/nature-bundle.json", include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json")),
+        ("skills/poster-bundle.json", include_str!("../../../../../packages/academic-agent/skills/poster-bundle.json")),
         ("history.mjs", HISTORY),
         ("policy.mjs", POLICY),
         ("protocol.mjs", PROTOCOL),

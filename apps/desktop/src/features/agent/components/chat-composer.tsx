@@ -14,6 +14,7 @@ import {
   mentionQuery,
   readChatImage,
 } from "../lib/chat-input";
+import { localizeSkill } from "../lib/skill-presentation";
 
 export function ChatComposer({
   value,
@@ -69,7 +70,7 @@ export function ChatComposer({
         })),
         ...skills.map((skill) => ({
           key: `skill:${skill.id}`,
-          name: skill.name,
+          name: localizeSkill(skill, t).name,
           token: `@skill:${JSON.stringify(skill.id)}`,
           type: "Skill",
         })),

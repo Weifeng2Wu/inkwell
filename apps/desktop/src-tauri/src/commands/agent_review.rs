@@ -43,6 +43,7 @@ pub struct EditorBuffer {
 }
 
 fn document(path: &Path) -> bool {
+    path.file_name().and_then(|value| value.to_str()).is_some_and(|name| name.to_ascii_lowercase().ends_with(".poster.json")) ||
     matches!(path.extension().and_then(|value| value.to_str()).map(str::to_ascii_lowercase).as_deref(),
         Some("tex" | "bib" | "cls" | "sty" | "md" | "txt" | "csv"))
 }
@@ -295,6 +296,8 @@ mod tests {
             assert!(relative_path(value).is_err(), "{value}");
         }
         assert!(relative_path("chapters/introduction.tex").is_ok());
+        assert!(relative_path("posters/research.poster.json").is_ok());
+        assert!(relative_path("settings.json").is_err());
     }
 
     #[tokio::test]

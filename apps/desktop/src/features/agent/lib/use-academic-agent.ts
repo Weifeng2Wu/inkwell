@@ -172,6 +172,7 @@ export function useAcademicAgent({
         });
         setCatalog(result.skills);
         setMarket(result.market);
+        setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
         setConnected(true);
       } catch (caught) {
         setError(String(caught));
@@ -216,12 +217,7 @@ export function useAcademicAgent({
       if (clientRef.current === client) {
         setCatalog(skills);
         setMarket(market);
-        setConfig((current) => ({
-          ...current,
-          skillIds: current.skillIds.filter((identifier) =>
-            skills.some((skill) => skill.id === identifier),
-          ),
-        }));
+        setConfig((current) => ({ ...current, skillIds: skills.map((skill) => skill.id) }));
         setConnected(true);
         return client;
       }
@@ -321,10 +317,8 @@ export function useAcademicAgent({
       );
       setCatalog(result.skills);
       setMarket(result.market);
-      setConfig((current) => ({
-        ...current,
-        skillIds: current.skillIds.filter((id) => result.skills.some((skill) => skill.id === id)),
-      }));
+      setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
+      setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
     } catch (caught) {
       setError(String(caught));
     }
@@ -337,6 +331,7 @@ export function useAcademicAgent({
       });
       setCatalog(result.skills);
       setMarket(result.market);
+      setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
       if (result.updateError) setError(result.updateError);
     } catch (caught) {
       setError(String(caught));
@@ -359,6 +354,7 @@ export function useAcademicAgent({
       const result = await requestOperation<AgentCatalog>("skill_import", { sourcePath }, false);
       setCatalog(result.skills);
       setMarket(result.market);
+      setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
     } catch (caught) {
       setError(String(caught));
     }

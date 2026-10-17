@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, open, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { isWithin } from "./library.mjs";
 
@@ -16,7 +16,7 @@ export class ProjectPolicy {
     this.permissionMode = permissionMode;
   }
 
-  async resolve(filename) {
+  async resolve(filename, allowMissing = false) {
     const root = await realpath(this.root);
     const requested = path.resolve(this.root, filename);
     const target = isWithin(this.root, requested)
@@ -27,16 +27,24 @@ export class ProjectPolicy {
       !isWithin(root, target) ||
       !relative ||
       relative.split(path.sep).some((part) => part.startsWith(".") || part === "node_modules") ||
-      !DOCUMENT_EXTENSIONS.has(path.extname(target).toLowerCase())
+      (!DOCUMENT_EXTENSIONS.has(path.extname(target).toLowerCase()) &&
+        !/\.poster\.json$/i.test(target))
     ) {
       throw new Error("Only non-hidden manuscript text files inside the project are accessible.");
     }
     let current = root;
+    let missing = false;
     for (const segment of relative.split(path.sep)) {
       current = path.join(current, segment);
-      if ((await lstat(current)).isSymbolicLink())
-        throw new Error("Symlinks are not allowed for agent file operations.");
+      try {
+        if ((await lstat(current)).isSymbolicLink())
+          throw new Error("Symlinks are not allowed for agent file operations.");
+      } catch (error) {
+        if (!allowMissing || error.code !== "ENOENT") throw error;
+        missing = true;
+      }
     }
+    if (missing) return target;
     const canonical = await realpath(target);
     const metadata = await stat(canonical);
     if (
@@ -101,6 +109,66 @@ export class ProjectPolicy {
       await rename(temporary, target);
     } finally {
       await unlink(temporary).catch(() => {});
+    }
+  }
+
+  async writePoster(filename, content, signal) {
+    if (this.permissionMode === "restricted")
+      throw new Error("Editing is disabled in restricted permission mode.");
+    if (typeof filename !== "string" || !/\.poster\.json$/i.test(filename))
+      throw new Error("Choose a .poster.json file.");
+    if (
+      typeof content !== "string" ||
+      Buffer.byteLength(content) > MAX_DOCUMENT_BYTES ||
+      content.includes("\0")
+    )
+      throw new Error("Poster proposal exceeds the 1 MiB agent limit.");
+    const poster = JSON.parse(content);
+    if (poster?.version !== 1 || !Array.isArray(poster.elements) || poster.elements.length > 500)
+      throw new Error("Invalid poster document.");
+    try {
+      await this.resolve(filename);
+      return await this.edit(filename, content, signal);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    const target = await this.resolve(filename, true);
+    const root = await realpath(this.root);
+    if (this.permissionMode === "ask")
+      await this.approve(
+        { path: path.relative(root, target), before: null, after: content },
+        signal,
+      );
+    signal?.throwIfAborted();
+    let current = root;
+    for (const segment of path
+      .relative(root, path.dirname(target))
+      .split(path.sep)
+      .filter(Boolean)) {
+      current = path.join(current, segment);
+      await mkdir(current).catch((error) => {
+        if (error.code !== "EEXIST") throw error;
+      });
+      const info = await lstat(current);
+      if (!info.isDirectory() || info.isSymbolicLink() || !isWithin(root, await realpath(current)))
+        throw new Error("Invalid poster directory.");
+    }
+    await this.resolve(filename, true);
+    signal?.throwIfAborted();
+    // Exclusive creation preserves files created by the user during approval.
+    const handle = await open(
+      target,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
+      0o644,
+    );
+    try {
+      await handle.writeFile(content, "utf8");
+      await handle.sync();
+    } catch (error) {
+      await unlink(target).catch(() => {});
+      throw error;
+    } finally {
+      await handle.close();
     }
   }
 }

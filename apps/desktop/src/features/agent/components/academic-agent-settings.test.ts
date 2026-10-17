@@ -111,10 +111,9 @@ describe("Agent configuration location", () => {
     expect(markup).toContain("Create format-review Skill");
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("Paper review");
-    expect(markup).toMatch(/type="checkbox"[^>]*role="switch"[^>]*checked=""/);
     expect(markup.match(/<article /g)).toHaveLength(1);
     expect(markup).not.toContain("<fieldset");
-    expect(markup).toContain(agent.labels.enableForProject);
+    expect(markup).toContain(agent.labels.skillScopeHint);
     expect(markup).toContain('value="installed"');
     expect(markup).toContain(agent.labels.allSkills);
     expect(markup).toContain(agent.labels.importSkills);
@@ -201,7 +200,7 @@ describe("Agent configuration location", () => {
     expect(markup).not.toMatch(/<button[^>]*disabled=""/);
   });
 
-  it("disables only project activation when no workspace is open", () => {
+  it("keeps installed skills removable without a workspace", () => {
     const agent = createAgent({
       directory: undefined,
       market: [
@@ -219,7 +218,6 @@ describe("Agent configuration location", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(SkillsSettings, { agent })),
     );
-    expect(markup).toMatch(/role="switch"[^>]*disabled=""/);
     expect(markup).not.toMatch(/<button[^>]*disabled=""/);
     expect(markup).toContain(agent.labels.remove);
   });

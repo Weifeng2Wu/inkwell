@@ -157,11 +157,23 @@ export class SessionHistory {
     };
   }
 
+  async isCurrent(filename, currentManager) {
+    const currentFile = currentManager?.getSessionFile();
+    if (!currentFile) return false;
+    try {
+      // The runtime may retain an alias such as /var while history uses /private/var.
+      return (await realpath(currentFile)) === filename;
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  }
+
   async rename(key, title, currentManager) {
     if (typeof title !== "string" || !title.trim() || title.length > 200)
       throw new Error("Conversation title must contain 1–200 characters.");
     const { filename, manager } = await this.resolve(key);
-    const target = currentManager?.getSessionFile() === filename ? currentManager : manager;
+    const target = (await this.isCurrent(filename, currentManager)) ? currentManager : manager;
     target.appendSessionInfo(title.trim());
   }
 

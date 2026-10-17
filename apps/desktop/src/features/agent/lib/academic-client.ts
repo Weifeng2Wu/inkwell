@@ -43,7 +43,7 @@ export type SessionResult = {
   tools: string[];
   supportsImages?: boolean;
 };
-export type EditPermission = { id: string; path: string; before: string; after: string };
+export type EditPermission = { id: string; path: string; before: string | null; after: string };
 export type AcademicEvent =
   | { type: "response"; id: string; ok: boolean; result?: unknown; error?: string }
   | { type: "text_delta"; turnId: string; text: string }

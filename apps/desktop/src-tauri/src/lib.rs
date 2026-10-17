@@ -72,6 +72,8 @@ pub fn run() {
             commands::academic_agent::academic_agent_stop,
             commands::fs::set_project_path,
             commands::fs::read_file,
+            commands::fs::read_poster_image,
+            commands::fs::save_poster_export,
             commands::fs::write_file,
             commands::fs::get_file_tree,
             commands::fs::watch_directory,

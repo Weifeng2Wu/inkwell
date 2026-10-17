@@ -2,6 +2,7 @@
 
 import {
   CircleNotchIcon,
+  FolderOpenIcon,
   GearIcon,
   PlayIcon,
   SidebarSimpleIcon,
@@ -186,6 +187,8 @@ export default function EditorPage() {
     type: "file" | "directory";
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const switchingProjectRef = useRef(false);
+  const [isSwitchingProject, setIsSwitchingProject] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "agent">("general");
   const workspaceReady = Boolean(
@@ -205,7 +208,7 @@ export default function EditorPage() {
     ...(splitPane?.selectedFile && !splitPane.binaryPreviewUrl
       ? [{ path: splitPane.selectedFile, content: splitPane.content }]
       : []),
-  ].filter((buffer) => /\.(tex|bib|cls|sty|md|txt|csv)$/i.test(buffer.path));
+  ].filter((buffer) => /(?:\.(tex|bib|cls|sty|md|txt|csv)|\.poster\.json)$/i.test(buffer.path));
   const agentReview = useAgentReview({
     directory: daemon.projectPath ?? undefined,
     buffers: () => reviewBuffers.current,
@@ -1756,41 +1759,105 @@ The AI assistant will read and update this file during compilation.
     [selectedFile, daemon],
   );
 
+  const changeWorkspace = useCallback(
+    async (path: string) => {
+      if (switchingProjectRef.current || path === daemon.projectPath) return;
+      if (academicAgent.working || externalAgent.working || latexCompiler.isCompiling) {
+        toast(t("workspace.waitForOperations"), "info");
+        return;
+      }
+      switchingProjectRef.current = true;
+      setIsSwitchingProject(true);
+      try {
+        // Stop the debounce timers and persist both current buffers before changing scope.
+        if (contentSaveTimeoutRef.current) {
+          clearTimeout(contentSaveTimeoutRef.current);
+          contentSaveTimeoutRef.current = null;
+        }
+        if (splitContentSaveTimeoutRef.current) {
+          clearTimeout(splitContentSaveTimeoutRef.current);
+          splitContentSaveTimeoutRef.current = null;
+        }
+        if (savingVisualTimeoutRef.current) {
+          clearTimeout(savingVisualTimeoutRef.current);
+          savingVisualTimeoutRef.current = null;
+        }
+        if (daemon.projectPath) {
+          const buffers = new Map<string, string>();
+          if (selectedFile && !binaryPreviewUrl && editorViewMode === "file")
+            buffers.set(selectedFile, fileContent);
+          if (splitPane?.selectedFile && !splitPane.binaryPreviewUrl)
+            buffers.set(splitPane.selectedFile, splitPane.content);
+          for (const [relative, content] of buffers) {
+            // Invoke directly so a failed save aborts the switch instead of being swallowed.
+            await invoke("write_file", {
+              path: pathSync.join(daemon.projectPath, relative),
+              content,
+              encoding: "utf-8",
+            });
+          }
+        }
+        await daemon.setProject(path);
+        handleCloseAllTabs();
+        setBinaryPreviewUrl(null);
+        setPendingGoToLine(0);
+        setPendingAcademicMessage(null);
+        setIsLoadingFile(false);
+        gitDiffRequestIdRef.current += 1;
+        splitLoadRequestIdRef.current += 1;
+        latexSettings.setMainFile(null);
+        setShowMainFileDialog(false);
+        setMainFileDetectionResult(null);
+        setCreateDialog(null);
+        setCommitMessage("");
+        setShowCommitInput(false);
+        setShowSidebar(true);
+        setShowRightPanel(true);
+        setShowTerminal(false);
+        setIsSaving(false);
+        await recentProjects.addProject(path);
+      } catch (error) {
+        console.error("Failed to switch workspace:", error);
+        toast(`${t("workspace.openProjectFailed")}: ${String(error)}`, "error");
+      } finally {
+        switchingProjectRef.current = false;
+        setIsSwitchingProject(false);
+      }
+    },
+    [
+      daemon,
+      academicAgent.working,
+      externalAgent.working,
+      latexCompiler.isCompiling,
+      latexSettings,
+      selectedFile,
+      binaryPreviewUrl,
+      editorViewMode,
+      fileContent,
+      splitPane,
+      handleCloseAllTabs,
+      recentProjects,
+      toast,
+      t,
+    ],
+  );
+
   const handleOpenFolder = useCallback(async () => {
+    if (switchingProjectRef.current) return;
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select LaTeX Project",
+        title: t("workspace.openWorkspace"),
       });
-
-      if (selected && typeof selected === "string") {
-        await daemon.setProject(selected);
-        await recentProjects.addProject(selected);
-        setShowSidebar(true);
-        setShowRightPanel(true);
-      }
-    } catch (err) {
-      console.error("Failed to open project:", err);
+      if (selected && typeof selected === "string") await changeWorkspace(selected);
+    } catch (error) {
+      toast(`${t("workspace.openProjectFailed")}: ${String(error)}`, "error");
     }
-  }, [daemon, recentProjects]);
+  }, [changeWorkspace, toast, t]);
 
-  const handleOpenRecentProject = useCallback(
-    async (path: string) => {
-      try {
-        await daemon.setProject(path);
-        await recentProjects.addProject(path);
-        setShowSidebar(true);
-        setShowRightPanel(true);
-      } catch (err) {
-        console.error("Failed to open project:", err);
-        toast(t("workspace.openProjectFailed"), "error");
-        recentProjects.removeProject(path);
-      }
-    },
-    [daemon, recentProjects, toast, t],
-  );
+  const handleOpenRecentProject = changeWorkspace;
 
   const handleStageAll = useCallback(() => {
     if (!gitStatus) return;
@@ -2297,6 +2364,18 @@ The AI assistant will read and update this file during compilation.
             </div>
 
             <div className="flex items-center gap-3 h-8">
+              <button
+                type="button"
+                onClick={handleOpenFolder}
+                disabled={isSwitchingProject || daemon.isOpeningProject}
+                className="toolbar-icon-button"
+                aria-label={t(
+                  daemon.projectPath ? "workspace.switchWorkspace" : "workspace.openWorkspace",
+                )}
+                title={`${t(daemon.projectPath ? "workspace.switchWorkspace" : "workspace.openWorkspace")} (${keyboardShortcuts.openProject.replace("Mod", "⌘/Ctrl")})`}
+              >
+                <FolderOpenIcon className="size-4" aria-hidden="true" />
+              </button>
               {daemon.projectPath && (
                 <button
                   type="button"

@@ -42,6 +42,7 @@
     "overlayscrollbars": "^2.16.0",
     "overlayscrollbars-react": "^0.5.6",
     "pdfjs-dist": "5.4.296",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.2.6",
     "react-arborist": "^3.8.0",
     "react-dnd": "^16.0.1",

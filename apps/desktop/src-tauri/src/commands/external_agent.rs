@@ -1005,6 +1005,10 @@ pub async fn agent_shared_skills(
             "skills/nature-bundle.json",
             include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json"),
         ),
+        (
+            "skills/poster-bundle.json",
+            include_str!("../../../../../packages/academic-agent/skills/poster-bundle.json"),
+        ),
     ] {
         tokio::fs::write(directory.join(name), content)
             .await

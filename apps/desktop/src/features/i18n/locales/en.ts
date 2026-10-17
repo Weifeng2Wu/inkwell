@@ -1,4 +1,12 @@
 export const en = {
+  skillCatalog: {
+    posterName: "Academic Poster",
+    posterDescription:
+      "Generate editable academic posters from papers in classic, minimal or modern styles, with multiple paper sizes and orientations. Edit text, typography, figures and layout in Inkwell, then export PPTX or SVG.",
+    builtIn: "Inkwell built-in",
+    showDescription: "Show full description",
+    hideDescription: "Collapse description",
+  },
   layoutParser: {
     title: "Document layout parsing",
     description:
@@ -211,11 +219,16 @@ export const en = {
     noRecentProjects: "No recent projects",
   },
   workspace: {
+    openWorkspace: "Open Workspace",
+    switchWorkspace: "Open Another Workspace",
+    waitForOperations:
+      "Wait for the current Agent or compilation operation to finish before switching workspaces.",
     openProjectFailed: "Failed to open project",
   },
   files: {
     title: "Files",
     noFolderOpen: "No folder open",
+    newPoster: "New Academic Poster",
     newFile: "New File",
     newFolder: "New Folder",
     refreshFiles: "Refresh Files",

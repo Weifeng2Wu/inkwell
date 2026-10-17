@@ -30,6 +30,7 @@ export function natureSuiteInstructions() {
 async function bundles(directory) {
   const legacy = await readJson(path.join(directory, "github-bundle.json"), null);
   const nature = await readJson(path.join(directory, "nature-bundle.json"), null);
+  const poster = await readJson(path.join(directory, "poster-bundle.json"), null);
   return [
     legacy && {
       ...legacy,
@@ -39,6 +40,7 @@ async function bundles(directory) {
       source: legacy.source ?? SOURCE,
     },
     nature,
+    poster,
   ].filter(Boolean);
 }
 
@@ -197,11 +199,15 @@ async function writeSnapshot(directory, rawSnapshot, expectedRevision) {
       snapshot.description ??
       "Academic writing, revision, and paper review for ML, CV, and NLP research.",
     source: snapshot.source ?? SOURCE,
-    upstream: snapshot.upstream ?? {
-      repository: WRITING_REPOSITORY,
-      subdirectory: PREFIX.slice(0, -1),
-      branch: "main",
-    },
+    ...(!snapshot.local
+      ? {
+          upstream: snapshot.upstream ?? {
+            repository: WRITING_REPOSITORY,
+            subdirectory: PREFIX.slice(0, -1),
+            branch: "main",
+          },
+        }
+      : {}),
     version: snapshot.revision.slice(0, 12),
     revision: snapshot.revision,
     ...(Number.isSafeInteger(snapshot.stars) && snapshot.stars >= 0

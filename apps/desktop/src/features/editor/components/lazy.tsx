@@ -18,6 +18,11 @@ export const DraftEditor = dynamic(
   { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
 );
 
+export const PosterEditor = dynamic(
+  () => import("@/features/poster/components/poster-editor").then((module) => module.PosterEditor),
+  { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
+);
+
 export const DocumentEditor = dynamic(
   () => import("./document-editor").then((module) => module.DocumentEditor),
   { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },

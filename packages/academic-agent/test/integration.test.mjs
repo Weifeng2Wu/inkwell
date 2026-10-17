@@ -68,6 +68,21 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
       name: "edit",
       arguments: { path: "paper.tex", edits: [{ oldText: "Original", newText: "Revised" }] },
     },
+    {
+      name: "write_poster",
+      arguments: {
+        path: "posters/result.poster.json",
+        content: JSON.stringify({
+          version: 1,
+          title: "Poster",
+          style: "classic",
+          width: 841,
+          height: 1189,
+          background: "#ffffff",
+          elements: [],
+        }),
+      },
+    },
   ];
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/v1/models") {
@@ -179,8 +194,13 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
         else waiting.reject(new Error(event.error));
       }
     } else if (event.type === "permission_request") {
-      assert.equal(event.before, "Original");
-      assert.equal(event.after, "Revised");
+      if (event.path.endsWith(".poster.json")) {
+        assert.equal(event.before, null);
+        assert.equal(JSON.parse(event.after).version, 1);
+      } else {
+        assert.equal(event.before, "Original");
+        assert.equal(event.after, "Revised");
+      }
       write({ id: "permission-fixture", type: "permission", permissionId: event.id, allow: true });
     } else if (event.type === "fatal") {
       for (const waiting of pending.values()) {
@@ -249,12 +269,16 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
   const session = await command("configure", configuration);
   assert.deepEqual(
     new Set(session.tools),
-    new Set(["read", "edit", "load_skill", "read_skill_resource"]),
+    new Set(["read", "write_poster", "edit", "load_skill", "read_skill_resource"]),
   );
   const result = await command("prompt", { text: "Run the test workflow." });
   assert.equal(result.text, "Completed fixture task.");
   assert.equal(await readFile(path.join(project, "paper.tex"), "utf8"), "Revised");
-  assert.equal(requests.length, 5);
+  assert.equal(requests.length, 6);
+  assert.equal(
+    JSON.parse(await readFile(path.join(project, "posters/result.poster.json"), "utf8")).title,
+    "Poster",
+  );
   const initial = JSON.stringify(requests[0].messages);
   assert.match(initial, /Respond in Korean\./);
   assert.match(initial, /Metadata visible before loading/);
@@ -376,7 +400,7 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
     permissionMode: "auto",
     skillIds: [],
   });
-  assert.deepEqual(new Set(automatic.tools), new Set(["read", "edit"]));
+  assert.deepEqual(new Set(automatic.tools), new Set(["read", "write_poster", "edit"]));
   const asking = await command("configure", {
     ...configuration,
     permissionMode: "ask",

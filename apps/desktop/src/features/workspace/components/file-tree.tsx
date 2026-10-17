@@ -157,6 +157,7 @@ interface ContextMenuState {
 interface DialogState {
   type: "create-file" | "create-directory" | "rename";
   parentPath?: string;
+  defaultValue?: string;
   node?: FileNode;
 }
 
@@ -943,6 +944,16 @@ function FileTreeInner({
           icon: <FilePlusIcon size={16} />,
         });
         items.push({
+          label: t("files.newPoster"),
+          onClick: () =>
+            setDialog({
+              type: "create-file",
+              parentPath: node.path,
+              defaultValue: "research.poster.json",
+            }),
+          icon: <ImageIcon size={16} />,
+        });
+        items.push({
           label: t("files.newFolder"),
           onClick: () => setDialog({ type: "create-directory", parentPath: node.path }),
           icon: <FolderPlusIcon size={16} />,
@@ -1091,6 +1102,12 @@ function FileTreeInner({
         icon: <FilePlusIcon size={16} />,
       });
       items.push({
+        label: t("files.newPoster"),
+        onClick: () =>
+          setDialog({ type: "create-file", parentPath: "", defaultValue: "research.poster.json" }),
+        icon: <ImageIcon size={16} />,
+      });
+      items.push({
         label: t("files.newFolder"),
         onClick: () => setDialog({ type: "create-directory", parentPath: "" }),
         icon: <FolderPlusIcon size={16} />,
@@ -1168,6 +1185,7 @@ function FileTreeInner({
         if (dialog.type === "create-file") {
           const newPath = dialog.parentPath ? pathSync.join(dialog.parentPath, value) : value;
           await fileOperations.createFile(newPath);
+          onFileSelect?.(newPath);
         } else if (dialog.type === "create-directory") {
           const newPath = dialog.parentPath ? pathSync.join(dialog.parentPath, value) : value;
           await fileOperations.createDirectory(newPath);
@@ -1181,7 +1199,7 @@ function FileTreeInner({
         alert(`Operation failed: ${error}`);
       }
     },
-    [dialog, fileOperations, closeDialog],
+    [dialog, fileOperations, closeDialog, onFileSelect],
   );
 
   const ctxValue = useMemo<FileTreeContextValue>(
@@ -1203,10 +1221,6 @@ function FileTreeInner({
       handleDragMouseDown,
     ],
   );
-
-  if (files.length === 0) {
-    return <div className={`p-4 text-sm text-muted ${className}`}>{t("interface.noFiles")}</div>;
-  }
 
   return (
     <>
@@ -1280,7 +1294,7 @@ function FileTreeInner({
                 ? t("files.newFilePlaceholder")
                 : t("files.newFolderPlaceholder")
           }
-          defaultValue={dialog.type === "rename" ? dialog.node?.name : ""}
+          defaultValue={dialog.type === "rename" ? dialog.node?.name : (dialog.defaultValue ?? "")}
           onConfirm={handleDialogConfirm}
           onCancel={closeDialog}
           validator={validateFileName}
