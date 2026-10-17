@@ -721,7 +721,6 @@ export function SettingsPage({
                       academicLabels[locale].settings,
                       academicLabels[locale].settingsDescription,
                       academicLabels[locale].personalPrompt,
-                      academicLabels[locale].personalPromptHint,
                       "agent provider model API key permissions",
                     ].join(" "),
                   ) && (

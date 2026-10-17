@@ -68,8 +68,7 @@ const en = {
   permissionsDefault:
     "Restricted mode allows reading only. Ask every time approves each edit in the review copy. Auto approve skips tool confirmation. Original files change only after you accept the diff.",
   settings: "Agent settings",
-  settingsDescription:
-    "Settings auto-save. Configure defaults before opening a project, or customize the current project. Start a new conversation to apply changes. API keys are saved securely on this device.",
+  settingsDescription: "Models and response preferences",
   connectForSkills: "Load skills to choose which to use in this project.",
   title: "Inkwell Agent",
   setupTitle: "Your writing assistant starts here",

@@ -20,6 +20,7 @@ function createAgent(overrides: Partial<AcademicAgentController> = {}): Academic
       protocol: "",
       baseUrl: "",
       model: "test-model",
+      imageGeneration: { baseUrl: "https://images.example/v1", model: "image-model" },
       personalPrompt: "Prefer concise Chinese responses.",
       answerLanguage: "zh",
       skillIds: [],
@@ -28,6 +29,9 @@ function createAgent(overrides: Partial<AcademicAgentController> = {}): Academic
     setConfig: vi.fn(),
     apiKey: "",
     apiKeyLoading: false,
+    imageGenerationApiKey: "",
+    imageGenerationApiKeyLoading: false,
+    setImageGenerationApiKey: vi.fn(),
     setApiKey: vi.fn(),
     conversations: [],
     historyPreview: null,
@@ -413,7 +417,9 @@ describe("Agent configuration location", () => {
     );
     expect(markup.match(/<select[^>]*class="settings-control settings-select"/g)).toHaveLength(3);
     expect(markup).toMatch(/<input[^>]*type="text"[^>]*class="settings-control mt-1 w-full"/);
-    expect(markup).toMatch(/<textarea[^>]*class="settings-control mt-1 w-full min-h-32 resize-none"/);
+    expect(markup).toMatch(
+      /<textarea[^>]*class="settings-control mt-1 w-full h-32 min-h-32 max-h-32 resize-none"/,
+    );
   });
 
   it("omits manual runtime connection controls from settings", () => {
@@ -507,7 +513,7 @@ describe("Agent configuration location", () => {
   it("allows editing before opening a project but disables runtime requests", () => {
     const agent = createAgent({ directory: undefined });
     const markup = renderToStaticMarkup(createElement(AcademicAgentSettings, { agent }));
-    expect(markup).toContain(agent.labels.settingsProjectHint);
+    expect(markup).not.toContain(agent.labels.settingsProjectHint);
     expect(markup).not.toMatch(/<fieldset[^>]*disabled=""/);
     expect(markup).toMatch(/<button[^>]*disabled=""/);
   });
@@ -516,8 +522,9 @@ describe("Agent configuration location", () => {
     const agent = createAgent();
     agent.config.personalPrompt = "";
     const markup = renderToStaticMarkup(createElement(AcademicAgentSettings, { agent }));
-    expect(markup).toContain(academicLabels.en.personalPromptHint);
-    expect(markup).toMatch(/<textarea[^>]*><\/textarea>/);
+    expect(markup).not.toContain(academicLabels.en.personalPromptHint);
+    expect(markup).toMatch(/<textarea[^>]*h-32[^>]*><\/textarea>/);
+    expect(markup).toContain("resize-none");
     expect(markup).not.toMatch(/<textarea[^>]*required/);
   });
 

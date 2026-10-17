@@ -31,9 +31,7 @@ describe("Agent product copy", () => {
   });
 
   it("keeps storage and permission boundaries clear", () => {
-    expect(academicLabels.en.settingsDescription).toContain(
-      "API keys are saved securely on this device",
-    );
+    expect(academicLabels.en.keySaveFailed).toContain("securely");
     expect(academicLabels.en.disclosure).toContain("permission mode");
     expect(academicLabels.en.permissionsDefault).toContain("Restricted mode allows reading only");
     expect(academicLabels.en.marketHint).toContain("Skill scripts are not run");

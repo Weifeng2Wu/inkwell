@@ -57,17 +57,6 @@ export function AcademicAgentSettings({
           {external ? externalLabels.shared : labels.settings}
         </h3>
       </div>
-      {!external && <p className="text-xs text-muted-foreground">{labels.settingsDescription}</p>}
-      {external && (
-        <p className="text-xs text-muted-foreground">
-          {{
-            zh: "适用于内置 Agent 和第三方 Agent。",
-            en: "Applies to built-in and third-party Agents.",
-            ko: "내장 및 외부 Agent에 공통으로 적용됩니다.",
-          }[locale]}
-        </p>
-      )}
-      {!directory && <p className="text-sm text-muted-foreground">{labels.settingsProjectHint}</p>}
       <fieldset className="space-y-4">
         {!external && (
           <div className="space-y-4">
@@ -174,7 +163,6 @@ export function AcademicAgentSettings({
                   {labels.testSuccess} · {connectionTest.milliseconds} ms
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">{labels.modelsHint}</p>
               {availableModels?.length === 0 && (
                 <p role="status" className="text-xs text-muted-foreground">
                   {labels.modelsEmpty}
@@ -194,7 +182,7 @@ export function AcademicAgentSettings({
                 className={inputClass}
                 value={apiKey}
                 loading={apiKeyLoading}
-                placeholder={apiKeyLoading ? labels.keyLoading : labels.keyHint}
+                placeholder={apiKeyLoading ? labels.keyLoading : ""}
                 onCommit={setApiKey}
               />
             </label>
@@ -245,16 +233,12 @@ export function AcademicAgentSettings({
           </label>
           <textarea
             id={`${fieldId}-personal-prompt`}
-            className={`${inputClass} min-h-32 resize-none`}
+            className={`${inputClass} h-32 min-h-32 max-h-32 resize-none`}
             value={config.personalPrompt}
             maxLength={16_384}
             placeholder={labels.personalPromptPlaceholder}
-            aria-describedby={`${fieldId}-personal-prompt-hint`}
             onChange={(event) => setConfig({ ...config, personalPrompt: event.target.value })}
           />
-          <p id={`${fieldId}-personal-prompt-hint`} className="text-xs text-muted-foreground">
-            {labels.personalPromptHint}
-          </p>
         </div>
         </>}
       </fieldset>

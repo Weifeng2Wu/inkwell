@@ -56,16 +56,12 @@ export function AgentConnectionSettings({
             <span className="block text-sm font-semibold">
               {kind === "builtin" ? l.builtin : l.external}
             </span>
-            <span className="mt-2 block text-xs leading-6 text-muted">
-              {kind === "builtin" ? l.builtinHint : l.externalHint}
-            </span>
           </label>
         ))}
       </div>
       <AcademicAgentSettings agent={agent} external />
       {mode === "builtin" && (
         <>
-          <p className="text-xs leading-6 text-muted">{l.agentHint}</p>
           <AcademicAgentSettings agent={agent} showPreferences={false} />
         </>
       )}

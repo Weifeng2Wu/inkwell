@@ -53,7 +53,6 @@ export function KeyboardShortcutSettings({ query = "" }: { query?: string }) {
   return (
     <section className="space-y-5" aria-label={t("shortcuts.title")}>
       <div className="flex items-start justify-between gap-4">
-        <p className="text-xs leading-relaxed text-muted">{t("shortcuts.hint")}</p>
         <button
           type="button"
           className="btn btn-sm shrink-0"
