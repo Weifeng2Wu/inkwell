@@ -326,39 +326,6 @@ export default function EditorPage() {
       latexCompiler.compilersStatus.lualatex.available ||
       latexCompiler.compilersStatus.latexmk.available);
 
-  // Ensure .inkwell/COMPILE_NOTES.md exists
-  const ensureCompileNotesFile = useCallback(async () => {
-    if (!daemon.projectPath) return;
-
-    const dirPath = ".inkwell";
-    const filePath = ".inkwell/COMPILE_NOTES.md";
-
-    try {
-      // Try to read the file first to check if it exists
-      await daemon.readFile(filePath);
-    } catch {
-      // File doesn't exist, create it
-      try {
-        await daemon.createDirectory(dirPath);
-      } catch {
-        // Directory might already exist, ignore
-      }
-
-      const initialContent = `# Compilation Notes
-
-This file stores compilation preferences and notes for this LaTeX project.
-The AI assistant will read and update this file during compilation.
-
-## Project Info
-- Created: ${new Date().toISOString()}
-
-## Compilation History
-(Notes will be added here by the AI assistant)
-`;
-      await daemon.writeFile(filePath, initialContent);
-    }
-  }, [daemon]);
-
   const handleMainFileDialogCancel = useCallback(() => {
     setShowMainFileDialog(false);
     setMainFileDetectionResult(null);
@@ -1297,9 +1264,6 @@ The AI assistant will read and update this file during compilation.
       return;
     }
 
-    // Ensure COMPILE_NOTES.md file exists before compilation
-    await ensureCompileNotesFile();
-
     // Run detection
     const result = await latexSettings.detectMainFile(daemon.projectPath);
 
@@ -1326,7 +1290,6 @@ The AI assistant will read and update this file during compilation.
   }, [
     daemon.projectPath,
     hasAnyCompiler,
-    ensureCompileNotesFile,
     latexSettings,
     toast,
     t,
