@@ -12,6 +12,8 @@ use tokio::process::{Child, ChildStdin};
 const RUNTIME_SOURCE: &str =
     include_str!("../../../../../packages/academic-agent/runtime-source.json");
 const BRIDGE: &str = include_str!("../../../../../packages/academic-agent/src/bridge.mjs");
+const IMAGE_GENERATION: &str =
+    include_str!("../../../../../packages/academic-agent/src/image-generation.mjs");
 const ATTACHMENTS: &str = include_str!("../../../../../packages/academic-agent/src/attachments.mjs");
 const LIBRARY: &str = include_str!("../../../../../packages/academic-agent/src/library.mjs");
 const MODEL: &str = include_str!("../../../../../packages/academic-agent/src/model.mjs");
@@ -139,6 +141,7 @@ pub async fn academic_agent_start(
     for (name, contents) in [
         ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
         ("bridge.mjs", BRIDGE),
+        ("image-generation.mjs", IMAGE_GENERATION),
         ("format-review.mjs", include_str!("../../../../../packages/academic-agent/src/format-review.mjs")),
         ("review-prompt.json", include_str!("../../../../../packages/academic-agent/src/review-prompt.json")),
         ("attachments.mjs", ATTACHMENTS),

@@ -4,14 +4,20 @@ import { readFile, writeFile } from "node:fs/promises";
 // Rebuild after changing the skill. The packaged snapshot is used offline by both runtimes.
 const root = new URL("../packages/academic-agent/skills/", import.meta.url);
 const files = {};
-for (const file of ["SKILL.md", "references/format.md", "references/design.md"]) {
+for (const file of [
+  "SKILL.md",
+  "references/format.md",
+  "references/design.md",
+  "references/poster-qa-checklist.md",
+  "references/design-reference-prompt.md",
+]) {
   files[file] = await readFile(new URL(`academic-poster/${file}`, root), "utf8");
 }
 const snapshot = {
   id: "academic-poster",
   name: "Academic Poster",
   description:
-    "Generate editable academic posters from papers in classic, minimal or modern styles, with multiple paper sizes and orientations. Open .poster.json in Inkwell to edit and export PPTX/SVG.",
+    "Generate a visual poster reference from a paper, then rebuild it as an editable Inkwell .poster.json. Preserve verified claims and original figures, edit the native canvas, and export to PPTX, SVG, PDF or images.",
   source: "Inkwell built-in",
   local: true,
   revision: createHash("sha1").update(JSON.stringify(files)).digest("hex"),

@@ -63,6 +63,18 @@ export async function installBundledSkill(directory, id) {
   return installSnapshot(directory, snapshot);
 }
 
+export async function syncBundledSkills(library) {
+  let current = library;
+  const installed = new Map(current.catalog().map((skill) => [skill.id, skill]));
+  for (const snapshot of await bundles(current.directory)) {
+    if (!snapshot.local || snapshot.source !== "Inkwell built-in") continue;
+    const previous = installed.get(snapshot.id);
+    if (previous?.source === snapshot.source && previous.revision !== snapshot.revision)
+      current = await installBundledSkill(current.directory, snapshot.id);
+  }
+  return current;
+}
+
 async function readJson(filename, fallback) {
   try {
     return JSON.parse(await readFile(filename, "utf8"));

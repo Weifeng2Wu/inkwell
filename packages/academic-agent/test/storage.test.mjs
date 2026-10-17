@@ -99,6 +99,11 @@ test("provider secrets never enter SQLite settings or migration backups", async 
     model: "test",
     apiKey: "secret-value",
     token: "secret-token",
+    imageGeneration: {
+      baseUrl: "https://images.example/v1",
+      model: "image-model",
+      apiKey: "nested-secret-value",
+    },
     skillIds: [],
   });
   database.migrate([
@@ -108,7 +113,11 @@ test("provider secrets never enter SQLite settings or migration backups", async 
   ]);
   const settings = JSON.stringify(database.settings());
   const backup = JSON.stringify(database.db.prepare("SELECT * FROM legacy_backup").all());
-  assert.doesNotMatch(settings + backup, /secret-value|secret-token/);
+  assert.doesNotMatch(settings + backup, /secret-value|secret-token|nested-secret-value/);
+  assert.deepEqual(JSON.parse(database.settings()["inkwell-agent-config-v1:/project"]).imageGeneration, {
+    baseUrl: "https://images.example/v1",
+    model: "image-model",
+  });
   assert.throws(() => database.set("apiKey", "secret"), /Invalid setting/);
   assert.throws(() => database.request({ type: "conversation_list", scope: "../escape" }));
   assert.throws(() => database.request({ type: "conversation_list", scope, limit: -1 }));

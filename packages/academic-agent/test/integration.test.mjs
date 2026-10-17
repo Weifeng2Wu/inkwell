@@ -281,6 +281,8 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
   );
   const initial = JSON.stringify(requests[0].messages);
   assert.match(initial, /Respond in Korean\./);
+  assert.match(initial, /Inkwell has no right-side Artifacts panel/);
+  assert.match(initial, /Always tell the user the exact relative path/);
   assert.match(initial, /Metadata visible before loading/);
   assert.ok(
     requests[0].messages.some(

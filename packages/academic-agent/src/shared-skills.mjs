@@ -1,5 +1,5 @@
 import { buildFormatReviewSkill, createFormatReviewSkill } from "./format-review.mjs";
-import { importGitHubSkill, syncGitHubSkills } from "./github-skills.mjs";
+import { importGitHubSkill, syncBundledSkills, syncGitHubSkills } from "./github-skills.mjs";
 import { SkillLibrary } from "./library.mjs";
 import { changeMarketSkill, importSkill, marketCatalog } from "./market.mjs";
 import { readRequirementZip } from "./zip-skills.mjs";
@@ -15,6 +15,7 @@ export async function sharedSkills(directory, request) {
     request.type === "catalog" || request.type === "context"
       ? await syncGitHubSkills(directory)
       : await SkillLibrary.open(directory);
+  library = await syncBundledSkills(library);
   if (request.type === "skill_import") library = await importSkill(directory, request.sourcePath);
   else if (request.type === "skill_import_github")
     library = await importGitHubSkill(directory, request.url);

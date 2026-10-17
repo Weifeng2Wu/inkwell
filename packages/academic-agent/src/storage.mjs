@@ -60,6 +60,7 @@ function safeSetting(key, value) {
           "protocol",
           "baseUrl",
           "model",
+          "imageGeneration",
           "personalPrompt",
           "answerLanguage",
           "skillIds",
@@ -67,9 +68,24 @@ function safeSetting(key, value) {
           "allowRead",
           "allowEdits",
         ];
-  return JSON.stringify(
-    Object.fromEntries(Object.entries(parsed).filter(([field]) => allowed.includes(field))),
+  const safe = Object.fromEntries(
+    Object.entries(parsed).filter(([field]) => allowed.includes(field)),
   );
+  if (safe.imageGeneration !== undefined) {
+    const image = safe.imageGeneration;
+    if (
+      !image ||
+      typeof image !== "object" ||
+      Array.isArray(image) ||
+      typeof image.baseUrl !== "string" ||
+      image.baseUrl.length > 2048 ||
+      typeof image.model !== "string" ||
+      image.model.length > 200
+    )
+      throw new Error("Invalid image-generation configuration.");
+    safe.imageGeneration = { baseUrl: image.baseUrl, model: image.model };
+  }
+  return JSON.stringify(safe);
 }
 export class AppDatabase {
   constructor(filename) {
