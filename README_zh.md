@@ -100,7 +100,16 @@ Git 以打开的工作区为单位：不同论文文件夹可拥有独立仓库�
 
 ### 使用桌面应用
 
-在成功的 [GitHub Actions 构建](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)中查看安装包产物。下载可能需要 GitHub 登录，产物有保留期限；本文不预设已有正式发布且验证完成的版本。
+从 [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest) 下载对应平台的安装包。
+
+**macOS 首次运行前：**打开 DMG，将 Inkwell 拖入“应用程序”。当前版本尚未使用 Apple 开发者证书签名和公证，因此 macOS 可能提示“应用已损坏”。确认安装包来自上述官方 Release 后，在终端执行：
+
+```sh
+sudo xattr -dr com.apple.quarantine "/Applications/Inkwell.app"
+open "/Applications/Inkwell.app"
+```
+
+按提示输入 Mac 登录密码；输入时终端不会显示字符，输入完成后按回车即可。
 
 1. 打开论文项目文件夹，配置 LaTeX 编译器。
 2. 配置 Inkwell Agent，或连接已安装的外部 Agent。

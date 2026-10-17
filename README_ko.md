@@ -100,7 +100,16 @@ Inkwell 클라우드 계정이나 호스팅 백엔드가 필요하지 않습니�
 
 ### 데스크톱 앱
 
-성공한 [GitHub Actions 실행](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)에서 설치 파일을 확인하세요. 다운로드에는 GitHub 로그인이 필요할 수 있고 보관 기간이 제한됩니다. 검증된 정식 릴리스가 이미 게시되었다고 가정하지 않습니다.
+[GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest)에서 플랫폼에 맞는 설치 파일을 다운로드하세요.
+
+**macOS 첫 실행 전:** DMG를 열고 Inkwell을 응용 프로그램 폴더로 드래그하세요. 현재 빌드는 Apple 개발자 인증서 서명과 공증이 없어 macOS에서 앱이 손상되었다는 메시지가 나타날 수 있습니다. 위 공식 Release에서 다운로드한 파일인지 확인한 뒤 터미널에서 실행하세요:
+
+```sh
+sudo xattr -dr com.apple.quarantine "/Applications/Inkwell.app"
+open "/Applications/Inkwell.app"
+```
+
+요청 시 Mac 로그인 암호를 입력하세요. 입력하는 동안 터미널에는 문자가 표시되지 않습니다.
 
 1. 논문 프로젝트 폴더를 열고 LaTeX 컴파일러를 설정합니다.
 2. Inkwell Agent를 설정하거나 설치된 외부 Agent를 연결합니다.

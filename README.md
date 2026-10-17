@@ -100,7 +100,16 @@ No Inkwell cloud account or hosted application backend is required. AI requests 
 
 ### Desktop App
 
-Check successful [GitHub Actions runs](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml) for installer artifacts. Downloads may require GitHub sign-in and expire; a verified published release is not assumed.
+Download the installer for your platform from [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest).
+
+**macOS — before the first launch:** Open the DMG and drag Inkwell into Applications. The current build is not signed with an Apple Developer certificate or notarized, so macOS may report that the app is damaged. After confirming you downloaded it from the official release above, run these commands in Terminal:
+
+```sh
+sudo xattr -dr com.apple.quarantine "/Applications/Inkwell.app"
+open "/Applications/Inkwell.app"
+```
+
+Enter your Mac login password when prompted; Terminal will not display characters while you type.
 
 1. Open your paper's project folder and configure a LaTeX compiler.
 2. Configure Inkwell Agent or connect an installed external Agent.
