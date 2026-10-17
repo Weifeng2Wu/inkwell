@@ -9,7 +9,7 @@ import type { useAgentReview } from "../lib/use-agent-review";
 
 const copy = {
   zh: {
-    title: "审阅 Agent 修改",
+    title: "Agent 修改建议",
     accept: "接受",
     reject: "拒绝",
     acceptAll: "全部接受",
@@ -18,7 +18,7 @@ const copy = {
     file: "文件",
   },
   en: {
-    title: "Review Agent changes",
+    title: "Agent suggestions",
     accept: "Accept",
     reject: "Reject",
     acceptAll: "Accept all",
@@ -27,7 +27,7 @@ const copy = {
     file: "File",
   },
   ko: {
-    title: "Agent 변경 검토",
+    title: "Agent 제안",
     accept: "수락",
     reject: "거절",
     acceptAll: "모두 수락",

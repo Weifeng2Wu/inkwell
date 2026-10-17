@@ -1,6 +1,7 @@
 "use client";
 
 import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
+import { ArrowUUpLeftIcon, ArrowUUpRightIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import {
   type ComponentProps,
   type PointerEvent,
@@ -23,14 +24,12 @@ import { posterLabels } from "../lib/labels";
 import {
   createPoster,
   POSTER_SIZES,
-  POSTER_STYLES,
+  POSTER_DEFAULTS,
   type PosterDocument,
   type PosterElement,
   type PosterSize,
-  type PosterStyle,
   parsePoster,
   resizePoster,
-  restylePoster,
   serializePoster,
   textOverflows,
   wrapText,
@@ -46,15 +45,15 @@ type Gesture = {
   original: PosterDocument;
   target: Element;
 };
-const buttonClass =
-  "rounded border border-border px-2 py-1 text-xs hover:bg-accent disabled:opacity-40";
-const inputClass = "w-full rounded border border-border bg-background px-2 py-1 text-xs";
+const buttonClass = "btn btn-sm h-8 px-2.5 text-xs";
+const primaryButtonClass = "btn btn-primary btn-sm h-8 px-3 text-xs";
+const inputClass =
+  "w-full min-w-0 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:opacity-50";
 
 export function PosterEditor({ filePath, projectPath, ...props }: Props) {
   const { locale } = useI18n();
   const l = posterLabels(locale);
   const [source, setSource] = useState(false);
-  const [style, setStyle] = useState<PosterStyle>("classic");
   const [size, setSize] = useState<PosterSize>("A0");
   const [landscape, setLandscape] = useState(false);
   const [selected, setSelected] = useState<string>();
@@ -135,7 +134,6 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
   }
   function add(type: PosterElement["type"], src?: string) {
     if (!poster) return;
-    const theme = POSTER_STYLES[poster.style];
     const next: PosterElement = {
       id: crypto.randomUUID(),
       type,
@@ -144,9 +142,9 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
       width: Math.min(220, poster.width - 60),
       height: 100,
       ...(type === "text"
-        ? { text: l.content, fontSize: 8, color: theme.ink }
+        ? { text: l.content, fontSize: 8, color: POSTER_DEFAULTS.ink }
         : type === "rect"
-          ? { fill: theme.panel }
+          ? { fill: POSTER_DEFAULTS.panel }
           : { src, alt: l.alt }),
     };
     commit({ ...poster, elements: [...poster.elements, next] });
@@ -261,49 +259,40 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
     }
   }
   function choices(
-    currentStyle: PosterStyle,
     currentSize: PosterSize,
     horizontal: boolean,
-    changeStyle: (s: PosterStyle) => void,
     changeSize: (s: PosterSize) => void,
     changeOrientation: (v: boolean) => void,
   ) {
     return (
       <>
-        <select
-          aria-label={l.style}
-          className={inputClass}
-          value={currentStyle}
-          disabled={readonly}
-          onChange={(e) => changeStyle(e.target.value as PosterStyle)}
-        >
-          {Object.keys(POSTER_STYLES).map((s) => (
-            <option key={s} value={s}>
-              {l[s as PosterStyle]}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={l.size}
-          className={inputClass}
-          value={currentSize}
-          disabled={readonly}
-          onChange={(e) => changeSize(e.target.value as PosterSize)}
-        >
-          {Object.keys(POSTER_SIZES).map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <select
-          aria-label={l.orientation}
-          className={inputClass}
-          value={horizontal ? "landscape" : "portrait"}
-          disabled={readonly}
-          onChange={(e) => changeOrientation(e.target.value === "landscape")}
-        >
-          <option value="portrait">{l.portrait}</option>
-          <option value="landscape">{l.landscape}</option>
-        </select>
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted-foreground">{l.size}</span>
+          <select
+            aria-label={l.size}
+            className={inputClass}
+            value={currentSize}
+            disabled={readonly}
+            onChange={(e) => changeSize(e.target.value as PosterSize)}
+          >
+            {Object.keys(POSTER_SIZES).map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted-foreground">{l.orientation}</span>
+          <select
+            aria-label={l.orientation}
+            className={inputClass}
+            value={horizontal ? "landscape" : "portrait"}
+            disabled={readonly}
+            onChange={(e) => changeOrientation(e.target.value === "landscape")}
+          >
+            <option value="portrait">{l.portrait}</option>
+            <option value="landscape">{l.landscape}</option>
+          </select>
+        </label>
       </>
     );
   }
@@ -342,84 +331,76 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
         }
       }}
     >
-      <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <span className="mr-auto text-xs font-medium">{l.editor}</span>
-        <button
-          type="button"
-          className={buttonClass}
-          aria-pressed={!source}
-          onClick={() => setSource(false)}
+      <header className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-1.5">
+        <span className="mr-1 text-xs font-semibold">{l.editor}</span>
+        <fieldset
+          className="flex items-center gap-0.5 rounded-md border border-border bg-surface-secondary p-0.5"
         >
-          {l.canvas}
-        </button>
-        <button
-          type="button"
-          className={buttonClass}
-          aria-pressed={source}
-          onClick={() => setSource(true)}
-        >
-          {l.source}
-        </button>
-        <button
-          type="button"
-          className={buttonClass}
-          disabled={readonly || !past.length}
-          onClick={() => history(false)}
-        >
-          {l.undo}
-        </button>
-        <button
-          type="button"
-          className={buttonClass}
-          disabled={readonly || !future.length}
-          onClick={() => history(true)}
-        >
-          {l.redo}
-        </button>
-        {poster && (
-          <>
-            <button
-              type="button"
-              className={buttonClass}
-              disabled={busy}
-              onClick={() => void exportPoster("svg")}
-            >
-              {l.exportSvg}
-            </button>
-            <button
-              type="button"
-              className={buttonClass}
-              disabled={busy}
-              onClick={() => void exportPoster("pdf")}
-            >
-              {l.exportPdf}
-            </button>
-            <button
-              type="button"
-              className={buttonClass}
-              disabled={busy}
-              onClick={() => void exportPoster("png")}
-            >
-              {l.exportPng}
-            </button>
-            <button
-              type="button"
-              className={buttonClass}
-              disabled={busy}
-              onClick={() => void exportPoster("jpeg")}
-            >
-              {l.exportJpeg}
-            </button>
-            <button
-              type="button"
-              className={buttonClass}
-              disabled={busy}
-              onClick={() => void exportPoster("pptx")}
-            >
-              {busy ? l.exporting : l.exportPptx}
-            </button>
-          </>
-        )}
+          <legend className="sr-only">{l.editor}</legend>
+          <button
+            type="button"
+            aria-pressed={!source}
+            className={`rounded px-2.5 py-1 text-xs transition-colors ${source ? "text-muted-foreground hover:text-foreground" : "bg-background font-medium text-foreground shadow-sm"}`}
+            onClick={() => setSource(false)}
+          >
+            {l.canvas}
+          </button>
+          <button
+            type="button"
+            aria-pressed={source}
+            className={`rounded px-2.5 py-1 text-xs transition-colors ${!source ? "text-muted-foreground hover:text-foreground" : "bg-background font-medium text-foreground shadow-sm"}`}
+            onClick={() => setSource(true)}
+          >
+            {l.source}
+          </button>
+        </fieldset>
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            className="toolbar-icon-button"
+            aria-label={l.undo}
+            title={l.undo}
+            disabled={readonly || !past.length}
+            onClick={() => history(false)}
+          >
+            <ArrowUUpLeftIcon size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="toolbar-icon-button"
+            aria-label={l.redo}
+            title={l.redo}
+            disabled={readonly || !future.length}
+            onClick={() => history(true)}
+          >
+            <ArrowUUpRightIcon size={16} aria-hidden="true" />
+          </button>
+          {poster && (
+            <label className="relative ml-1 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background pl-2.5 pr-2 text-xs font-medium transition-colors hover:bg-accent-hover focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
+              <DownloadSimpleIcon size={15} aria-hidden="true" />
+              <span>{busy ? l.exporting : l.export}</span>
+              <select
+                aria-label={l.export}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                value=""
+                disabled={busy}
+                onChange={(event) => {
+                  const format = event.target.value;
+                  if (format) void exportPoster(format as "svg" | "pptx" | "png" | "jpeg" | "pdf");
+                }}
+              >
+                <option value="" disabled>
+                  {l.export}
+                </option>
+                <option value="svg">{l.exportSvg}</option>
+                <option value="pdf">{l.exportPdf}</option>
+                <option value="png">{l.exportPng}</option>
+                <option value="jpeg">{l.exportJpeg}</option>
+                <option value="pptx">{l.exportPptx}</option>
+              </select>
+            </label>
+          )}
+        </div>
       </header>
       {message && (
         <p role="status" className="border-b border-border px-3 py-2 text-xs">
@@ -441,14 +422,14 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
           ) : (
             <>
               <p>{l.empty}</p>
-              <div className="flex gap-2">
-                {choices(style, size, landscape, setStyle, setSize, setLandscape)}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {choices(size, landscape, setSize, setLandscape)}
               </div>
               <button
                 type="button"
-                className={buttonClass}
+                className={primaryButtonClass}
                 disabled={readonly}
-                onClick={() => commit(createPoster(style, size, landscape))}
+                onClick={() => commit(createPoster(size, landscape))}
               >
                 {l.create}
               </button>
@@ -457,7 +438,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+          <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-1.5 border-b border-border bg-background px-3 py-1.5">
             <button
               type="button"
               className={buttonClass}
@@ -508,7 +489,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
             <select
               aria-label={l.zoom}
               value={zoom}
-              className="ml-auto rounded border border-border bg-background text-xs"
+              className="ml-auto h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-accent"
               onChange={(e) => setZoom(Number(e.target.value))}
             >
               <option value={0}>{l.fit}</option>
@@ -519,10 +500,10 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
               ))}
             </select>
           </div>
-          <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
             <div
               ref={stage}
-              className="min-w-0 flex-1 overflow-auto bg-accent/40 p-6"
+              className="min-h-0 min-w-0 flex-1 overflow-auto bg-surface-secondary/60 p-5"
               role="application"
               // biome-ignore lint/a11y/noNoninteractiveTabindex: Canvas receives keyboard movement shortcuts.
               tabIndex={0}
@@ -535,7 +516,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                 width={poster.width * scale}
                 height={poster.height * scale}
                 viewBox={`0 0 ${poster.width} ${poster.height}`}
-                className="block shadow-lg"
+                className="block border border-border/70 bg-background shadow-xl"
                 style={{ touchAction: "none", maxWidth: "none" }}
                 onPointerDown={() => {
                   setSelected(undefined);
@@ -613,7 +594,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                               style={{
                                 fontSize: e.fontSize ?? 8,
                                 lineHeight: 1.25,
-                                fontFamily: POSTER_STYLES[poster.style].font,
+                                fontFamily: POSTER_DEFAULTS.font,
                                 fontWeight: e.bold ? "bold" : "normal",
                                 color: e.color,
                                 textAlign: e.align ?? "left",
@@ -632,7 +613,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                           >
                             <text
                               fill={e.color ?? "#14253d"}
-                              fontFamily={POSTER_STYLES[poster.style].font}
+                              fontFamily={POSTER_DEFAULTS.font}
                               fontSize={e.fontSize ?? 8}
                               fontWeight={e.bold ? "bold" : "normal"}
                               textAnchor={
@@ -674,7 +655,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                       width={element.width}
                       height={element.height}
                       fill="none"
-                      stroke="#3b82f6"
+                      stroke="var(--accent)"
                       strokeWidth={2 / scale}
                     />
                     {!readonly && (
@@ -687,7 +668,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                         y={element.y + element.height - 5 / scale}
                         width={10 / scale}
                         height={10 / scale}
-                        fill="#3b82f6"
+                        fill="var(--accent)"
                         style={{ pointerEvents: "all", cursor: "nwse-resize" }}
                         onPointerDown={(event) => start(event, element, true)}
                       />
@@ -698,60 +679,59 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
             </div>
             <aside
               aria-label={l.editor}
-              className="w-56 shrink-0 space-y-3 overflow-y-auto border-l border-border p-3 text-xs"
+              className="max-h-56 w-full shrink-0 space-y-4 overflow-y-auto border-t border-border bg-surface/60 p-3.5 text-xs sm:max-h-none sm:w-60 sm:border-l sm:border-t-0"
             >
-              <label className="block space-y-1">
-                <span>{l.title}</span>
-                <input
-                  className={inputClass}
-                  disabled={readonly}
-                  value={poster.title}
-                  maxLength={1000}
-                  onChange={(e) => commit({ ...poster, title: e.target.value })}
-                />
-              </label>
-              <div className="space-y-2">
-                {choices(
-                  poster.style,
-                  (Object.keys(POSTER_SIZES) as PosterSize[]).find(
-                    (s) => Math.abs(Math.min(poster.width, poster.height) - POSTER_SIZES[s][0]) < 1,
-                  ) ?? size,
-                  poster.width > poster.height,
-                  (s) => commit(restylePoster(poster, s)),
-                  (s) => {
-                    setSize(s);
-                    const [a, b] = POSTER_SIZES[s];
-                    commit(
-                      resizePoster(
-                        poster,
-                        poster.width > poster.height ? b : a,
-                        poster.width > poster.height ? a : b,
-                      ),
-                    );
-                  },
-                  (horizontal) => {
-                    if (horizontal !== poster.width > poster.height)
-                      commit(resizePoster(poster, poster.height, poster.width));
-                  },
-                )}
-              </div>
-              <label className="flex items-center justify-between">
-                {l.background}
-                <input
-                  aria-label={l.background}
-                  type="color"
-                  value={poster.background}
-                  disabled={readonly}
-                  onChange={(e) => commit({ ...poster, background: e.target.value })}
-                />
-              </label>
-              <p className="text-muted-foreground">
-                {poster.width.toFixed(1)} × {poster.height.toFixed(1)} mm · {l.save}
-              </p>
+              <section className="space-y-2.5">
+                <h3 className="text-[11px] font-semibold uppercase text-muted-foreground">
+                  {l.canvasSettings}
+                </h3>
+                <div className="space-y-2.5">
+                  {choices(
+                    (Object.keys(POSTER_SIZES) as PosterSize[]).find(
+                      (s) =>
+                        Math.abs(Math.min(poster.width, poster.height) - POSTER_SIZES[s][0]) < 1,
+                    ) ?? size,
+                    poster.width > poster.height,
+                    (s) => {
+                      setSize(s);
+                      const [a, b] = POSTER_SIZES[s];
+                      commit(
+                        resizePoster(
+                          poster,
+                          poster.width > poster.height ? b : a,
+                          poster.width > poster.height ? a : b,
+                        ),
+                      );
+                    },
+                    (horizontal) => {
+                      if (horizontal !== poster.width > poster.height)
+                        commit(resizePoster(poster, poster.height, poster.width));
+                    },
+                  )}
+                  <label className="flex items-center justify-between rounded-md border border-border bg-background px-2.5 py-2">
+                    {l.background}
+                    <input
+                      aria-label={l.background}
+                      type="color"
+                      value={poster.background}
+                      disabled={readonly}
+                      onChange={(e) => commit({ ...poster, background: e.target.value })}
+                    />
+                  </label>
+                  <p className="border-t border-border pt-2 text-[11px] text-muted-foreground">
+                    {poster.width.toFixed(1)} × {poster.height.toFixed(1)} mm
+                  </p>
+                </div>
+              </section>
               {!element ? (
-                <p className="text-muted-foreground">{l.select}</p>
+                <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+                  {l.select}
+                </p>
               ) : (
-                <fieldset disabled={readonly} className="space-y-3 border-t border-border pt-3">
+                <fieldset disabled={readonly} className="space-y-3.5 border-t border-border pt-3">
+                  <legend className="mb-1 px-1 text-[11px] font-semibold uppercase text-muted-foreground">
+                    {l.selectedElement}
+                  </legend>
                   <div className="grid grid-cols-2 gap-2">
                     {(["x", "y", "width", "height"] as const).map((key) => (
                       <label key={key} className="space-y-1">
@@ -867,7 +847,10 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                 </fieldset>
               )}
               {poster.elements.some(textOverflows) && (
-                <p role="alert" className="rounded bg-amber-100 p-2 text-amber-900">
+                <p
+                  role="alert"
+                  className="rounded-md border border-warning/30 bg-warning/10 p-2 text-warning"
+                >
                   {l.overflow}
                 </p>
               )}

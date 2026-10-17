@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { resolveMarkdownImage } from "@/features/editor/lib/markdown";
-import { POSTER_STYLES, type PosterDocument, wrapText } from "./model";
+import { POSTER_DEFAULTS, type PosterDocument, wrapText } from "./model";
 
 const escapeXml = (s: string) =>
   s.replace(
@@ -20,7 +20,7 @@ export function posterSvg(p: PosterDocument): string {
       const size = e.fontSize ?? 8;
       const x = e.x + (e.align === "center" ? e.width / 2 : e.align === "right" ? e.width : 0);
       const lines = wrapText(e.text ?? "", e.width, size);
-      return `<svg x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" overflow="hidden"><text fill="${e.color ?? "#14253d"}" font-family="${POSTER_STYLES[p.style].font}" font-size="${size}" font-weight="${e.bold ? "bold" : "normal"}" text-anchor="${e.align === "center" ? "middle" : e.align === "right" ? "end" : "start"}">${lines.map((line, i) => `<tspan x="${x - e.x}" y="${size + i * size * 1.25}">${escapeXml(line)}</tspan>`).join("")}</text></svg>`;
+      return `<svg x="${e.x}" y="${e.y}" width="${e.width}" height="${e.height}" overflow="hidden"><text fill="${e.color ?? POSTER_DEFAULTS.ink}" font-family="${POSTER_DEFAULTS.font}" font-size="${size}" font-weight="${e.bold ? "bold" : "normal"}" text-anchor="${e.align === "center" ? "middle" : e.align === "right" ? "end" : "start"}">${lines.map((line, i) => `<tspan x="${x - e.x}" y="${size + i * size * 1.25}">${escapeXml(line)}</tspan>`).join("")}</text></svg>`;
     })
     .join("");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${p.width}mm" height="${p.height}mm" viewBox="0 0 ${p.width} ${p.height}"><title>${escapeXml(p.title)}</title><rect width="100%" height="100%" fill="${p.background}"/>${elements}</svg>`;
@@ -76,7 +76,7 @@ export async function posterPptx(p: PosterDocument): Promise<Uint8Array> {
     } else
       slide.addText(wrapText(e.text ?? "", e.width, e.fontSize ?? 8).join("\n"), {
         ...box,
-        fontFace: POSTER_STYLES[p.style].font,
+        fontFace: POSTER_DEFAULTS.font,
         fontSize: ((e.fontSize ?? 8) * 72) / 25.4,
         bold: e.bold,
         color: (e.color ?? "#14253d").slice(1),

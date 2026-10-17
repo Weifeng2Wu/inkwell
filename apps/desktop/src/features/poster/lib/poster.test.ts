@@ -5,10 +5,8 @@ import {
   createPoster,
   isPosterFile,
   POSTER_SIZES,
-  POSTER_STYLES,
   parsePoster,
   resizePoster,
-  restylePoster,
   serializePoster,
   textOverflows,
   validImageSource,
@@ -22,20 +20,27 @@ describe("editable poster format", () => {
     expect(isPosterFile("POSTER.poster.JSON")).toBe(true);
     expect(isPosterFile("paper.json")).toBe(false);
   });
-  it("creates valid templates without overflow across all styles, sizes and orientations", () => {
-    for (const style of Object.keys(POSTER_STYLES) as (keyof typeof POSTER_STYLES)[])
-      for (const size of Object.keys(POSTER_SIZES) as (keyof typeof POSTER_SIZES)[])
-        for (const landscape of [false, true]) {
-          const p = createPoster(style, size, landscape);
-          expect(parsePoster(serializePoster(p))).toEqual(p);
-          expect(p.elements.filter(textOverflows)).toEqual([]);
-        }
+  it("creates valid templates without overflow across sizes and orientations", () => {
+    for (const size of Object.keys(POSTER_SIZES) as (keyof typeof POSTER_SIZES)[])
+      for (const landscape of [false, true]) {
+        const p = createPoster(size, landscape);
+        expect(parsePoster(serializePoster(p))).toEqual(p);
+        expect(p.elements.filter(textOverflows)).toEqual([]);
+        const columns = [0, 1, 2].map((index) => p.elements.find((e) => e.id === `panel-${index}`));
+        expect(columns.every(Boolean)).toBe(true);
+        expect(columns[1]?.width).toBeGreaterThan(columns[0]?.width ?? 0);
+        expect(columns[0]?.width).toBeCloseTo(columns[2]?.width ?? 0, 5);
+        expect(columns[0]?.x).toBeLessThan(columns[1]?.x ?? 0);
+        expect(columns[1]?.x).toBeLessThan(columns[2]?.x ?? 0);
+      }
   });
   it("rejects duplicate IDs, invalid bounds, nonfinite values, unsafe images and unknown versions", () => {
     const p = createPoster();
     const first = p.elements[0];
     expect(() => parsePoster(JSON.stringify({ ...p, version: 2 }))).toThrow();
-    expect(() => parsePoster(JSON.stringify({ ...p, style: "toString" }))).toThrow();
+    const legacy = parsePoster(JSON.stringify({ ...p, style: "modern" }));
+    expect(legacy).not.toHaveProperty("style");
+    expect(serializePoster(legacy)).not.toContain("\"style\"");
     expect(() => parsePoster(JSON.stringify({ ...p, elements: [first, first] }))).toThrow();
     expect(() =>
       parsePoster(JSON.stringify({ ...p, elements: [{ ...first, x: p.width }] })),
@@ -46,14 +51,11 @@ describe("editable poster format", () => {
     expect(validImageSource("data:image/svg+xml;base64,AAAA")).toBe(false);
     expect(validImageSource("../figures/plot.png")).toBe(true);
   });
-  it("resizes geometry within bounds and remaps theme colors without changing content", () => {
+  it("resizes geometry within bounds without changing content", () => {
     const p = createPoster();
     const resized = resizePoster(p, 1189, 841);
     expect(() => parsePoster(serializePoster(resized))).not.toThrow();
-    const styled = restylePoster(p, "modern");
-    expect(styled.background).toBe("#101c2c");
-    expect(styled.elements.find((e) => e.id === "heading-0")?.color).toBe("#42d5c4");
-    expect(styled.elements.map((e) => e.text)).toEqual(p.elements.map((e) => e.text));
+    expect(resized.elements.map((e) => e.text)).toEqual(p.elements.map((e) => e.text));
   });
   it("wraps CJK, long tokens and explicit line breaks and detects overflow", () => {
     expect(wrapText("研究结果\nαβγδ", 16, 8)).toEqual(["研究", "结果", "αβ", "γδ"]);
@@ -94,7 +96,7 @@ describe("editable exports", () => {
     expect(svg).not.toContain("foreignObject");
   });
   it("writes independent PPTX text/shape objects with the correct physical slide size", async () => {
-    const p = createPoster("minimal", "A1", true);
+    const p = createPoster("A1", true);
     p.elements.push({
       id: "figure",
       type: "image",

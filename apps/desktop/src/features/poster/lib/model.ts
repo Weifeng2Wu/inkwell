@@ -1,30 +1,10 @@
-export const POSTER_STYLES = {
-  classic: {
-    label: "Classic",
-    background: "#ffffff",
-    ink: "#14253d",
-    accent: "#174a7e",
-    panel: "#eef3f8",
-    font: "Arial",
-  },
-  minimal: {
-    label: "Minimal",
-    background: "#faf9f6",
-    ink: "#292724",
-    accent: "#9b452a",
-    panel: "#efede7",
-    font: "Georgia",
-  },
-  modern: {
-    label: "Modern",
-    background: "#101c2c",
-    ink: "#f4f7fb",
-    accent: "#42d5c4",
-    panel: "#203247",
-    font: "Arial",
-  },
+export const POSTER_DEFAULTS = {
+  background: "#ffffff",
+  ink: "#14253d",
+  accent: "#174a7e",
+  panel: "#eef3f8",
+  font: "Arial",
 } as const;
-export type PosterStyle = keyof typeof POSTER_STYLES;
 export const POSTER_SIZES = {
   A0: [841, 1189],
   A1: [594, 841],
@@ -50,7 +30,6 @@ export type PosterElement = {
 export type PosterDocument = {
   version: 1;
   title: string;
-  style: PosterStyle;
   width: number;
   height: number;
   background: string;
@@ -77,7 +56,6 @@ export function parsePoster(content: string): PosterDocument {
     p?.version !== 1 ||
     typeof p.title !== "string" ||
     p.title.length > 1000 ||
-    !Object.hasOwn(POSTER_STYLES, p.style) ||
     !finite(p.width, 100, 1400) ||
     !finite(p.height, 100, 1400) ||
     !color(p.background) ||
@@ -112,7 +90,8 @@ export function parsePoster(content: string): PosterDocument {
       throw new Error("Invalid poster element.");
     ids.add(e.id);
   }
-  return p;
+  delete p.style;
+  return p as PosterDocument;
 }
 export const serializePoster = (poster: PosterDocument) => `${JSON.stringify(poster, null, 2)}\n`;
 
@@ -178,28 +157,10 @@ export function resizePoster(p: PosterDocument, width: number, height: number): 
     })),
   };
 }
-export function restylePoster(p: PosterDocument, style: PosterStyle): PosterDocument {
-  const before = POSTER_STYLES[p.style],
-    after = POSTER_STYLES[style];
-  const replace = (value: string | undefined) => {
-    const key = (["background", "ink", "accent", "panel"] as const).find(
-      (k) => before[k] === value,
-    );
-    return key ? after[key] : value;
-  };
-  return {
-    ...p,
-    style,
-    background: replace(p.background) ?? after.background,
-    elements: p.elements.map((e) => ({ ...e, color: replace(e.color), fill: replace(e.fill) })),
-  };
-}
 export function createPoster(
-  style: PosterStyle = "classic",
   size: PosterSize = "A0",
   landscape = false,
 ): PosterDocument {
-  const theme = POSTER_STYLES[style];
   const [short, long] = POSTER_SIZES[size];
   const width = landscape ? long : short,
     height = landscape ? short : long;
@@ -213,7 +174,7 @@ export function createPoster(
     h: number,
     fontSize: number,
     bold = false,
-    ink: string = theme.ink,
+    ink: string = POSTER_DEFAULTS.ink,
   ) =>
     elements.push({
       id,
@@ -234,7 +195,7 @@ export function createPoster(
     y: 0,
     width,
     height: height * 0.18,
-    fill: theme.accent,
+    fill: POSTER_DEFAULTS.accent,
   });
   text(
     "title",
@@ -245,7 +206,7 @@ export function createPoster(
     height * 0.085,
     20,
     true,
-    style === "modern" ? "#101c2c" : "#ffffff",
+    "#ffffff",
   );
   text(
     "authors",
@@ -256,12 +217,13 @@ export function createPoster(
     25,
     8,
     false,
-    style === "modern" ? "#101c2c" : "#ffffff",
+    "#ffffff",
   );
-  const columns = landscape ? 3 : 2;
+  const columns = 3;
   const gap = 18,
     margin = 28,
-    col = (width - margin * 2 - gap * (columns - 1)) / columns;
+    available = width - margin * 2 - gap * (columns - 1),
+    columnWidths = [available * 0.29, available * 0.42, available * 0.29];
   const headings = [
     "Research question",
     "Methods",
@@ -273,7 +235,9 @@ export function createPoster(
   const top = height * 0.22,
     row = (height - top - 30) / Math.ceil(headings.length / columns);
   headings.forEach((heading, i) => {
-    const x = margin + (i % columns) * (col + gap),
+    const column = i % columns;
+    const x = margin + columnWidths.slice(0, column).reduce((sum, value) => sum + value + gap, 0),
+      col = columnWidths[column] ?? columnWidths[0] ?? 1,
       y = top + Math.floor(i / columns) * row;
     elements.push({
       id: `panel-${i}`,
@@ -282,9 +246,19 @@ export function createPoster(
       y,
       width: col,
       height: row - gap,
-      fill: theme.panel,
+      fill: POSTER_DEFAULTS.panel,
     });
-    text(`heading-${i}`, heading, x + 10, y + 10, col - 20, 28, 11, true, theme.accent);
+    text(
+      `heading-${i}`,
+      heading,
+      x + 10,
+      y + 10,
+      col - 20,
+      28,
+      11,
+      true,
+      POSTER_DEFAULTS.accent,
+    );
     text(
       `body-${i}`,
       "Add evidence from your paper here. Double-click to edit; drag to move.",
@@ -298,10 +272,9 @@ export function createPoster(
   return {
     version: 1,
     title: "Research poster",
-    style,
     width,
     height,
-    background: theme.background,
+    background: POSTER_DEFAULTS.background,
     elements,
   };
 }
