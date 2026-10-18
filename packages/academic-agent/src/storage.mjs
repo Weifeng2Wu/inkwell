@@ -61,6 +61,8 @@ function safeSetting(key, value) {
           "baseUrl",
           "model",
           "imageGeneration",
+          "webSearch",
+          "modelCapabilities",
           "personalPrompt",
           "answerLanguage",
           "skillIds",
@@ -84,6 +86,26 @@ function safeSetting(key, value) {
     )
       throw new Error("Invalid image-generation configuration.");
     safe.imageGeneration = { baseUrl: image.baseUrl, model: image.model };
+  }
+  if (safe.webSearch !== undefined) {
+    if (!safe.webSearch || typeof safe.webSearch.baseUrl !== "string" || safe.webSearch.baseUrl.length > 2048)
+      throw new Error("Invalid web-search configuration.");
+    safe.webSearch = { baseUrl: safe.webSearch.baseUrl };
+  }
+  if (safe.modelCapabilities !== undefined) {
+    const profiles = safe.modelCapabilities;
+    const sources = ["provider", "catalog", "manual", "unknown", "runtime"];
+    const valid = (cap) => cap && (cap.supported === null || typeof cap.supported === "boolean") && sources.includes(cap.source);
+    safe.modelCapabilities = Object.fromEntries(
+      Object.entries(profiles && typeof profiles === "object" && !Array.isArray(profiles) ? profiles : {})
+        .slice(-256)
+        .filter(([, profile]) => valid(profile?.vision) && valid(profile?.reasoning))
+        .map(([scope, profile]) => [scope, {
+          vision: { supported: profile.vision.supported, source: profile.vision.source },
+          reasoning: { supported: profile.reasoning.supported, source: profile.reasoning.source },
+          web: { supported: false, source: "runtime" },
+        }]),
+    );
   }
   return JSON.stringify(safe);
 }

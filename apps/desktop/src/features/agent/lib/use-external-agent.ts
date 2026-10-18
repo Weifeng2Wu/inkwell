@@ -459,6 +459,7 @@ export function useExternalAgent({
         client.supportsImages,
         t("layoutParser.missing"),
         abort.signal,
+        directory,
       );
       if (clientRef.current !== client || scopeRef.current !== sessionScope)
         throw new Error("ACP session changed.");

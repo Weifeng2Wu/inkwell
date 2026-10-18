@@ -155,6 +155,61 @@ describe("shared skill imports", () => {
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("independent API checks", () => {
+  it("runs image discovery and search while the model check is pending without starting chat", async () => {
+    let agent = await settleAgent("/project");
+    agent.setConfig({ ...agent.config, model: "fixture-model" });
+    agent.setWebSearchApiKey("fixture-search-key");
+    agent = await settleAgent("/project");
+    let finishModel: (() => void) | undefined;
+    vi.mocked(invoke).mockImplementation(async (command, args) => {
+      expect(command).toBe("academic_api_request");
+      const request = (args as { request: { type: string } }).request;
+      if (request.type === "test_connection") {
+        await new Promise<void>((resolve) => {
+          finishModel = resolve;
+        });
+        return { ok: true };
+      }
+      if (request.type === "list_models") return { models: ["fixture-image"] };
+      if (request.type === "test_web_search") throw new Error("Search HTTP 401");
+      throw new Error("Unexpected request");
+    });
+    const modelCheck = agent.testConnection();
+    agent = renderAgent("/project");
+    expect(agent.testingConnection).toBe(true);
+    expect(agent.working).toBe(false);
+    expect(await agent.fetchModels(agent.config, "image-key")).toEqual({
+      models: ["fixture-image"],
+    });
+    await expect(agent.testWebSearch()).rejects.toThrow("Search HTTP 401");
+    agent = renderAgent("/project");
+    expect(agent.error).toBeNull();
+    expect(agent.testingConnection).toBe(true);
+    finishModel?.();
+    await modelCheck;
+    agent = renderAgent("/project");
+    expect(agent.testingConnection).toBe(false);
+    expect(agent.connectionTest).not.toBeNull();
+    expect(invoke).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps model test failures separate from chat and allows retry", async () => {
+    let agent = await settleAgent();
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("Model HTTP 401"));
+    await agent.testConnection();
+    agent = renderAgent();
+    expect(agent.connectionTestError).toContain("Model HTTP 401");
+    expect(agent.error).toBeNull();
+    expect(agent.testingConnection).toBe(false);
+    vi.mocked(invoke).mockResolvedValueOnce({ ok: true });
+    await agent.testConnection();
+    agent = renderAgent();
+    expect(agent.connectionTestError).toBeNull();
+    expect(agent.connectionTest).not.toBeNull();
+  });
+});
+
 describe("Agent settings auto-save", () => {
   it("does not dispatch built-in model requests while an external Agent is selected", async () => {
     const agent = renderAgent("/project", false);

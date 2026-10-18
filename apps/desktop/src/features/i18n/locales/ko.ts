@@ -11,7 +11,7 @@ export const ko: TranslationDictionary = {
   layoutParser: {
     title: "문서 레이아웃 분석",
     description:
-      "Skill용 PDF를 분석하고 이미지 지원을 선언하지 않은 Agent의 채팅 이미지를 텍스트로 변환합니다. 텍스트와 LaTeX에는 필요하지 않습니다.",
+      "Skill용 PDF를 분석하고 이미지 지원을 선언하지 않은 Agent의 채팅 이미지와 @file PDF 참조를 텍스트로 변환합니다. 텍스트와 LaTeX에는 필요하지 않습니다.",
     provider: "분석 제공업체",
     getKey: "API Key 발급",
     advanced: "고급 설정",
@@ -28,8 +28,7 @@ export const ko: TranslationDictionary = {
     prompt: "분석 프롬프트",
     secure:
       "API Key는 localStorage가 아닌 시스템 자격 증명 저장소에 저장됩니다. 입력 후 저장 또는 테스트하세요.",
-    privacy:
-      "PDF를 선택한 분석 제공업체에 업로드하고, 추출 텍스트를 선택한 Agent에 보내 Skill을 생성합니다.",
+    privacy: "PDF를 선택한 분석 제공업체에 업로드하고, 추출 텍스트를 선택한 Agent에 보냅니다.",
     save: "설정 저장",
     test: "연결 테스트",
     saved: "설정을 저장했습니다.",

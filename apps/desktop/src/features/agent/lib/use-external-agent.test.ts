@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseLayoutImage } from "@/features/settings";
+import { parseLayoutImage, parseLayoutPdf } from "@/features/settings";
 import { DEFAULT_ACADEMIC_CONFIG } from "./academic-config";
 import type { AcpEvent } from "./acp-client";
 import type { AgentSelectionController } from "./use-agent-selection";
@@ -27,7 +27,7 @@ const transport = vi.hoisted(() => ({
 const translations = vi.hoisted(() => ({ prefix: "" }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("@/features/settings", () => ({ parseLayoutImage: vi.fn() }));
+vi.mock("@/features/settings", () => ({ parseLayoutImage: vi.fn(), parseLayoutPdf: vi.fn() }));
 vi.mock("@/features/i18n", () => ({
   useI18n: () => {
     const prefix = translations.prefix;
@@ -157,6 +157,30 @@ afterEach(async () => {
 });
 
 describe("external Agent lifecycle", () => {
+  it("sends parsed PDF reference content to text-only ACP agents", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "read_chat_pdf" ? [37, 80, 68, 70] : { skills: [] },
+    );
+    vi.mocked(parseLayoutPdf).mockResolvedValue("Paper results: accuracy 92%");
+    render();
+    await settle();
+    expect(await render().send('Read @file:"paper.pdf"')).toBe(true);
+    expect(transport.prompt).toHaveBeenCalledWith(
+      expect.stringContaining("Paper results: accuracy 92%"),
+      [],
+    );
+  });
+  it("does not prompt ACP when a referenced PDF cannot be parsed", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "read_chat_pdf") throw new Error("PDF is outside project directory");
+      return { skills: [] };
+    });
+    render();
+    await settle();
+    expect(await render().send('Read @file:"paper.pdf"')).toBe(false);
+    expect(transport.prompt).not.toHaveBeenCalled();
+    expect(render().error).toContain("outside project");
+  });
   it("window close waits for the pending conversation snapshot to be persisted", async () => {
     vi.mocked(invoke).mockResolvedValue({ skills: [] });
     const write = vi.fn();

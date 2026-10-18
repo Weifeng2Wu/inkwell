@@ -11,6 +11,53 @@ use tauri::{AppHandle, Emitter};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
+/// Read only explicitly referenced PDFs from the session's active project.
+#[tauri::command]
+pub async fn read_chat_pdf(
+    state: tauri::State<'_, Mutex<ProjectState>>,
+    relative_path: String,
+    expected_project: String,
+) -> Result<Vec<u8>, String> {
+    let project = state.lock().map_err(|e| e.to_string())?.project_path.clone()
+        .ok_or_else(|| "No project open".to_string())?;
+    read_chat_pdf_in_project(&project, &expected_project, &relative_path).await
+}
+
+async fn read_chat_pdf_in_project(
+    project: &str,
+    expected_project: &str,
+    relative_path: &str,
+) -> Result<Vec<u8>, String> {
+    let root = std::fs::canonicalize(project).map_err(|e| e.to_string())?;
+    if root != std::fs::canonicalize(expected_project).map_err(|e| e.to_string())? {
+        return Err("PDF reference belongs to a different project.".into());
+    }
+    let relative = Path::new(relative_path);
+    if relative.as_os_str().is_empty()
+        || relative.components().any(|part| !matches!(part, std::path::Component::Normal(_)))
+        || !relative.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
+    {
+        return Err("Expected a project-relative PDF reference.".into());
+    }
+    let path = std::fs::canonicalize(root.join(relative)).map_err(|e| e.to_string())?;
+    if !path.starts_with(&root) {
+        return Err("Access denied: PDF is outside project directory.".into());
+    }
+    let mut file = fs::File::open(path).await.map_err(|e| e.to_string())?;
+    let metadata = file.metadata().await.map_err(|e| e.to_string())?;
+    const LIMIT: u64 = 12 * 1024 * 1024;
+    if !metadata.is_file() || metadata.len() > LIMIT {
+        return Err("PDF must be a file no larger than 12 MiB.".into());
+    }
+    use tokio::io::AsyncReadExt;
+    let mut bytes = Vec::new();
+    (&mut file).take(LIMIT + 1).read_to_end(&mut bytes).await.map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > LIMIT || !bytes.starts_with(b"%PDF-") {
+        return Err("Invalid or oversized PDF reference.".into());
+    }
+    Ok(bytes)
+}
+
 /// Poster figures are bounded raster assets inside the current project.
 #[tauri::command]
 pub async fn read_poster_image(
@@ -602,6 +649,31 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn reads_chat_pdfs_only_from_the_expected_project() {
+        let project = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        let root = project.path().to_str().unwrap();
+        fs::create_dir(project.path().join("papers")).unwrap();
+        fs::write(project.path().join("papers/draft.PDF"), b"%PDF-1.7\ntest").unwrap();
+        assert_eq!(read_chat_pdf_in_project(root, root, "papers/draft.PDF").await.unwrap(), b"%PDF-1.7\ntest");
+        assert!(read_chat_pdf_in_project(root, outside.path().to_str().unwrap(), "papers/draft.PDF").await.is_err());
+        for path in ["../outside.pdf", "/outside.pdf", "papers", "missing.pdf", "papers/draft.txt"] {
+            assert!(read_chat_pdf_in_project(root, root, path).await.is_err(), "{path}");
+        }
+        fs::write(project.path().join("invalid.pdf"), b"not a PDF").unwrap();
+        assert!(read_chat_pdf_in_project(root, root, "invalid.pdf").await.is_err());
+        let large = fs::File::create(project.path().join("large.pdf")).unwrap();
+        large.set_len(12 * 1024 * 1024 + 1).unwrap();
+        assert!(read_chat_pdf_in_project(root, root, "large.pdf").await.is_err());
+        #[cfg(unix)]
+        {
+            fs::write(outside.path().join("secret.pdf"), b"%PDF-1.7\nsecret").unwrap();
+            std::os::unix::fs::symlink(outside.path().join("secret.pdf"), project.path().join("linked.pdf")).unwrap();
+            assert!(read_chat_pdf_in_project(root, root, "linked.pdf").await.is_err());
+        }
+    }
 
     #[test]
     fn saves_generated_images_with_unique_names_inside_the_project() {

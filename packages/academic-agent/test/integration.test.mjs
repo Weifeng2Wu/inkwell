@@ -9,6 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { digest } from "../src/library.mjs";
+import { modelCapabilityScope, resolveModelCapabilities } from "../src/model-capabilities.mjs";
 import { JsonlDecoder } from "../src/protocol.mjs";
 
 const source = JSON.parse(
@@ -240,9 +241,10 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
     baseUrl: `http://127.0.0.1:${address.port}/v1`,
   };
   const connection = await command("test_connection", sharedConfiguration);
-  assert.deepEqual(await command("list_models", { ...sharedConfiguration, model: "" }), {
-    models: ["fixture"],
-  });
+  const discovery = await command("list_models", { ...sharedConfiguration, model: "" });
+  assert.deepEqual(discovery.models, ["fixture"]);
+  assert.equal(discovery.capabilities.fixture.vision.supported, false);
+  assert.equal(discovery.capabilities.fixture.vision.source, "catalog");
   assert.equal(connection.model, "fixture");
   assert.equal(connection.provider, "inkwell-custom");
   const gitDraft = await command("git_commit", {
@@ -266,7 +268,28 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
   assert.equal(preview.instructions, instruction);
   const removed = await command("market_change", { skillId: uploaded.id, install: false });
   assert.ok(!removed.skills.some((skill) => skill.id === uploaded.id));
+  const unlistedModel = { ...sharedConfiguration, model: "unlisted-vision-model" };
+  const declaredCapabilities = resolveModelCapabilities(unlistedModel);
+  declaredCapabilities.vision = { supported: true, source: "manual" };
+  const multimodalSession = await command("configure", {
+    ...unlistedModel,
+    modelCapabilities: { [modelCapabilityScope(unlistedModel)]: declaredCapabilities },
+  });
+  assert.equal(multimodalSession.supportsImages, true);
+  const searchSession = await command("configure", {
+    ...configuration,
+    webSearch: { baseUrl: "https://api.tavily.com" },
+    webSearchApiKey: "fixture-search-key",
+  });
+  assert.equal(searchSession.supportsWebSearch, true);
+  assert.ok(searchSession.tools.includes("web_search"));
+  await assert.rejects(command("test_web_search", {
+    webSearch: { baseUrl: "http://invalid.example" },
+    webSearchApiKey: "fixture-search-key",
+  }), /HTTPS/);
   const session = await command("configure", configuration);
+  assert.equal(session.supportsWebSearch, false);
+  assert.equal(session.supportsImages, false);
   assert.deepEqual(
     new Set(session.tools),
     new Set(["read", "write_poster", "edit", "load_skill", "read_skill_resource"]),

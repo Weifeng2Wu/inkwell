@@ -5,10 +5,11 @@ import { pathToFileURL } from "node:url";
 import { promptImages } from "./attachments.mjs";
 import { syncBundledSkills, syncGitHubSkills } from "./github-skills.mjs";
 import { SessionHistory } from "./history.mjs";
-import { digest, SkillLibrary } from "./library.mjs";
 import { createImageGenerationTool } from "./image-generation.mjs";
+import { createWebSearchTool } from "./web-search.mjs";
+import { digest, SkillLibrary } from "./library.mjs";
 import { changeMarketSkill, importSkill, marketCatalog } from "./market.mjs";
-import { listModels, resolveModel } from "./model.mjs";
+import { createModelRuntime, listModels, resolveModel } from "./model.mjs";
 import { ProjectPolicy } from "./policy.mjs";
 import { JsonlDecoder } from "./protocol.mjs";
 
@@ -172,6 +173,8 @@ async function main() {
     if (typeof command.apiKey === "string" && command.apiKey) secrets.add(command.apiKey);
     if (typeof command.imageGenerationApiKey === "string" && command.imageGenerationApiKey)
       secrets.add(command.imageGenerationApiKey);
+    if (typeof command.webSearchApiKey === "string" && command.webSearchApiKey)
+      secrets.add(command.webSearchApiKey);
     const {
       runtime: nextModelRuntime,
       model,
@@ -209,6 +212,8 @@ async function main() {
       (image) => send({ type: "image_generated", ...image }),
     );
     if (imageGenerationTool && model.input?.includes("image")) tools.push(imageGenerationTool);
+    const webSearchTool = createWebSearchTool(command.webSearch, command.webSearchApiKey);
+    if (webSearchTool) tools.push(webSearchTool);
     if (allowRead)
       tools.push(
         sdk.createReadToolDefinition(project, {
@@ -278,6 +283,8 @@ async function main() {
         model: command.model,
         modelConfiguration: digest(JSON.stringify(model)),
         imageGeneration: command.imageGeneration ?? null,
+        webSearch: command.webSearch ?? null,
+        webSearchConfigured: Boolean(webSearchTool),
         skills: selection.fingerprint(),
         allowRead,
         permissionMode,
@@ -353,6 +360,7 @@ async function main() {
     return {
       sessionId: sessionManager.getSessionId(),
       supportsImages: model.input?.includes("image") === true,
+      supportsWebSearch: Boolean(webSearchTool),
       messages: transcript(session.messages),
       skills: selection.metadata(),
       tools: session.getActiveToolNames(),
@@ -432,7 +440,26 @@ async function main() {
         const timer = setTimeout(() => utilityAbort?.abort(), 30_000);
         try {
           if (typeof command.apiKey === "string" && command.apiKey) secrets.add(command.apiKey);
-          result = await listModels(command, utilityAbort.signal);
+          const runtime = await createModelRuntime(sdk, dataDirectory, utilityAbort.signal);
+          result = await listModels(command, utilityAbort.signal, runtime.getModels());
+        } finally {
+          clearTimeout(timer);
+          utilityAbort = undefined;
+          active = false;
+        }
+      } else if (command.type === "test_web_search") {
+        if (active || configuring) throw new Error("Agent is busy. Wait for the active operation.");
+        if (typeof command.webSearchApiKey !== "string" || !command.webSearchApiKey.trim())
+          throw new Error("A web search API key is required.");
+        active = true;
+        utilityAbort = new AbortController();
+        const timer = setTimeout(() => utilityAbort?.abort(), 30_000);
+        try {
+          secrets.add(command.webSearchApiKey);
+          const tool = createWebSearchTool(command.webSearch, command.webSearchApiKey);
+          if (!tool) throw new Error("Web search is not configured.");
+          const response = await tool.execute("test", { query: "Inkwell academic writing", maxResults: 1 }, utilityAbort.signal);
+          result = { ok: true, results: JSON.parse(response.content[0].text).results.length };
         } finally {
           clearTimeout(timer);
           utilityAbort = undefined;

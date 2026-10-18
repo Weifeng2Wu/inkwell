@@ -104,6 +104,15 @@ test("provider secrets never enter SQLite settings or migration backups", async 
       model: "image-model",
       apiKey: "nested-secret-value",
     },
+    webSearch: { baseUrl: "https://api.tavily.com", apiKey: "search-secret-value" },
+    modelCapabilities: {
+      fixture: {
+        vision: { supported: true, source: "manual", apiKey: "capability-secret-value" },
+        reasoning: { supported: null, source: "unknown" },
+        web: { supported: true, source: "manual" },
+        apiKey: "capability-secret-value",
+      },
+    },
     skillIds: [],
   });
   database.migrate([
@@ -113,7 +122,14 @@ test("provider secrets never enter SQLite settings or migration backups", async 
   ]);
   const settings = JSON.stringify(database.settings());
   const backup = JSON.stringify(database.db.prepare("SELECT * FROM legacy_backup").all());
-  assert.doesNotMatch(settings + backup, /secret-value|secret-token|nested-secret-value/);
+  assert.doesNotMatch(settings + backup, /secret-value|secret-token|nested-secret-value|search-secret-value|capability-secret-value/);
+  const saved = JSON.parse(database.settings()["inkwell-agent-config-v1:/project"]);
+  assert.deepEqual(saved.webSearch, { baseUrl: "https://api.tavily.com" });
+  assert.deepEqual(saved.modelCapabilities.fixture, {
+    vision: { supported: true, source: "manual" },
+    reasoning: { supported: null, source: "unknown" },
+    web: { supported: false, source: "runtime" },
+  });
   assert.deepEqual(JSON.parse(database.settings()["inkwell-agent-config-v1:/project"]).imageGeneration, {
     baseUrl: "https://images.example/v1",
     model: "image-model",

@@ -9,7 +9,7 @@ export const en = {
   layoutParser: {
     title: "Document layout parsing",
     description:
-      "Parse submission PDFs for Skills and read chat images when the selected Agent does not declare native image support. Text and LaTeX files do not need a parser.",
+      "Parse submission PDFs for Skills and read chat images or @file PDF references when the selected Agent does not declare native image support. Text and LaTeX files do not need a parser.",
     provider: "Parsing provider",
     getKey: "Get API Key",
     advanced: "Advanced settings",
@@ -27,7 +27,7 @@ export const en = {
     secure:
       "API Keys are stored in the system credential vault, not localStorage. Click Save or Test after entering a key.",
     privacy:
-      "PDFs are uploaded to your selected parsing provider. Parsed text is then sent to your selected Agent to create the Skill.",
+      "PDFs are uploaded to your selected parsing provider. Parsed text is then sent to your selected Agent.",
     save: "Save configuration",
     test: "Test connectivity",
     saved: "Configuration saved.",

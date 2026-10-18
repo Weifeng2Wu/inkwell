@@ -11,7 +11,7 @@ export const zh: TranslationDictionary = {
   layoutParser: {
     title: "版面解析",
     description:
-      "用于解析投稿要求 PDF，也为未声明原生图片支持的 Agent 将聊天图片转换为文字；文本与 LaTeX 文件无需解析服务。",
+      "用于解析投稿要求 PDF，也为未声明原生图片支持的 Agent 将聊天图片和 @file 引用的 PDF 转换为文字；文本与 LaTeX 文件无需解析服务。",
     provider: "解析服务商",
     getKey: "获取 API Key",
     advanced: "高级设置",
@@ -27,7 +27,7 @@ export const zh: TranslationDictionary = {
     model: "模型",
     prompt: "解析提示词",
     secure: "API Key 保存到系统凭据库，不写入 localStorage。填写后请点击保存或测试。",
-    privacy: "PDF 将上传到所选解析服务商，解析后的文本再发送给当前 Agent 制作 Skill。",
+    privacy: "PDF 将上传到所选解析服务商，解析后的文本再发送给当前 Agent。",
     save: "保存配置",
     test: "测试连通性",
     saved: "配置已保存。",

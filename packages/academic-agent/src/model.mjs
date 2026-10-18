@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { resolveModelCapabilities } from "./model-capabilities.mjs";
 
 export const PROTOCOLS = {
   openai: { api: "openai-completions", baseUrl: "https://api.openai.com/v1" },
@@ -19,7 +20,7 @@ function providerApiKey(command, protocol) {
   return command.apiKey || environmentKeys[protocol]?.map((key) => process.env[key]).find(Boolean);
 }
 
-export async function listModels(command, signal) {
+export async function listModels(command, signal, catalog = []) {
   const { protocol, baseUrl } = validateModelConfig({ ...command, model: "model-discovery" });
   if (!protocol) throw new Error("Select an API protocol before fetching models.");
   const apiKey = providerApiKey(command, protocol);
@@ -32,6 +33,7 @@ export async function listModels(command, signal) {
   if (protocol === "anthropic") headers["anthropic-version"] = "2023-06-01";
   const root = protocol === "anthropic" && !baseUrl.endsWith("/v1") ? `${baseUrl}/v1` : baseUrl;
   const models = new Set();
+  const capabilities = Object.create(null);
   let cursor;
   const seenCursors = new Set();
   for (let page = 0; page < 20; page += 1) {
@@ -77,6 +79,11 @@ export async function listModels(command, signal) {
             : entry.id;
       if (typeof identifier !== "string" || !identifier.trim() || identifier.length > 200) continue;
       models.add(identifier.trim());
+      capabilities[identifier.trim()] = resolveModelCapabilities(
+        { ...command, model: identifier.trim(), modelCapabilities: undefined },
+        catalog,
+        entry,
+      );
       if (models.size > 5000) throw new Error("Too many models returned.");
     }
     cursor =
@@ -87,7 +94,7 @@ export async function listModels(command, signal) {
           : undefined;
     if (protocol === "anthropic" && body.has_more && !cursor)
       throw new Error("Invalid model listing pagination.");
-    if (!cursor) return { models: [...models].sort() };
+    if (!cursor) return { models: [...models].sort(), capabilities: { ...capabilities } };
     if (typeof cursor !== "string" || cursor.length > 2048 || seenCursors.has(cursor))
       throw new Error("Invalid model listing pagination.");
     seenCursors.add(cursor);
@@ -158,16 +165,21 @@ export function responseLanguagePrompt(answerLanguage) {
   return `Respond in ${languages[answerLanguage]}. This response language takes precedence over language preferences in personal prompts or conversation history. Preserve code, LaTeX commands, file paths, and quoted source text in their original form. Do not translate manuscript content unless the task requests it.`;
 }
 
-export async function resolveModel(sdk, command, dataDirectory, signal) {
-  const config = validateModelConfig(command);
+export async function createModelRuntime(sdk, dataDirectory, signal) {
   const agentDirectory =
     process.env.INKWELL_AGENT_AUTH_DIR ?? path.join(dataDirectory, "credentials");
   await mkdir(agentDirectory, { recursive: true });
-  const runtime = await sdk.ModelRuntime.create({
+  return sdk.ModelRuntime.create({
     authPath: path.join(agentDirectory, "auth.json"),
     modelsPath: path.join(agentDirectory, "models.json"),
     signal,
   });
+}
+
+export async function resolveModel(sdk, command, dataDirectory, signal) {
+  const config = validateModelConfig(command);
+  const runtime = await createModelRuntime(sdk, dataDirectory, signal);
+  const capabilities = resolveModelCapabilities(command, runtime.getModels());
   const provider = config.protocol ? "inkwell-custom" : command.provider;
   if (config.protocol)
     runtime.registerProvider(provider, {
@@ -177,8 +189,8 @@ export async function resolveModel(sdk, command, dataDirectory, signal) {
         {
           id: command.model.trim(),
           name: command.model.trim(),
-          reasoning: false,
-          input: ["text"],
+          reasoning: capabilities.reasoning.supported === true,
+          input: capabilities.vision.supported === true ? ["text", "image"] : ["text"],
           contextWindow: 32_768,
           maxTokens: 4096,
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -187,8 +199,23 @@ export async function resolveModel(sdk, command, dataDirectory, signal) {
     });
   const apiKey = providerApiKey(command, config.protocol);
   if (apiKey) await runtime.setRuntimeApiKey(provider, apiKey);
-  const model = runtime.getModel(provider, command.model.trim());
+  let model = runtime.getModel(provider, command.model.trim());
   if (!model) throw new Error("Unknown provider/model. Check Agent settings.");
+  if (!config.protocol) {
+    model = {
+      ...model,
+      ...(capabilities.vision.source === "manual"
+        ? {
+            input: capabilities.vision.supported === true ? ["text", "image"] : ["text"],
+          }
+        : {}),
+      ...(capabilities.reasoning.source === "manual"
+        ? {
+            reasoning: capabilities.reasoning.supported === true,
+          }
+        : {}),
+    };
+  }
   signal?.throwIfAborted();
   return {
     runtime,

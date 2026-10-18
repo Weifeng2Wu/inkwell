@@ -1,5 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { ModelCapabilities } from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
+
+export type { ModelCapabilities } from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
+export type ModelDiscoveryResult = {
+  models: string[];
+  capabilities?: Record<string, ModelCapabilities>;
+};
 
 export type SkillMetadata = {
   id: string;
@@ -42,7 +49,9 @@ export type AcademicConfig = {
   protocol: "" | "openai" | "anthropic" | "gemini";
   baseUrl: string;
   model: string;
+  modelCapabilities?: Record<string, ModelCapabilities>;
   imageGeneration: { baseUrl: string; model: string };
+  webSearch: { baseUrl: string };
   personalPrompt: string;
   answerLanguage: "zh" | "en" | "ko";
   skillIds: string[];
@@ -56,6 +65,7 @@ export type SessionResult = {
   messages: AcademicMessage[];
   tools: string[];
   supportsImages?: boolean;
+  supportsWebSearch?: boolean;
 };
 export type EditPermission = { id: string; path: string; before: string | null; after: string };
 export type AcademicEvent =

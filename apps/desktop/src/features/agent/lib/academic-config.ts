@@ -1,4 +1,5 @@
 import { appStorage } from "@/lib/storage/app-storage";
+import { readCapabilityProfiles } from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
 import type { AcademicConfig } from "./academic-client";
 
 export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
@@ -7,6 +8,7 @@ export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
   baseUrl: "https://api.openai.com/v1",
   model: "",
   imageGeneration: { baseUrl: "https://api.openai.com/v1", model: "" },
+  webSearch: { baseUrl: "https://api.tavily.com" },
   personalPrompt: "",
   answerLanguage: "zh",
   skillIds: [],
@@ -40,6 +42,9 @@ export function readConfig(storageKey: string): AcademicConfig {
             : "",
         baseUrl: "baseUrl" in value && typeof value.baseUrl === "string" ? value.baseUrl : "",
         model: value.model,
+        ...("modelCapabilities" in value
+          ? { modelCapabilities: readCapabilityProfiles(value.modelCapabilities) }
+          : {}),
         imageGeneration:
           "imageGeneration" in value &&
           value.imageGeneration &&
@@ -53,6 +58,14 @@ export function readConfig(storageKey: string): AcademicConfig {
                 model: value.imageGeneration.model,
               }
             : DEFAULT_ACADEMIC_CONFIG.imageGeneration,
+        webSearch:
+          "webSearch" in value &&
+          value.webSearch &&
+          typeof value.webSearch === "object" &&
+          "baseUrl" in value.webSearch &&
+          typeof value.webSearch.baseUrl === "string"
+            ? { baseUrl: value.webSearch.baseUrl }
+            : DEFAULT_ACADEMIC_CONFIG.webSearch,
         personalPrompt:
           "personalPrompt" in value && typeof value.personalPrompt === "string"
             ? value.personalPrompt

@@ -21,6 +21,7 @@ function createAgent(overrides: Partial<AcademicAgentController> = {}): Academic
       baseUrl: "",
       model: "test-model",
       imageGeneration: { baseUrl: "https://images.example/v1", model: "image-model" },
+      webSearch: { baseUrl: "https://api.tavily.com" },
       personalPrompt: "Prefer concise Chinese responses.",
       answerLanguage: "zh",
       skillIds: [],
@@ -31,6 +32,10 @@ function createAgent(overrides: Partial<AcademicAgentController> = {}): Academic
     apiKeyLoading: false,
     imageGenerationApiKey: "",
     imageGenerationApiKeyLoading: false,
+    webSearchApiKey: "",
+    webSearchApiKeyLoading: false,
+    webSearchApiKeySaved: true,
+    setWebSearchApiKey: vi.fn(),
     setImageGenerationApiKey: vi.fn(),
     setApiKey: vi.fn(),
     conversations: [],
@@ -44,6 +49,9 @@ function createAgent(overrides: Partial<AcademicAgentController> = {}): Academic
     market: [],
     connectionTest: null,
     testConnection: vi.fn(),
+    testingConnection: false,
+    connectionTestError: null,
+    testWebSearch: vi.fn(async () => true),
     changeSkill: vi.fn(),
     refreshSkills: vi.fn(),
     uploadSkill: vi.fn(),
@@ -77,6 +85,30 @@ function createAgent(overrides: Partial<AcademicAgentController> = {}): Academic
 }
 
 describe("Agent configuration location", () => {
+  it("keeps image and search test buttons enabled during a model test or chat turn", () => {
+    const agent = createAgent({
+      working: true,
+      testingConnection: true,
+      imageGenerationApiKey: "image-key",
+      webSearchApiKey: "search-key",
+    });
+    const markup = renderToStaticMarkup(createElement(AcademicAgentSettings, { agent }));
+    const buttons = [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)];
+    const image = buttons.find((button) => button[2]?.includes(agent.labels.testImageGeneration));
+    const search = buttons.find((button) => button[2]?.includes(agent.labels.testWebSearch));
+    expect(image).toBeDefined();
+    expect(search).toBeDefined();
+    expect(image?.[1]).not.toContain("disabled");
+    expect(search?.[1]).not.toContain("disabled");
+  });
+  it("offers a search connection test and masks its saved key", () => {
+    const agent = createAgent({ webSearchApiKey: "tvly-sensitive-search-key" });
+    const markup = renderToStaticMarkup(createElement(AcademicAgentSettings, { agent }));
+    expect(markup).toContain(agent.labels.testWebSearch);
+    expect(markup).toContain(agent.labels.webSearchTestHint);
+    expect(markup).not.toContain("tvly-sensitive-search-key");
+    expect(markup).toContain('data-settings-section="search"');
+  });
   it("keeps response and permission preferences separate from skills for external agents", () => {
     const agent = createAgent();
     const markup = renderToStaticMarkup(
@@ -371,14 +403,15 @@ describe("Agent configuration location", () => {
     expect(markup).toContain(agent.labels.openaiCompatible);
     expect(markup).toContain(agent.labels.anthropicCompatible);
     expect(markup).toContain(agent.labels.geminiCompatible);
-    expect(markup).toContain(agent.labels.fetchModels);
+    expect(markup).not.toContain(`>${agent.labels.fetchModels}</button>`);
+    expect(markup.indexOf('-key"')).toBeLessThan(markup.indexOf('-model"'));
   });
-  it("places connectivity testing beside model discovery with its result below the buttons", () => {
+  it("keeps connectivity testing below the model field without a discovery button", () => {
     const agent = createAgent({ connectionTest: { configuration: "test", milliseconds: 42 } });
     const markup = renderToStaticMarkup(createElement(AcademicAgentSettings, { agent }));
     expect(markup).toMatch(
       new RegExp(
-        `<div class="flex flex-wrap items-center gap-2"><button[^>]*>${agent.labels.fetchModels}</button><button[^>]*>${agent.labels.testConnection}</button></div><p[^>]*>${agent.labels.testSuccess} · 42 ms</p>`,
+        `<div class="flex flex-wrap items-center gap-2"><button[^>]*>${agent.labels.testConnection}</button></div><p[^>]*>${agent.labels.testSuccess} · 42 ms</p>`,
       ),
     );
   });

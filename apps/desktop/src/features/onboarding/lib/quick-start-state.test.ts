@@ -25,16 +25,16 @@ describe("quick start progress", () => {
       saveQuickStart(state);
       expect(appStorage.setItem).toHaveBeenLastCalledWith(
         QUICK_START_KEY,
-        JSON.stringify({ ...state, version: 2 }),
+        JSON.stringify({ ...state, version: 3 }),
       );
-      vi.mocked(appStorage.getItem).mockReturnValue(JSON.stringify({ ...state, version: 2 }));
+      vi.mocked(appStorage.getItem).mockReturnValue(JSON.stringify({ ...state, version: 3 }));
       expect(readQuickStart()).toEqual(state);
     }
   });
 
   it("keeps stored steps within the guide and rejects non-boolean completion flags", () => {
     vi.mocked(appStorage.getItem).mockReturnValue('{"step":99,"version":2,"completed":"false"}');
-    expect(readQuickStart()).toEqual({ step: 7, completed: false, dismissed: false });
+    expect(readQuickStart()).toEqual({ step: 8, completed: false, dismissed: false });
     vi.mocked(appStorage.getItem).mockReturnValue('{"step":-1}');
     expect(readQuickStart().step).toBe(0);
   });
@@ -42,6 +42,13 @@ describe("quick start progress", () => {
   it("migrates old configuration steps to the matching tour step", () => {
     vi.mocked(appStorage.getItem).mockReturnValue('{"step":3,"dismissed":true}');
     expect(readQuickStart()).toEqual({ step: 5, completed: false, dismissed: true });
+  });
+
+  it("keeps version 2 Skills and GitHub progress aligned after inserting search", () => {
+    for (const step of [6, 7]) {
+      vi.mocked(appStorage.getItem).mockReturnValue(JSON.stringify({ version: 2, step }));
+      expect(readQuickStart().step).toBe(step + 1);
+    }
   });
 
   it("reports storage failures to the caller so closing can be retried", () => {

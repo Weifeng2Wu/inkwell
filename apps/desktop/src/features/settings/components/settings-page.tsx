@@ -231,8 +231,8 @@ export function SettingsPage({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const guidedTab: SettingsTabId | undefined = quickStart
-    ? ({ 4: "agent", 5: "general", 6: "skills", 7: "terminalGit" } as const)[
-        quickStart.step as 4 | 5 | 6 | 7
+    ? ({ 4: "agent", 5: "general", 6: "agent", 7: "skills", 8: "terminalGit" } as const)[
+        quickStart.step as 4 | 5 | 6 | 7 | 8
       ]
     : undefined;
   const currentTab = guidedTab ?? activeTab;
@@ -245,7 +245,7 @@ export function SettingsPage({
       const container = document.querySelector<HTMLElement>('[data-settings-section="content"]');
       if (!container) return;
       const section = document.querySelector<HTMLElement>(
-        `[data-settings-section="${quickStart?.step === 5 ? "layout" : quickStart?.step === 7 ? "github" : "content"}"]`,
+        `[data-settings-section="${quickStart?.step === 5 ? "layout" : quickStart?.step === 6 ? "search" : quickStart?.step === 8 ? "github" : "content"}"]`,
       );
       container.scrollTop =
         section && section !== container
@@ -443,8 +443,10 @@ export function SettingsPage({
               : quickStart.step === 5
                 ? "layout"
                 : quickStart.step === 6
-                  ? "skills"
-                  : "github"
+                  ? "search"
+                  : quickStart.step === 7
+                    ? "skills"
+                    : "github"
           }
           aria-labelledby="settings-guide-heading"
           className="shrink-0 border-b border-accent/25 bg-accent/5 px-6 py-4"

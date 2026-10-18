@@ -56,6 +56,18 @@ export function useAcademicAgent({
     provider: "inkwell-imagegen",
     baseUrl: config.imageGeneration.baseUrl,
   };
+  const webSearchCredential = {
+    protocol: "" as const,
+    provider: "inkwell-web-search",
+    baseUrl: config.webSearch.baseUrl,
+  };
+  const {
+    apiKey: webSearchApiKey,
+    setApiKey: setWebSearchApiKey,
+    apiKeyLoading: webSearchApiKeyLoading,
+    apiKeySaved: webSearchApiKeySaved,
+    apiKeyError: webSearchApiKeyError,
+  } = useAgentApiKey(webSearchCredential);
   const {
     apiKey: imageGenerationApiKey,
     setApiKey: setImageGenerationApiKey,
@@ -75,12 +87,22 @@ export function useAcademicAgent({
             ? labels.keyLoadFailed
             : imageGenerationApiKeyError === "save"
               ? labels.keySaveFailed
-              : null);
+              : webSearchApiKeyError === "load"
+                ? labels.keyLoadFailed
+                : webSearchApiKeyError === "save"
+                  ? labels.keySaveFailed
+                  : null);
   const [catalog, setCatalog] = useState<SkillMetadata[]>([]);
   const [market, setMarket] = useState<MarketSkill[]>([]);
   const [connectionTest, setConnectionTest] = useState<{
     configuration: string;
     milliseconds: number;
+  } | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const connectionCheck = useRef<symbol | null>(null);
+  const [connectionTestError, setConnectionTestError] = useState<{
+    configuration: string;
+    message: string;
   } | null>(null);
   const utilityOperation = useRef<symbol | null>(null);
   const [connected, setConnected] = useState(false);
@@ -102,13 +124,19 @@ export function useAcademicAgent({
   const lifecycle = useRef(0);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
-  const configuration = JSON.stringify({ ...config, apiKey, imageGenerationApiKey });
+  const configuration = JSON.stringify({
+    ...config,
+    apiKey,
+    imageGenerationApiKey,
+    webSearchApiKey,
+  });
   const dirty = configured !== configuration;
   const settingsSaved =
     loadedDirectory === directory &&
     persistedConfig === JSON.stringify(config) &&
     (!enabled || apiKeySaved) &&
     imageGenerationApiKeySaved &&
+    webSearchApiKeySaved &&
     !settingsSaveError;
 
   useEffect(() => {
@@ -316,25 +344,47 @@ export function useAcademicAgent({
   }
 
   async function testConnection(testConfig: AcademicConfig = config, testKey = apiKey) {
+    if (connectionCheck.current) return;
+    const operation = Symbol("model-check");
+    connectionCheck.current = operation;
+    const scope = JSON.stringify({ ...testConfig, apiKey: testKey });
     setConnectionTest(null);
+    setConnectionTestError(null);
+    setTestingConnection(true);
     const started = Date.now();
     try {
-      await requestOperation("test_connection", { ...testConfig, apiKey: testKey }, false);
+      await invoke("academic_api_request", {
+        request: { ...testConfig, apiKey: testKey, type: "test_connection" },
+      });
       setConnectionTest({
-        configuration: JSON.stringify({ ...testConfig, apiKey: testKey }),
+        configuration: scope,
         milliseconds: Date.now() - started,
       });
     } catch (caught) {
-      setError(String(caught));
+      setConnectionTestError({ configuration: scope, message: String(caught) });
+    } finally {
+      connectionCheck.current = null;
+      setTestingConnection(false);
     }
   }
 
   async function fetchModels(modelConfig: AcademicConfig, modelKey: string) {
-    return requestOperation<{ models: string[] }>(
-      "list_models",
-      { ...modelConfig, apiKey: modelKey },
-      false,
-    );
+    return invoke<import("./academic-client").ModelDiscoveryResult>("academic_api_request", {
+      request: { ...modelConfig, apiKey: modelKey, type: "list_models" },
+    });
+  }
+
+  async function testWebSearch() {
+    if (webSearchApiKeyLoading) throw new Error(labels.keyLoading);
+    if (!webSearchApiKey.trim()) throw new Error(labels.webSearchKeyHint);
+    await invoke("academic_api_request", {
+      request: {
+        type: "test_web_search",
+        webSearch: config.webSearch,
+        webSearchApiKey,
+      },
+    });
+    return true;
   }
 
   async function changeSkill(skillId: string, install: boolean) {
@@ -482,12 +532,14 @@ export function useAcademicAgent({
 
   async function configure(resume: boolean, sessionKey?: string) {
     try {
+      if (webSearchApiKeyLoading) throw new Error(labels.keyLoading);
       if (config.imageGeneration.model.trim() && imageGenerationApiKeyLoading)
         throw new Error(labels.keyLoading);
       const result = await requestOperation<SessionResult>("configure", {
         ...config,
         apiKey,
         imageGenerationApiKey,
+        webSearchApiKey,
         resume,
         ...(sessionKey ? { sessionKey } : {}),
       });
@@ -537,6 +589,7 @@ export function useAcademicAgent({
         session.supportsImages === true,
         labels.visionConfigMissing,
         abort.signal,
+        directory,
       );
       if (clientRef.current !== client || !enabledRef.current)
         throw new Error("Agent session changed.");
@@ -609,15 +662,25 @@ export function useAcademicAgent({
     apiKey,
     apiKeyLoading,
     imageGenerationApiKey,
+    webSearchApiKey,
+    webSearchApiKeyLoading,
+    webSearchApiKeySaved,
+    setWebSearchApiKey,
     setImageGenerationApiKey,
     imageGenerationApiKeyLoading,
     settingsSaved,
     settingsSaveError,
     fetchModels,
+    testWebSearch,
     setApiKey,
     catalog,
     market,
     testConnection,
+    testingConnection,
+    connectionTestError:
+      connectionTestError?.configuration === JSON.stringify({ ...config, apiKey })
+        ? connectionTestError.message
+        : null,
     changeSkill,
     refreshSkills,
     uploadSkill,

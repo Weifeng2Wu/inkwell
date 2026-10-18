@@ -8,7 +8,9 @@ describe("settings navigation", () => {
   it.each([
     { step: 4, section: 'data-tour-step="ai"' },
     { step: 5, section: 'data-settings-section="layout"' },
-    { step: 7, section: 'data-settings-section="github"' },
+    { step: 6, section: 'data-tour-step="search"' },
+    { step: 7, section: 'data-tour-step="skills"' },
+    { step: 8, section: 'data-settings-section="github"' },
   ])("opens the actual settings category for guide step $step", ({ step, section }) => {
     const markup = renderToStaticMarkup(
       createElement(

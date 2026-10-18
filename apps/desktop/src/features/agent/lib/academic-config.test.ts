@@ -1,9 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  modelCapabilityScope,
+  resolveModelCapabilities,
+} from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
 import { DEFAULT_ACADEMIC_CONFIG, readConfig } from "./academic-config";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Agent configuration defaults and migration", () => {
+  it("restores manual model capability declarations and ignores malformed profiles", () => {
+    const config = { ...DEFAULT_ACADEMIC_CONFIG, model: "unlisted" };
+    const profile = resolveModelCapabilities(config);
+    profile.vision = { supported: true, source: "manual" };
+    vi.stubGlobal("localStorage", {
+      getItem: () =>
+        JSON.stringify({
+          ...config,
+          modelCapabilities: { [modelCapabilityScope(config)]: profile, invalid: { vision: true } },
+        }),
+    });
+    expect(readConfig("project").modelCapabilities).toEqual({
+      [modelCapabilityScope(config)]: profile,
+    });
+  });
   it("uses ask permissions by default", () => {
     expect(DEFAULT_ACADEMIC_CONFIG.permissionMode).toBe("ask");
     expect(DEFAULT_ACADEMIC_CONFIG.protocol).toBe("openai");
@@ -34,7 +53,12 @@ describe("Agent configuration defaults and migration", () => {
   it("never enables edits when reading was explicitly disabled", () => {
     vi.stubGlobal("localStorage", {
       getItem: () =>
-        JSON.stringify({ ...DEFAULT_ACADEMIC_CONFIG, permissionMode: undefined, allowRead: false, allowEdits: true }),
+        JSON.stringify({
+          ...DEFAULT_ACADEMIC_CONFIG,
+          permissionMode: undefined,
+          allowRead: false,
+          allowEdits: true,
+        }),
     });
     expect(readConfig("project").permissionMode).toBe("restricted");
   });

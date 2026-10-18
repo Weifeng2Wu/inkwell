@@ -3,6 +3,36 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { listModels } from "../src/model.mjs";
+import { resolveModelCapabilities } from "../src/model-capabilities.mjs";
+
+const expected = (protocol, models) => ({
+  models,
+  capabilities: Object.fromEntries(
+    models.map((model) => [model, resolveModelCapabilities({ protocol, model })]),
+  ),
+});
+
+test("returns provider capabilities and exact catalog matches for the model picker", async (context) => {
+  const baseUrl = await mockEndpoint(context, (_request, response) => {
+    response.setHeader("Content-Type", "application/json");
+    response.end(
+      JSON.stringify({
+        data: [
+          { id: "reported", input_modalities: ["text", "image"], reasoning: true },
+          { id: "listed" },
+          { id: "unknown" },
+        ],
+      }),
+    );
+  });
+  const result = await listModels({ protocol: "openai", baseUrl }, AbortSignal.timeout(5000), [
+    { id: "listed", provider: "openai", input: ["text"], reasoning: false },
+  ]);
+  assert.deepEqual(result.capabilities.reported.vision, { supported: true, source: "provider" });
+  assert.deepEqual(result.capabilities.reported.reasoning, { supported: true, source: "provider" });
+  assert.deepEqual(result.capabilities.listed.vision, { supported: false, source: "catalog" });
+  assert.deepEqual(result.capabilities.unknown.vision, { supported: null, source: "unknown" });
+});
 
 async function mockEndpoint(context, handler) {
   const server = createServer(handler);
@@ -54,19 +84,20 @@ test("discovers models without a selected model, using protocol-specific authent
   const signal = AbortSignal.timeout(5000);
   assert.deepEqual(
     await listModels({ protocol: "openai", baseUrl: `${baseUrl}/v1`, apiKey: "dummy" }, signal),
-    { models: ["gpt-a", "gpt-b"] },
+    expected("openai", ["gpt-a", "gpt-b"]),
   );
   assert.equal(seen[0].url, "/v1/models");
   assert.equal(seen[0].headers.authorization, "Bearer dummy");
-  assert.deepEqual(await listModels({ protocol: "anthropic", baseUrl, apiKey: "dummy" }, signal), {
-    models: ["claude-a", "claude-b"],
-  });
+  assert.deepEqual(
+    await listModels({ protocol: "anthropic", baseUrl, apiKey: "dummy" }, signal),
+    expected("anthropic", ["claude-a", "claude-b"]),
+  );
   assert.equal(seen[1].url, "/v1/models");
   assert.equal(seen[1].headers["anthropic-version"], "2023-06-01");
   assert.equal(seen[2].url, "/v1/models?after_id=claude-a");
   assert.deepEqual(
     await listModels({ protocol: "gemini", baseUrl: `${baseUrl}/v1beta`, apiKey: "dummy" }, signal),
-    { models: ["gemini-a", "gemini-b"] },
+    expected("gemini", ["gemini-a", "gemini-b"]),
   );
   assert.equal(seen[3].url, "/v1beta/models");
   assert.equal(seen[4].url, "/v1beta/models?pageToken=next+page");

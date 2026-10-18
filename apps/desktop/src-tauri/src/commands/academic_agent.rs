@@ -29,6 +29,85 @@ const PROTOCOL: &str = include_str!("../../../../../packages/academic-agent/src/
 const EMPTY_REGISTRY: &str =
     include_str!("../../../../../packages/academic-agent/skills/registry.json");
 
+fn runtime_files() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("api-check.mjs", include_str!("../../../../../packages/academic-agent/src/api-check.mjs")),
+        ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
+        ("bridge.mjs", BRIDGE),
+        ("image-generation.mjs", IMAGE_GENERATION),
+        ("web-search.mjs", include_str!("../../../../../packages/academic-agent/src/web-search.mjs")),
+        ("format-review.mjs", include_str!("../../../../../packages/academic-agent/src/format-review.mjs")),
+        ("review-prompt.json", include_str!("../../../../../packages/academic-agent/src/review-prompt.json")),
+        ("attachments.mjs", ATTACHMENTS),
+        ("library.mjs", LIBRARY),
+        ("model.mjs", MODEL),
+        ("model-capabilities.mjs", include_str!("../../../../../packages/academic-agent/src/model-capabilities.mjs")),
+        ("market.mjs", MARKET),
+        ("github-skills.mjs", GITHUB_SKILLS),
+        ("zip-skills.mjs", ZIP_SKILLS),
+        ("skills/github-bundle.json", GITHUB_BUNDLE),
+        ("skills/nature-bundle.json", include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json")),
+        ("skills/poster-bundle.json", include_str!("../../../../../packages/academic-agent/skills/poster-bundle.json")),
+        ("history.mjs", HISTORY),
+        ("policy.mjs", POLICY),
+        ("protocol.mjs", PROTOCOL),
+    ]
+}
+
+#[tauri::command]
+pub async fn academic_api_request(app: AppHandle, request: Value) -> Result<Value, String> {
+    let kind = request.get("type").and_then(Value::as_str).unwrap_or_default();
+    if !matches!(kind, "list_models" | "test_connection" | "test_web_search") {
+        return Err("Unsupported API check.".into());
+    }
+    let bytes = serde_json::to_vec(&request).map_err(|_| "Invalid API check request.")?;
+    if bytes.len() > 2 * 1024 * 1024 { return Err("API check request is too large.".into()); }
+    // Use a private directory per request so simultaneous checks cannot rewrite
+    // each other's modules or share model/auth configuration with the chat.
+    let directory = tempfile::tempdir().map_err(|_| "Could not prepare API check.")?;
+    for (name, contents) in runtime_files() {
+        let file = directory.path().join(name);
+        if let Some(parent) = file.parent() {
+            tokio::fs::create_dir_all(parent).await.map_err(|_| "Could not prepare API check.")?;
+        }
+        tokio::fs::write(file, contents).await.map_err(|_| "Could not prepare API check.")?;
+    }
+    let sdk = if kind == "test_web_search" {
+        PathBuf::new()
+    } else {
+        let source: Value = serde_json::from_str(RUNTIME_SOURCE).map_err(|_| "Invalid runtime metadata.")?;
+        let revision = source.get("revision").and_then(Value::as_str).ok_or("Missing runtime revision.")?;
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../..")
+            .join(".cache/agent-runtime")
+            .join(runtime_cache_key(revision));
+        super::agent_runtime::sdk_path(&app, root).await?
+    };
+    let node = super::agent_runtime::node_binary()?;
+    let mut child = command(node.to_str().ok_or("Invalid Node.js executable path.")?)
+        .arg(directory.path().join("api-check.mjs"))
+        .arg(sdk)
+        .arg(directory.path())
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
+        .kill_on_drop(true).spawn().map_err(|_| "Could not start API check.")?;
+    let mut stdin = child.stdin.take().ok_or("API check stdin is unavailable.")?;
+    stdin.write_all(&bytes).await.map_err(|_| "Could not send API check request.")?;
+    drop(stdin);
+    let output = tokio::time::timeout(Duration::from_secs(40), child.wait_with_output())
+        .await.map_err(|_| "API check timed out.")?.map_err(|_| "API check failed.")?;
+    let response: Value = serde_json::from_slice(&output.stdout).map_err(|_| "Invalid API check response.")?;
+    if response.get("ok").and_then(Value::as_bool) != Some(true) || !output.status.success() {
+        let mut message = response.get("error").and_then(Value::as_str).unwrap_or("API check failed.").to_string();
+        for field in ["apiKey", "webSearchApiKey"] {
+            if let Some(key) = request.get(field).and_then(Value::as_str).filter(|key| !key.is_empty()) {
+                message = message.replace(key, "[redacted]");
+            }
+        }
+        return Err(message.chars().take(1500).collect());
+    }
+    Ok(response.get("result").cloned().unwrap_or(Value::Null))
+}
+
 struct Runtime {
     id: String,
     project: PathBuf,
@@ -72,6 +151,7 @@ fn serialize_request(request: &Value) -> Result<Vec<u8>, String> {
             | "permission"
             | "list_models"
             | "test_connection"
+            | "test_web_search"
             | "git_commit"
             | "format_skill_generate"
             | "history_list"
@@ -138,25 +218,7 @@ pub async fn academic_agent_start(
     tokio::fs::create_dir_all(directory.join("skills"))
         .await
         .map_err(|error| error.to_string())?;
-    for (name, contents) in [
-        ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
-        ("bridge.mjs", BRIDGE),
-        ("image-generation.mjs", IMAGE_GENERATION),
-        ("format-review.mjs", include_str!("../../../../../packages/academic-agent/src/format-review.mjs")),
-        ("review-prompt.json", include_str!("../../../../../packages/academic-agent/src/review-prompt.json")),
-        ("attachments.mjs", ATTACHMENTS),
-        ("library.mjs", LIBRARY),
-        ("model.mjs", MODEL),
-        ("market.mjs", MARKET),
-        ("github-skills.mjs", GITHUB_SKILLS),
-        ("zip-skills.mjs", ZIP_SKILLS),
-        ("skills/github-bundle.json", GITHUB_BUNDLE),
-        ("skills/nature-bundle.json", include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json")),
-        ("skills/poster-bundle.json", include_str!("../../../../../packages/academic-agent/skills/poster-bundle.json")),
-        ("history.mjs", HISTORY),
-        ("policy.mjs", POLICY),
-        ("protocol.mjs", PROTOCOL),
-    ] {
+    for (name, contents) in runtime_files() {
         tokio::fs::write(directory.join(name), contents)
             .await
             .map_err(|error| error.to_string())?;
@@ -270,8 +332,28 @@ pub async fn academic_agent_stop(
 
 #[cfg(test)]
 mod tests {
-    use super::{runtime_cache_key, serialize_request};
+    use super::{runtime_cache_key, runtime_files, serialize_request};
     use serde_json::{json, Value};
+
+    #[test]
+    fn extracted_desktop_bridge_loads_all_imports_without_source_tree() {
+        let directory = tempfile::tempdir().unwrap();
+        for (name, contents) in runtime_files() {
+            let filename = directory.path().join(name);
+            std::fs::create_dir_all(filename.parent().unwrap()).unwrap();
+            std::fs::write(filename, contents).unwrap();
+        }
+        // No host arguments: successful module loading reaches the bridge's
+        // argument validation instead of failing with ERR_MODULE_NOT_FOUND.
+        let output = std::process::Command::new(crate::commands::agent_runtime::node_binary().unwrap())
+            .arg(directory.path().join("bridge.mjs"))
+            .current_dir(directory.path())
+            .output()
+            .expect("Node.js is required to verify the desktop Agent bundle");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stdout.contains("Missing runtime host arguments."), "stdout: {stdout}\nstderr: {stderr}");
+    }
 
     #[test]
     fn isolates_runtime_dependencies_by_platform_and_architecture() {
@@ -295,6 +377,7 @@ mod tests {
             "permission",
             "list_models",
             "test_connection",
+            "test_web_search",
             "git_commit",
             "format_skill_generate",
             "history_list",
