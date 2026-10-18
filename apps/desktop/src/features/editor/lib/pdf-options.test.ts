@@ -22,9 +22,9 @@ it("ships the CMaps needed to read embedded Japanese and Korean fonts offline", 
     const task = getDocument({
       ...PDF_DOCUMENT_OPTIONS,
       data: new Uint8Array(await readFile(new URL("./fixtures/cjk-fonts.pdf", import.meta.url))),
-      cMapUrl: join(directory, "cmaps") + sep,
-      standardFontDataUrl: join(directory, "standard_fonts") + sep,
-      wasmUrl: join(directory, "wasm") + sep,
+      cMapUrl: join(directory, "cmaps").split(sep).join("/") + "/",
+      standardFontDataUrl: join(directory, "standard_fonts").split(sep).join("/") + "/",
+      wasmUrl: join(directory, "wasm").split(sep).join("/") + "/",
     });
     try {
       const pdf = await task.promise;
