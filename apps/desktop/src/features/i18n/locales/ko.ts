@@ -412,9 +412,9 @@ export const ko: TranslationDictionary = {
     filesFound: "{count}개 파일 찾음",
     synctexNotAvailableTitle: "SyncTeX를 사용할 수 없음",
     synctexRequiredDesc:
-      "PDF에서 소스로의 이동에는 SyncTeX가 필요하지만 시스템에서 찾을 수 없습니다.",
+      "SyncTeX가 없어 PDF에서 소스로 이동할 수 없습니다. 문서 컴파일과 PDF 보기는 계속 사용할 수 있습니다.",
     installSynctexButton: "SyncTeX 설치",
-    willRunTlmgr: "누락된 패키지를 설치하기 위해 {command}을(를) 실행합니다.",
+    willRunTlmgr: "{command}을(를) 실행하며, 필요한 경우 먼저 tlmgr를 업데이트합니다.",
     installingViaTlmgr: "tlmgr을 통해 SyncTeX 설치 중...",
     runningCommand: "{command} 실행 중",
     synctexInstalledSuccess: "SyncTeX가 성공적으로 설치되었습니다.",

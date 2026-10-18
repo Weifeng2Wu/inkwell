@@ -414,9 +414,9 @@ export const en = {
     filesFound: "{count} file{s} found",
     synctexNotAvailableTitle: "SyncTeX Not Available",
     synctexRequiredDesc:
-      "SyncTeX is required for PDF-to-source navigation but was not found on your system.",
+      "SyncTeX is missing. It enables PDF-to-source navigation; you can still compile documents and view PDFs without it.",
     installSynctexButton: "Install SyncTeX",
-    willRunTlmgr: "Will run {command} to install the missing package.",
+    willRunTlmgr: "Will run {command}, updating tlmgr first if required.",
     installingViaTlmgr: "Installing SyncTeX via tlmgr...",
     runningCommand: "Running {command}",
     synctexInstalledSuccess: "SyncTeX installed successfully.",

@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { PDF_DOCUMENT_OPTIONS } from "@/features/editor/lib/pdf-options";
 import { appStorage } from "@/lib/storage/app-storage";
 
 export type LayoutConfig = {
@@ -107,7 +108,11 @@ export async function parseLayoutPdf(file: File, missing: string): Promise<strin
       "pdfjs-dist/build/pdf.worker.min.mjs",
       import.meta.url,
     ).toString();
-    const task = pdfjs.getDocument({ data: bytes, isEvalSupported: false });
+    const task = pdfjs.getDocument({
+      ...PDF_DOCUMENT_OPTIONS,
+      data: bytes,
+      isEvalSupported: false,
+    });
     try {
       const pdf = await task.promise;
       if (pdf.numPages > 120) throw new Error("PDF exceeds 120 pages.");

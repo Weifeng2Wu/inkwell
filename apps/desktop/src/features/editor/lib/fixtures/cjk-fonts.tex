@@ -1,0 +1,13 @@
+% Minimal regression fixture: embedded CID fonts that need external PDF.js CMaps.
+% Regenerate on macOS using xelatex cjk-fonts.tex.
+\documentclass{article}
+\usepackage[paperwidth=10cm,paperheight=5cm,margin=1cm]{geometry}
+\usepackage{xeCJK}
+\setCJKmainfont{Hiragino Mincho ProN}
+\newCJKfontfamily\koreanfont{Apple SD Gothic Neo}
+\pagestyle{empty}
+\begin{document}
+日本語の研究
+
+{\xeCJKsetup{CJKspace=true}\koreanfont 한국어 연구}
+\end{document}

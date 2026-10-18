@@ -14,8 +14,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { applyDockviewPosition } from "../lib/dockview-position";
 
 const PANEL_COMPONENT_ID = "workspace-panel-content";
 
@@ -31,6 +33,7 @@ export type DockviewPanelItem = {
   content: ReactNode;
   inactive?: boolean;
   position?: AddPanelPositionOptions;
+  positionRevision?: number;
 };
 
 type DockviewPanelLayoutProps = {
@@ -56,6 +59,7 @@ export function DockviewPanelLayout({
   onApiReady,
 }: DockviewPanelLayoutProps) {
   const [api, setApi] = useState<DockviewApi | null>(null);
+  const appliedPositions = useRef(new Map<string, number | undefined>());
 
   const components = useMemo(
     () => ({
@@ -74,6 +78,7 @@ export function DockviewPanelLayout({
 
   const handleReady = useCallback(
     (event: DockviewReadyEvent) => {
+      appliedPositions.current.clear();
       setApi(event.api);
       onApiReady?.(event.api);
     },
@@ -100,6 +105,7 @@ export function DockviewPanelLayout({
     for (const panel of [...api.panels]) {
       if (!expectedPanelSet.has(panel.id)) {
         api.removePanel(panel);
+        appliedPositions.current.delete(panel.id);
       }
     }
 
@@ -110,6 +116,16 @@ export function DockviewPanelLayout({
         if ((existing.title ?? "") !== panel.title) {
           existing.api.setTitle(panel.title);
         }
+        appliedPositions.current.set(
+          panel.id,
+          applyDockviewPosition(
+            api,
+            panel.id,
+            panel.position,
+            panel.positionRevision,
+            appliedPositions.current.get(panel.id),
+          ),
+        );
         continue;
       }
 
@@ -142,6 +158,7 @@ export function DockviewPanelLayout({
           direction: "right",
         },
       });
+      appliedPositions.current.set(panel.id, panel.positionRevision);
     }
   }, [api, panels]);
 

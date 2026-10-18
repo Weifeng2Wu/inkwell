@@ -11,6 +11,7 @@ node_modules/
 .next/
 out/
 next-env.d.ts
+apps/desktop/public/pdfjs/
 
 # build output
 dist/

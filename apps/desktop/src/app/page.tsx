@@ -126,6 +126,7 @@ export default function EditorPage() {
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>("file");
   const [gitDiffPreview, setGitDiffPreview] = useState<GitDiffPreviewState | null>(null);
   const [splitPane, setSplitPane] = useState<SplitPaneState | null>(null);
+  const [splitPositionRevision, setSplitPositionRevision] = useState(0);
   const bibliography = useProjectBibliography({
     projectPath: daemon.projectPath,
     files: daemon.files,
@@ -662,6 +663,8 @@ export default function EditorPage() {
         );
         setOpenTabs((current) => current.filter((path) => path !== selectedFile));
         await handleFileSelect(resolvedFile);
+        setShowSidebar(false);
+        setSplitPositionRevision((revision) => revision + 1);
         setPendingGoToLine(result.line);
       } catch (err) {
         const errorStr = String(err);
@@ -727,6 +730,8 @@ export default function EditorPage() {
         );
         setOpenTabs((current) => current.filter((path) => path !== pdfFile));
         await handleFileSelect(resolvedFile);
+        setShowSidebar(false);
+        setSplitPositionRevision((revision) => revision + 1);
         setPendingGoToLine(result.line);
       } catch (err) {
         const errorStr = String(err);
@@ -2328,6 +2333,7 @@ export default function EditorPage() {
         referencePanel: "editor-primary",
         direction: splitPane.side,
       },
+      positionRevision: splitPositionRevision,
     });
   }
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { useI18n } from "@/features/i18n";
 import { pdfNavigationPoint } from "../lib/pdf-navigation";
+import { PDF_DOCUMENT_OPTIONS } from "../lib/pdf-options";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -103,6 +104,7 @@ export function PdfViewer({ src, onSynctexClick, refreshKey = 0 }: Props) {
       </div>
       <div ref={containerRef} className="flex-1 overflow-auto bg-accent-hover p-4">
         <Document
+          options={PDF_DOCUMENT_OPTIONS}
           key={refreshKey}
           file={
             refreshKey > 0

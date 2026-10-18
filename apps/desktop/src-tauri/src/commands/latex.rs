@@ -589,6 +589,9 @@ pub async fn latex_synctex_edit(
 /// Ok(false) if tlmgr is not available (no TeX distribution).
 #[tauri::command]
 pub async fn latex_install_synctex() -> Result<bool, String> {
+    if find_compiler("synctex").await.available {
+        return Ok(true);
+    }
     let tlmgr_info = find_compiler("tlmgr").await;
     if !tlmgr_info.available {
         // No tlmgr → no TeX distribution, caller should fall back to full install
@@ -596,36 +599,62 @@ pub async fn latex_install_synctex() -> Result<bool, String> {
     }
 
     let tlmgr_bin = tlmgr_info.path.unwrap_or_else(|| "tlmgr".to_string());
+    install_synctex_with_tlmgr(&tlmgr_bin).await?;
+    if !find_compiler("synctex").await.available {
+        return Err("SyncTeX installation finished, but the binary could not be found. Check your TeX distribution's bin directory.".to_string());
+    }
+    Ok(true)
+}
 
-    let mut cmd = command(&tlmgr_bin);
-    cmd.args(["install", "--reinstall", "synctex"]);
+async fn run_tlmgr(tlmgr_bin: &str, args: &[&str]) -> Result<std::process::Output, String> {
+    let mut cmd = command(tlmgr_bin);
+    cmd.args(args);
 
-    // Ensure PATH includes common TeX directories
-    let env_path = std::env::var("PATH").unwrap_or_default();
-    #[cfg(target_os = "macos")]
-    let env_path = {
-        if !env_path.contains("/Library/TeX/texbin") {
-            format!(
-                "/Library/TeX/texbin:/opt/homebrew/bin:/usr/local/bin:{}",
-                env_path
-            )
-        } else {
-            env_path
+    // Use helper executables from the same distribution, including user-local TinyTeX.
+    let mut paths = Vec::new();
+    if let Some(parent) = std::path::Path::new(tlmgr_bin).parent() {
+        if !parent.as_os_str().is_empty() {
+            paths.push(parent.to_path_buf());
         }
-    };
+    }
+    paths.extend(std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()));
+    let env_path = std::env::join_paths(paths).map_err(|e| format!("Invalid TeX PATH: {}", e))?;
     cmd.env("PATH", env_path);
 
-    let output = cmd
-        .output()
+    cmd.output()
         .await
-        .map_err(|e| format!("Failed to run tlmgr: {}", e))?;
+        .map_err(|e| format!("Failed to run tlmgr: {}", e))
+}
 
-    if output.status.success() {
-        Ok(true)
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("tlmgr install synctex failed: {}", stderr))
+fn tlmgr_output(output: &std::process::Output) -> String {
+    format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+    .trim()
+    .to_string()
+}
+
+async fn install_synctex_with_tlmgr(tlmgr_bin: &str) -> Result<(), String> {
+    let args = ["install", "--reinstall", "synctex"];
+    let mut output = run_tlmgr(tlmgr_bin, &args).await?;
+    if !output.status.success()
+        && tlmgr_output(&output)
+            .to_lowercase()
+            .contains("tlmgr itself needs to be updated")
+    {
+        let update = run_tlmgr(tlmgr_bin, &["update", "--self"]).await?;
+        if !update.status.success() {
+            return Err(format!("tlmgr update --self failed: {}", tlmgr_output(&update)));
+        }
+        // Retry once after updating the manager, without updating unrelated packages.
+        output = run_tlmgr(tlmgr_bin, &args).await?;
     }
+    if !output.status.success() {
+        return Err(format!("tlmgr install synctex failed: {}", tlmgr_output(&output)));
+    }
+    Ok(())
 }
 
 /// Get recommended LaTeX distributions for the current platform
@@ -1475,6 +1504,72 @@ pub async fn latex_detect_main_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    async fn mock_synctex_install(script: &str) -> (Result<(), String>, String) {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let executable = dir.path().join("tlmgr");
+        std::fs::write(
+            &executable,
+            format!("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$0.calls\"\n{}\n", script),
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let result = install_synctex_with_tlmgr(executable.to_str().unwrap()).await;
+        let calls = std::fs::read_to_string(dir.path().join("tlmgr.calls")).unwrap();
+        (result, calls)
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn synctex_install_updates_outdated_manager_and_retries_once() {
+        for stream in ["", " >&2"] {
+            let script = format!(
+                r#"if [ "$1" = "update" ]; then : > "$0.updated"; exit 0; fi
+if [ ! -f "$0.updated" ]; then
+  printf 'tlmgr itself needs to be updated.\n'{}
+  exit 1
+fi
+exit 0"#,
+                stream
+            );
+            let (result, calls) = mock_synctex_install(&script).await;
+            assert!(result.is_ok(), "{:?}", result);
+            assert_eq!(calls, "install --reinstall synctex\nupdate --self\ninstall --reinstall synctex\n");
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn synctex_install_does_not_update_on_success_or_unrelated_failure() {
+        let (result, calls) = mock_synctex_install("exit 0").await;
+        assert!(result.is_ok());
+        assert_eq!(calls, "install --reinstall synctex\n");
+        let (result, calls) = mock_synctex_install("echo 'Network unavailable'; exit 1").await;
+        assert!(result.unwrap_err().contains("Network unavailable"));
+        assert_eq!(calls, "install --reinstall synctex\n");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn synctex_install_stops_when_update_or_retry_fails() {
+        let (result, calls) = mock_synctex_install(
+            r#"if [ "$1" = "update" ]; then echo 'Permission denied' >&2; exit 1; fi
+echo 'tlmgr itself needs to be updated.'; exit 1"#,
+        ).await;
+        let error = result.unwrap_err();
+        assert!(error.contains("tlmgr update --self failed"));
+        assert!(error.contains("Permission denied"));
+        assert_eq!(calls, "install --reinstall synctex\nupdate --self\n");
+
+        let (result, calls) = mock_synctex_install(
+            r#"if [ "$1" = "update" ]; then exit 0; fi
+echo 'tlmgr itself needs to be updated.'; exit 1"#,
+        ).await;
+        assert!(result.unwrap_err().contains("tlmgr install synctex failed"));
+        assert_eq!(calls, "install --reinstall synctex\nupdate --self\ninstall --reinstall synctex\n");
+    }
 
     #[test]
     fn get_common_paths_returns_non_empty() {
