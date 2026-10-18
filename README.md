@@ -12,19 +12,23 @@ A local-first, AI-native LaTeX workspace for writing, reviewing, and versioning 
 
 **English** | [简体中文](README_zh.md) | [한국어](README_ko.md)
 
-[Features](#built-around-your-paper) · [Quick Start](#quick-start) · [Desktop Builds](#desktop-builds) · [Documentation](#documentation)
+[Download](https://github.com/Weifeng2Wu/inkwell/releases/latest) · [Features](#built-around-your-paper) · [Quick Start](#quick-start) · [Desktop Builds](#desktop-builds) · [Documentation](#documentation)
 
 </div>
+
+![Inkwell in light and dark themes with inline Agent edit review](assets/readme/theme-preview.jpg)
+
+<p align="center"><sub>Light and dark themes with inline review of Agent edits.</sub></p>
 
 ---
 
 ## Why Inkwell?
 
-Your research workflow should not be a copy-paste loop between a LaTeX editor, a PDF viewer, an AI chat, and a terminal. Inkwell brings them into one desktop workspace—with a review step between an Agent's suggestion and your manuscript.
+Write LaTeX, review Agent edits, preview PDFs, and manage Git in one desktop workspace. Ask for a revision, inspect each change in context, accept what you want, then compile and commit.
 
-Ask for a rewrite, inspect the changes in context, accept what you want, then compile and commit. Your paper remains a normal folder of files, not a proprietary document format.
+Your paper stays in an ordinary folder, ready to use with your existing tools.
 
-> **Under active development.** Windows, macOS, and Linux build jobs are configured. A configured target is not a guarantee that its installer has passed native build and installation testing. See [build notes](docs/DESKTOP_BUILDS.md).
+> **In active development.** Check [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest) for available installers and [desktop build results](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml) for platform status.
 
 ## Built Around Your Paper
 
@@ -36,6 +40,7 @@ Ask for a rewrite, inspect the changes in context, accept what you want, then co
 | Read | Integrated PDF preview and SyncTeX source/PDF navigation when synchronization data is available |
 | Collaborate | Git status, history, staging, commits, push/pull, and GitHub repository publishing |
 | Customize | Built-in and external Agents, reusable Skills, terminal access, fonts, shortcuts, and light/dark theme palettes |
+| Present | Editable academic posters with PPTX, SVG, PDF, PNG, and JPEG export |
 
 ## AI Changes You Can Review
 
@@ -63,7 +68,7 @@ The integration catalog includes **Pi, OpenCode, Claude Code, Codex, Antigravity
 
 Reuse response preferences and project-enabled Skills across supported backends. Configure endpoint, model, and API key for the built-in Agent; authenticate external Agents through their own CLI or supported adapter flow. Connection failures do not silently switch to another Agent.
 
-Adapter authentication, permissions, and tool capabilities vary. Catalog inclusion does not imply end-to-end validation of every upstream version. See [external Agent documentation](docs/external-agents.md).
+Adapter authentication, permissions, and tool capabilities vary. Catalog inclusion does not imply end-to-end validation of every upstream version. See the external Agent settings.
 
 ## Skills for Academic Work
 
@@ -90,11 +95,17 @@ Detect compilers, use TeX installation helpers, compile with supported engines, 
 
 Git operates per opened workspace, so separate paper folders can have independent repositories and histories. Local status, diffs, and commits do not require GitHub login. Remote operations need the corresponding credentials; GitHub publishing uses GitHub CLI authentication and supports private repositories. An integrated terminal remains available for CLI workflows.
 
+## Editable Academic Posters
+
+Create a poster from the file-tree context menu. Edit text, move and resize elements, and choose from three styles and portrait or landscape layouts. Export editable PPTX or SVG, or share a PDF, PNG, or JPEG. With the Academic Poster Skill installed, an Agent can also create a poster from your paper.
+
 ## Local First
 
-Your manuscripts remain ordinary files. Conversations use JSONL; settings and indexes are being moved to SQLite in the application persistence layer. This describes ongoing storage work, not a guarantee that migration is complete. Model, image, search and layout-parser API keys are stored unencrypted in a dedicated table in the local `academic-agent/inkwell.sqlite` application database, separate from project settings and ordinary settings responses. Database files are restricted to the current user on macOS/Linux. Keys previously saved in the operating system credential vault must be entered again once; Inkwell no longer accesses that vault or triggers its authorization prompt.
+Manuscripts stay in your workspace, and conversations are stored locally as JSONL. Settings and indexes are being migrated to SQLite. No Inkwell cloud account or hosted application backend is required.
 
-No Inkwell cloud account or hosted application backend is required. AI requests send context to the provider or Agent you select; Git operations, updates, and downloads can also use the network. **Local-first does not mean every feature is offline or that content never leaves your device.**
+API keys are stored **unencrypted** in the local application database (`academic-agent/inkwell.sqlite`), separately from project settings. On macOS/Linux, database files are restricted to the current user. If you used an earlier version with system credential-vault storage, enter your keys again once.
+
+AI requests send context to your chosen provider or Agent. Git remotes, updates, and downloads also use the network.
 
 ## Quick Start
 
@@ -140,7 +151,7 @@ Frontend only: `pnpm --filter @inkwell/desktop dev`. Native filesystem, compile,
 | macOS Apple Silicon / Intel | `.dmg` | Configured minimum: macOS 13.5 |
 | Linux x64 | `.deb`, `.AppImage` | CI uses Ubuntu 22.04; distribution compatibility needs validation |
 
-Run `pnpm tauri:build` on the native platform, or select **Actions → Desktop build → Run workflow**. Packaging stages the Agent SDK and Node sidecar. **Developer certificates and notarization are not configured**; test installers may trigger operating-system security warnings. Installation and launch testing remain necessary. See [build instructions](docs/DESKTOP_BUILDS.md).
+Run `pnpm tauri:build` on the native platform, or select **Actions → Desktop build → Run workflow**. Packaging stages the Agent SDK and Node sidecar. **Developer certificates and notarization are not configured**; test installers may trigger operating-system security warnings. Installation and launch testing remain necessary. See [build workflow](.github/workflows/desktop-build.yml).
 
 ## Development
 
@@ -160,12 +171,10 @@ Built with **Tauri v2 + Rust**, **Next.js static export + React**, and **Monaco*
 
 ## Documentation
 
-- [Developer guide](docs/dev.md)
-- [Design system](docs/DESIGN.md)
-- [Agent and Skills framework](docs/AGENT_FRAMEWORK.md)
-- [External Agents](docs/external-agents.md)
-- [Desktop builds](docs/DESKTOP_BUILDS.md)
-- [Contributor instructions](AGENTS.md)
+- [Desktop build workflow](.github/workflows/desktop-build.yml)
+- [Frontend feature modules](apps/desktop/src/features)
+- [Native commands](apps/desktop/src-tauri/src/commands)
+- [Agent runtime](packages/academic-agent)
 
 ## License and Acknowledgments
 

@@ -12,19 +12,23 @@
 
 [English](README.md) | **简体中文** | [한국어](README_ko.md)
 
-[产品功能](#围绕论文组织的工作区) · [快速开始](#快速开始) · [桌面构建](#桌面构建) · [文档](#文档)
+[下载安装](https://github.com/Weifeng2Wu/inkwell/releases/latest) · [产品功能](#围绕论文组织的工作区) · [快速开始](#快速开始) · [桌面构建](#桌面构建) · [文档](#文档)
 
 </div>
+
+![Inkwell 浅色与深色主题，以及 Agent 原位修改审阅](assets/readme/theme-preview.jpg)
+
+<p align="center"><sub>浅色与深色主题，以及 Agent 修改的原位审阅。</sub></p>
 
 ---
 
 ## 为什么选择 Inkwell？
 
-写论文不应该是在 LaTeX 编辑器、PDF 阅读器、AI 对话与终端之间反复复制粘贴。Inkwell 将它们集中在一个桌面工作区，并在 Agent 建议与正式稿件之间加入由你掌控的审阅环节。
+在一个桌面工作区中编写 LaTeX、审阅 Agent 修改、预览 PDF，并管理 Git 版本。提出修改要求，在原文位置逐处检查建议，接受需要的部分，再编译与提交。
 
-提出修改要求，在原文位置检查建议，只接受认可的部分，然后编译和提交。项目始终是普通文件夹，不会被锁在专有文档格式中。
+论文始终保存在普通文件夹中，可以继续使用熟悉的工具处理。
 
-> **持续开发中。** 已配置 Windows、macOS、Linux 构建任务，但配置完成不代表各平台安装包都已通过原生构建与安装验证。详见[构建说明](docs/DESKTOP_BUILDS.md)。
+> **持续开发中。** 可用安装包见 [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest)，各平台构建状态见 [Desktop build](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)。
 
 ## 围绕论文组织的工作区
 
@@ -36,6 +40,7 @@
 | 阅读 | 内置 PDF 预览；存在同步数据时支持 SyncTeX 源码与 PDF 跳转 |
 | 协作 | Git 状态、历史、暂存、提交、推送与拉取，以及发布到 GitHub |
 | 定制 | 内置与第三方 Agent、可复用 Skills、终端、字体、快捷键和多组明暗主题 |
+| 展示 | 可编辑学术海报，支持导出 PPTX、SVG、PDF、PNG 和 JPEG |
 
 ## 让 AI 修改可见、可控
 
@@ -63,7 +68,7 @@ Agent： 在审阅副本中提出修改。
 
 受支持后端可复用回复偏好和当前项目启用的 Skills。内置 Agent 的接口地址、模型和 API Key 在设置中配置；外部 Agent 通过自己的 CLI 或受支持的适配器流程认证。连接失败不会静默切换到另一个 Agent。
 
-不同适配器的认证、权限与工具能力存在差异；列入目录不代表每个上游版本都已完成端到端验证。详见[外部 Agent 文档](docs/external-agents.md)。
+不同适配器的认证、权限与工具能力存在差异；列入目录不代表每个上游版本都已完成端到端验证。具体配置见应用中的外部 Agent 设置。
 
 ## 面向科研写作的 Skills
 
@@ -90,11 +95,17 @@ Skills 提供指令，不会凭空提供缺失的工具：检索、引用核验�
 
 Git 以打开的工作区为单位：不同论文文件夹可拥有独立仓库与历史。本地查看状态、差异和提交不需要 GitHub 登录；访问远程需要对应凭据。GitHub 发布使用 GitHub CLI 认证，支持私有仓库。集成终端保留常规 CLI 操作空间。
 
+## 可编辑学术海报
+
+在文件树右键选择“新建学术海报”，即可编辑文字、拖动和缩放元素，并选择三种风格及横竖版布局。导出可编辑的 PPTX、SVG，或用于分享的 PDF、PNG、JPEG。安装 Academic Poster Skill 后，也可以让 Agent 根据论文生成海报。
+
 ## 本地优先
 
-稿件保存在普通文件中。会话记录采用 JSONL；应用持久化层正在改为使用 SQLite 保存设置与索引。这里描述的是进行中的存储工作，不代表迁移已经完成。模型、图片、搜索和版面解析的 API Key 以未加密形式保存在本机应用数据库 `academic-agent/inkwell.sqlite` 的独立凭据表中，不写入项目配置，也不会包含在普通配置读取结果里。macOS/Linux 上数据库文件仅限当前用户访问。之前保存在操作系统钥匙串中的 Key 需要重新填写一次；Inkwell 不再读取钥匙串或触发其授权弹窗。
+稿件保存在工作区中，会话以 JSONL 形式保存在本机，设置与索引正在迁移至 SQLite。无需注册 Inkwell 云账户，也不依赖托管应用后端。
 
-无需注册 Inkwell 云账户，也没有托管应用后端。AI 请求会向你选择的服务商或 Agent 发送上下文；Git、更新与下载也可能联网。**本地优先不等于所有功能离线，也不等于内容绝不离开设备。**
+API Key **未经加密**保存在本机应用数据库（`academic-agent/inkwell.sqlite`）中，与项目设置分开存储。macOS/Linux 上数据库文件仅限当前用户访问。如果此前使用的是系统凭据库版本，需要重新填写一次 Key。
+
+AI 请求会向你选择的服务商或 Agent 发送上下文；Git 远程操作、更新和下载也会使用网络。
 
 ## 快速开始
 
@@ -140,7 +151,7 @@ pnpm tauri:dev
 | macOS Apple Silicon／Intel | `.dmg` | 配置的最低版本为 macOS 13.5 |
 | Linux x64 | `.deb`、`.AppImage` | CI 使用 Ubuntu 22.04，发行版兼容性需验证 |
 
-在目标平台原生运行 `pnpm tauri:build`，或选择 **Actions → Desktop build → Run workflow**。打包入口会准备 Agent SDK 和 Node sidecar。**暂不配置开发者证书签名与公证**；测试安装包可能触发系统安全提示，仍需在对应平台安装、启动验证。详见[构建说明](docs/DESKTOP_BUILDS.md)。
+在目标平台原生运行 `pnpm tauri:build`，或选择 **Actions → Desktop build → Run workflow**。打包入口会准备 Agent SDK 和 Node sidecar。**暂不配置开发者证书签名与公证**；测试安装包可能触发系统安全提示，仍需在对应平台安装、启动验证。详见[构建工作流](.github/workflows/desktop-build.yml)。
 
 ## 开发
 
@@ -160,17 +171,11 @@ pnpm tauri:dev
 
 ## 文档
 
-- [开发指南](docs/dev.md)
-- [设计系统](docs/DESIGN.md)
-- [Agent 与 Skills 框架](docs/AGENT_FRAMEWORK.md)
-- [外部 Agent](docs/external-agents.md)
-- [桌面构建](docs/DESKTOP_BUILDS.md)
-- [贡献者约定](AGENTS.md)
+- [桌面构建工作流](.github/workflows/desktop-build.yml)
+- [前端功能模块](apps/desktop/src/features)
+- [原生命令](apps/desktop/src-tauri/src/commands)
+- [Agent 运行时](packages/academic-agent)
 
 ## 许可证与致谢
 
 Inkwell 使用 [MIT 许可证](LICENSE)。第三方运行时、Skills 与资源保留各自许可证，详见[第三方声明](packages/academic-agent/THIRD_PARTY_NOTICES.md)和 [Agent 图标来源](apps/desktop/public/agent-logos/LICENSE.txt)。
-
-### 可编辑学术海报
-
-在文件树右键选择“新建学术海报”，即可直接编辑文字、拖动和缩放元素，选择三种风格及横竖版尺寸，并导出可编辑的 PPTX/SVG 或打印用 PDF、PNG、JPEG。在技能市场安装 Academic Poster 后，Agent 可根据论文生成同一格式的海报。详见[调研与使用说明](ACADEMIC_POSTERS.md)。

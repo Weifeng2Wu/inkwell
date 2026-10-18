@@ -12,19 +12,23 @@
 
 [English](README.md) | [简体中文](README_zh.md) | **한국어**
 
-[주요 기능](#논문-중심의-워크스페이스) · [시작하기](#시작하기) · [데스크톱 빌드](#데스크톱-빌드) · [문서](#문서)
+[다운로드](https://github.com/Weifeng2Wu/inkwell/releases/latest) · [주요 기능](#논문-중심의-워크스페이스) · [시작하기](#시작하기) · [데스크톱 빌드](#데스크톱-빌드) · [문서](#문서)
 
 </div>
+
+![Inkwell의 밝은 테마와 어두운 테마 및 Agent 인라인 수정 검토](assets/readme/theme-preview.jpg)
+
+<p align="center"><sub>밝은 테마와 어두운 테마, Agent 수정 사항의 인라인 검토.</sub></p>
 
 ---
 
 ## 왜 Inkwell인가요?
 
-논문 작성이 LaTeX 편집기, PDF 뷰어, AI 채팅, 터미널 사이의 반복적인 복사·붙여넣기가 될 필요는 없습니다. Inkwell은 이 도구를 하나의 데스크톱 워크스페이스로 모으고 Agent의 제안이 원고에 반영되기 전에 사용자가 검토할 수 있도록 합니다.
+하나의 데스크톱 워크스페이스에서 LaTeX 작성, Agent 수정 검토, PDF 미리보기, Git 버전 관리를 수행합니다. 수정을 요청하고, 원문에서 변경 사항을 확인하고, 필요한 부분을 수락한 뒤 컴파일하고 커밋하세요.
 
-수정을 요청하고, 원문 위치에서 변경을 확인하고, 원하는 부분만 수락한 뒤 컴파일하고 커밋하세요. 프로젝트는 독점 문서 형식이 아닌 일반 파일 폴더로 유지됩니다.
+논문은 일반 폴더에 보관되므로 기존 도구로도 계속 작업할 수 있습니다.
 
-> **개발 진행 중.** Windows, macOS, Linux 빌드 작업이 구성되어 있지만, 모든 플랫폼의 네이티브 빌드와 설치 검증이 끝났다는 의미는 아닙니다. [빌드 안내](docs/DESKTOP_BUILDS.md)를 확인하세요.
+> **개발 진행 중.** 설치 파일은 [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest), 플랫폼별 빌드 상태는 [Desktop build](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)에서 확인하세요.
 
 ## 논문 중심의 워크스페이스
 
@@ -36,6 +40,7 @@
 | 읽기 | 내장 PDF 미리보기와 동기화 데이터가 있을 때의 SyncTeX 소스/PDF 이동 |
 | 협업 | Git 상태, 이력, 스테이징, 커밋, push/pull, GitHub 저장소 게시 |
 | 맞춤 설정 | 내장·외부 Agent, 재사용 가능한 Skills, 터미널, 글꼴, 단축키, 다양한 밝은·어두운 테마 |
+| 발표 | 편집 가능한 학술 포스터와 PPTX, SVG, PDF, PNG, JPEG 내보내기 |
 
 ## 검토할 수 있는 AI 수정
 
@@ -63,7 +68,7 @@ Agent: 검토용 사본에 변경 사항을 제안합니다.
 
 지원되는 백엔드 간에 응답 선호와 프로젝트에서 활성화한 Skills를 재사용합니다. 내장 Agent의 엔드포인트, 모델, API 키는 설정에서 관리하고, 외부 Agent는 자체 CLI나 지원되는 어댑터 절차로 인증합니다. 연결에 실패해도 다른 Agent로 자동 전환하지 않습니다.
 
-어댑터마다 인증, 권한, 도구 지원이 다릅니다. 카탈로그 등록이 모든 상위 버전의 종단 간 검증 완료를 뜻하지는 않습니다. [외부 Agent 문서](docs/external-agents.md)를 참고하세요.
+어댑터마다 인증, 권한, 도구 지원이 다릅니다. 카탈로그 등록이 모든 상위 버전의 종단 간 검증 완료를 뜻하지는 않습니다. 앱의 외부 Agent 설정을 확인하세요.
 
 ## 학술 작업을 위한 Skills
 
@@ -90,11 +95,17 @@ Skills는 지침을 제공할 뿐 없는 도구를 만들어 내지는 않습니
 
 Git은 열린 워크스페이스 단위로 작동하므로 논문 폴더마다 별도 저장소와 이력을 가질 수 있습니다. 로컬 상태, diff, 커밋에는 GitHub 로그인이 필요하지 않습니다. 원격 작업에는 해당 인증 정보가 필요하며, GitHub 게시에는 GitHub CLI 인증을 사용하고 비공개 저장소도 지원합니다. 내장 터미널에서 일반 CLI 작업도 수행할 수 있습니다.
 
+## 편집 가능한 학술 포스터
+
+파일 트리의 컨텍스트 메뉴에서 새 학술 포스터를 만드세요. 텍스트를 편집하고 요소를 이동하거나 크기를 조절하며, 세 가지 스타일과 가로·세로 레이아웃을 선택할 수 있습니다. 편집 가능한 PPTX·SVG 또는 공유용 PDF·PNG·JPEG로 내보내세요. Academic Poster Skill을 설치하면 Agent가 논문을 바탕으로 포스터를 만들 수도 있습니다.
+
 ## 로컬 우선
 
-원고는 일반 파일로 보관합니다. 대화 기록은 JSONL을 사용하며, 설정과 인덱스용 저장 계층은 SQLite로 변경 중입니다. 이는 진행 중인 저장 작업에 대한 설명이지 마이그레이션 완료 보장이 아닙니다. 모델, 이미지, 검색, 문서 분석 API 키는 로컬 앱 데이터베이스 `academic-agent/inkwell.sqlite`의 별도 테이블에 암호화 없이 저장됩니다. 프로젝트 설정이나 일반 설정 응답에는 포함되지 않으며 macOS/Linux에서는 데이터베이스 파일에 현재 사용자만 접근할 수 있습니다. 기존 시스템 자격 증명 저장소의 키는 한 번 다시 입력해야 합니다. Inkwell은 해당 저장소에 접근하거나 권한 팝업을 요청하지 않습니다.
+원고는 워크스페이스에, 대화는 로컬 JSONL 파일에 저장됩니다. 설정과 인덱스는 SQLite로 이전 중입니다. Inkwell 클라우드 계정이나 호스팅 백엔드가 필요하지 않습니다.
 
-Inkwell 클라우드 계정이나 호스팅 백엔드가 필요하지 않습니다. AI 요청은 선택한 제공자나 Agent에 문맥을 전송하며 Git, 업데이트, 다운로드도 네트워크를 사용할 수 있습니다. **로컬 우선이 모든 기능의 오프라인 동작이나 기기 외부 전송 차단을 의미하지는 않습니다.**
+API 키는 프로젝트 설정과 분리된 로컬 앱 데이터베이스(`academic-agent/inkwell.sqlite`)에 **암호화 없이** 저장됩니다. macOS/Linux에서는 현재 사용자만 데이터베이스 파일에 접근할 수 있습니다. 이전 시스템 자격 증명 저장소 버전을 사용했다면 키를 한 번 다시 입력하세요.
+
+AI 요청은 선택한 제공자나 Agent에 문맥을 전송합니다. Git 원격 작업, 업데이트, 다운로드에도 네트워크를 사용합니다.
 
 ## 시작하기
 
@@ -140,7 +151,7 @@ pnpm이 없으면 `npm install -g pnpm@11.5.0`을 사용하세요. Agent 준비�
 | macOS Apple Silicon / Intel | `.dmg` | 구성된 최소 버전: macOS 13.5 |
 | Linux x64 | `.deb`, `.AppImage` | CI는 Ubuntu 22.04 사용; 배포판별 검증 필요 |
 
-대상 플랫폼에서 `pnpm tauri:build`를 실행하거나 **Actions → Desktop build → Run workflow**를 선택하세요. 패키징은 Agent SDK와 Node sidecar를 준비합니다. **개발자 인증서 서명과 공증은 구성하지 않았습니다.** 테스트 설치 파일에 보안 경고가 나타날 수 있으며, 플랫폼별 설치·실행 검증이 필요합니다. [빌드 안내](docs/DESKTOP_BUILDS.md)를 참고하세요.
+대상 플랫폼에서 `pnpm tauri:build`를 실행하거나 **Actions → Desktop build → Run workflow**를 선택하세요. 패키징은 Agent SDK와 Node sidecar를 준비합니다. **개발자 인증서 서명과 공증은 구성하지 않았습니다.** 테스트 설치 파일에 보안 경고가 나타날 수 있으며, 플랫폼별 설치·실행 검증이 필요합니다. [빌드 워크플로](.github/workflows/desktop-build.yml)를 참고하세요.
 
 ## 개발
 
@@ -160,12 +171,10 @@ pnpm이 없으면 `npm install -g pnpm@11.5.0`을 사용하세요. Agent 준비�
 
 ## 문서
 
-- [개발자 안내](docs/dev.md)
-- [디자인 시스템](docs/DESIGN.md)
-- [Agent와 Skills 프레임워크](docs/AGENT_FRAMEWORK.md)
-- [외부 Agent](docs/external-agents.md)
-- [데스크톱 빌드](docs/DESKTOP_BUILDS.md)
-- [기여자 지침](AGENTS.md)
+- [데스크톱 빌드 워크플로](.github/workflows/desktop-build.yml)
+- [프런트엔드 기능 모듈](apps/desktop/src/features)
+- [네이티브 명령](apps/desktop/src-tauri/src/commands)
+- [Agent 런타임](packages/academic-agent)
 
 ## 라이선스와 감사의 말
 
