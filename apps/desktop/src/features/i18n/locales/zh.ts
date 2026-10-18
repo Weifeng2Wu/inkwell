@@ -2,6 +2,9 @@ import type { TranslationDictionary } from "./en";
 
 export const zh: TranslationDictionary = {
   skillCatalog: {
+    natureSuiteName: "Nature 学术写作套件",
+    natureSuiteDescription:
+      "论文写作与润色、研究计划、引用核验、数据声明、统计报告、模拟审稿和返修回复，按任务调用九个模块。",
     posterDescription:
       "先根据论文生成海报视觉参考，再重建为 Inkwell 原生可编辑的 .poster.json。保留论文事实与原始图表，支持画布编辑及 PPTX、SVG、PDF、PNG 导出。",
     builtIn: "Inkwell 内置",
@@ -26,7 +29,8 @@ export const zh: TranslationDictionary = {
     baseUrl: "Base URL",
     model: "模型",
     prompt: "解析提示词",
-    secure: "API Key 以未加密形式保存在本机 SQLite 数据库，不写入 localStorage。填写后请点击保存或测试。",
+    secure:
+      "API Key 以未加密形式保存在本机 SQLite 数据库，不写入 localStorage。填写后请点击保存或测试。",
     privacy: "PDF 将上传到所选解析服务商，解析后的文本再发送给当前 Agent。",
     save: "保存配置",
     test: "测试连通性",
@@ -41,7 +45,8 @@ export const zh: TranslationDictionary = {
   },
   formatSkill: {
     title: "制作格式审查 Skill",
-    scope: "仅检查投稿格式与提交合规，不评价科研质量，不润色或改写论文。",
+    scope:
+      "根据 author kit 生成专用格式检查 Skill，包含规则、原文依据和 PDF／LaTeX／Word 检查脚本。",
     create: "制作格式审查 Skill",
     usingAgent: "使用 {name} 生成",
     privacy:
@@ -68,8 +73,12 @@ export const zh: TranslationDictionary = {
     tooLong:
       "材料超出限制（80 个可读文件、80 KB 提取文本或单个 PDF 120 页）。请选择与投稿要求相关的较小材料集，不会静默截断。",
     invalidOutput: "Agent 未返回有效的格式检查清单，或规则缺少可核验的原文引用。请检查材料后重试。",
+    questions: "请补充投稿信息后继续生成",
+    answers: "按顺序回答上面的问题",
+    calibration:
+      "尚未用官方样例和违规样例校准。保存不代表检查已通过；自动检查需可用的 Python 环境和执行权限。",
     working: "处理中…",
-    generate: "生成检查清单",
+    generate: "生成格式检查器",
     preview: "确认检查清单 · {count} 条规则",
     reviewHint:
       "保存前请核对每条规则、例外条件和原文依据。此工具可降低格式风险，但不保证录用或避免所有 desk reject。",
@@ -400,7 +409,8 @@ export const zh: TranslationDictionary = {
     loadingDistributions: "正在加载可用发行版...",
     filesFound: "找到 {count} 个文件",
     synctexNotAvailableTitle: "SyncTeX 不可用",
-    synctexRequiredDesc: "未找到 SyncTeX，暂时无法从 PDF 跳转到源码。您仍然可以编译文档和查看 PDF。",
+    synctexRequiredDesc:
+      "未找到 SyncTeX，暂时无法从 PDF 跳转到源码。您仍然可以编译文档和查看 PDF。",
     installSynctexButton: "安装 SyncTeX",
     willRunTlmgr: "将运行 {command}，如有需要会先更新 tlmgr。",
     installingViaTlmgr: "正在通过 tlmgr 安装 SyncTeX...",

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import type { AcademicConfig } from "./academic-client";
 import { type AcpAuthMethod, AcpClient, type AcpPermission, sharedPrompt } from "./acp-client";
+import { hasAcpConsent, rememberAcpConsent } from "./acp-consent";
 import type { ChatImage } from "./chat-input";
 import { prepareChatVision } from "./chat-vision";
 import {
@@ -312,7 +313,10 @@ export function useExternalAgent({
       )
         return;
       if (clientRef.current?.sessionId) return clientRef.current;
-      if (approvedScope.current !== scopeRef.current) {
+      if (
+        approvedScope.current !== scopeRef.current &&
+        !hasAcpConsent(selection.selected, launch)
+      ) {
         pendingReplacement.current = replaceExisting;
         setConfirmationScope(scopeRef.current);
         return;
@@ -649,6 +653,15 @@ export function useExternalAgent({
     confirmationAgent: selection.pendingSelection ?? selection.selected,
     confirmConnection: () => {
       if (selection.pendingSelection) {
+        try {
+          rememberAcpConsent(
+            selection.pendingSelection,
+            selection.launches[selection.pendingSelection],
+          );
+        } catch (caught) {
+          setError(String(caught));
+          return;
+        }
         approvedScope.current = JSON.stringify([
           selection.pendingSelection,
           directory,
@@ -659,6 +672,13 @@ export function useExternalAgent({
         return;
       }
       if (confirmationScope !== scopeRef.current) return;
+      if (selection.selected === "builtin") return;
+      try {
+        rememberAcpConsent(selection.selected, launch);
+      } catch (caught) {
+        setError(String(caught));
+        return;
+      }
       approvedScope.current = confirmationScope;
       setConfirmationScope(null);
       void connect(pendingReplacement.current);

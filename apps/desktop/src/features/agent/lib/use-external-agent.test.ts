@@ -132,7 +132,11 @@ async function settle() {
 
 beforeEach(() => {
   vi.stubGlobal("window", new EventTarget());
-  vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() });
+  const storage = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+  });
   vi.useFakeTimers();
   hooks.slots.clear();
   hooks.effects.clear();
@@ -170,6 +174,7 @@ describe("external Agent lifecycle", () => {
     // Keep the real selection hook's state separate from the connection hook.
     for (let step = 0; step < 3; step += 1) {
       hooks.cursor = 10000;
+      // biome-ignore lint/correctness/useHookAtTopLevel: This test harness explicitly renders the mocked hook slots.
       selection = useAgentSelection();
       for (const effect of hooks.pending.splice(0)) effect();
     }
@@ -200,7 +205,7 @@ describe("external Agent lifecycle", () => {
     expect(selection.selected).toBe(original);
     expect(agent.confirmationAgent).toBe("claude");
     expect(agent.connectionConfirmation).toBe(true);
-    expect(JSON.parse(storage.get("inkwell-agent-selection-v1")!).selected).toBe(original);
+    expect(JSON.parse(storage.get("inkwell-agent-selection-v1") ?? "{}").selected).toBe(original);
     agent.cancelConnection();
     renderSelection();
     render();
@@ -210,7 +215,7 @@ describe("external Agent lifecycle", () => {
     expect(agent.connectionConfirmation).toBe(false);
     expect(transport.connect).toHaveBeenCalledTimes(connections);
     expect(transport.disconnect).toHaveBeenCalledTimes(disconnects);
-    expect(JSON.parse(storage.get("inkwell-agent-selection-v1")!).selected).toBe(original);
+    expect(JSON.parse(storage.get("inkwell-agent-selection-v1") ?? "{}").selected).toBe(original);
   });
 
   it("saves and connects the chosen Agent only after confirmation, without a second prompt", async () => {
@@ -268,17 +273,15 @@ describe("external Agent lifecycle", () => {
     expect((await settle()).connected).toBe(true);
   });
 
-  it("requires fresh confirmation when the project, executable, or permissions change", async () => {
+  it("remembers consent across projects and permission changes but asks for a different executable", async () => {
     render();
     await settle();
     autoConfirm = false;
     directory = "/other-project";
     render();
     let agent = await settle();
-    expect(agent.connectionConfirmation).toBe(true);
-    expect(transport.connect).toHaveBeenCalledTimes(1);
-    agent.confirmConnection();
-    await settle();
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(transport.connect).toHaveBeenCalledTimes(2);
     selection = { ...selection, launches: { codex: { command: "/custom/codex", args: [] } } };
     render();
     agent = await settle();
@@ -291,6 +294,52 @@ describe("external Agent lifecycle", () => {
     agent = await settle();
     expect(agent.connectionConfirmation).toBe(true);
     expect(transport.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("reuses consent after the connection hook is remounted", async () => {
+    render();
+    await settle();
+    for (const effect of hooks.effects.values()) effect.cleanup?.();
+    await Promise.resolve();
+    hooks.slots.clear();
+    hooks.effects.clear();
+    hooks.pending = [];
+    autoConfirm = false;
+    render();
+    const agent = await settle();
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(agent.connected).toBe(true);
+    expect(transport.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("switches back to a previously approved Agent without showing the connection dialog", async () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+    });
+    renderSelection();
+    selection.setSelected("codex");
+    renderSelection();
+    render();
+    let agent = await settle();
+    agent.confirmConnection();
+    renderSelection();
+    render();
+    await settle();
+    selection.setSelected("builtin");
+    renderSelection();
+    render();
+    await settle();
+    autoConfirm = false;
+    selection.setSelected("codex");
+    renderSelection();
+    expect(selection.pendingSelection).toBeNull();
+    expect(selection.selected).toBe("codex");
+    render();
+    agent = await settle();
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(agent.connected).toBe(true);
   });
 
   it("sends parsed PDF reference content to text-only ACP agents", async () => {

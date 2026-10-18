@@ -149,7 +149,7 @@ describe("shared skill imports", () => {
       filters:
         mode === true
           ? undefined
-          : [{ name: "Skill", extensions: [mode === "zip" ? "zip" : "md"] }],
+          : [{ name: "Skill", extensions: mode === "zip" ? ["zip", "skill"] : ["md"] }],
     });
     expect(invoke).toHaveBeenCalledWith("agent_shared_skills", {
       request: { type: "skill_import", sourcePath: "/imports/skill.zip" },

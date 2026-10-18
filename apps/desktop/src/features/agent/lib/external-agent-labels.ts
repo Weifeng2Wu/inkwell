@@ -12,7 +12,7 @@ const en = {
     "Messages and project context may be sent to the Agent’s provider under its own account and data policies. Inkwell’s API keys are not shared.",
   controlTitle: "You control the connection",
   controlDescription:
-    "Tool approvals follow your selected permission mode and the Agent’s capabilities. You can disconnect or switch Agents at any time.",
+    "Tool approvals follow your selected permission mode and the Agent’s capabilities. Connection consent is remembered on this device for this Agent and launch command. You can disconnect or switch Agents at any time.",
   projectLabel: "Project",
   closeConnection: "Close connection confirmation",
   title: "Popular Agents",
@@ -98,7 +98,8 @@ const zh: typeof en = {
   dataDescription:
     "消息和项目上下文可能发送至 Agent 的服务商，遵循其账户设置和数据政策。Inkwell 的 API Key 不会共享给第三方 Agent。",
   controlTitle: "由你掌控连接",
-  controlDescription: "工具审批取决于所选权限模式和 Agent 的能力。你可以随时断开连接或切换 Agent。",
+  controlDescription:
+    "工具审批取决于所选权限模式和 Agent 的能力。此设备会记住对该 Agent 和启动命令的连接同意。你可以随时断开连接或切换 Agent。",
   projectLabel: "当前项目",
   closeConnection: "关闭连接确认",
   community:
@@ -184,7 +185,7 @@ const ko: typeof en = {
     "메시지와 프로젝트 문맥은 Agent 제공자의 계정 설정과 데이터 정책에 따라 전송될 수 있습니다. Inkwell API 키는 외부 Agent와 공유되지 않습니다.",
   controlTitle: "연결 제어",
   controlDescription:
-    "도구 승인은 선택한 권한 모드와 Agent 기능에 따라 처리됩니다. 언제든 연결을 해제하거나 Agent를 전환할 수 있습니다.",
+    "도구 승인은 선택한 권한 모드와 Agent 기능에 따라 처리됩니다. 이 기기에서 Agent와 실행 명령에 대한 연결 동의를 기억합니다. 언제든 연결을 해제하거나 Agent를 전환할 수 있습니다.",
   projectLabel: "현재 프로젝트",
   closeConnection: "연결 확인 닫기",
   community:

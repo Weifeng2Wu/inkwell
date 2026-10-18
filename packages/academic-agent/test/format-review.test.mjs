@@ -25,6 +25,14 @@ const request = () => ({
       check: "Count compiled PDF content pages separately from references.",
     },
   ],
+  checkerRules: {
+    venue: "Example 2027",
+    pdf: {
+      page_limit: { main_body: 8, main_body_ends_at: ["References"] },
+      _sources: { page_limit: "R1" },
+    },
+  },
+  kitNotes: "Initial submission. Calibration has not been run.",
 });
 
 test("builds format-only instructions and source-traceable declared resources", () => {
@@ -32,7 +40,7 @@ test("builds format-only instructions and source-traceable declared resources", 
   assert.match(skill.name, /^format-review-/);
   assert.match(skill.instructions, /Never review novelty/);
   assert.match(skill.instructions, /NOT VERIFIED/);
-  assert.match(skill.instructions, /references\/rules.json/);
+  assert.match(skill.instructions, /rules.json/);
   assert.equal(skill.rules[0].id, "R1");
   assert.equal(skill.sources[0].text, request().sources[0].text);
 });
@@ -59,7 +67,7 @@ test("preview does not install; explicit creation imports a reusable skill with 
     JSON.stringify({ schemaVersion: 1, skills: [] }),
   );
   const preview = await sharedSkills(directory, { ...request(), type: "format_skill_preview" });
-  assert.match(preview.instructions, /format-only/);
+  assert.match(preview.instructions, /submission format check/);
   assert.deepEqual(
     JSON.parse(await readFile(path.join(directory, "registry.json"), "utf8")).skills,
     [],
@@ -70,7 +78,19 @@ test("preview does not install; explicit creation imports a reusable skill with 
     type: "context",
     skillIds: [result.skills[0].id],
   });
-  assert.equal(exported.skills[0].resources.length, 2);
+  assert.ok(
+    exported.skills[0].resources.some((resource) => resource.path === "scripts/run_checks.py"),
+  );
+  assert.ok(
+    exported.skills[0].resources.some(
+      (resource) => resource.path === "scripts/checks/check_project.py",
+    ),
+  );
+  const engine = JSON.parse(
+    exported.skills[0].resources.find((resource) => resource.path === "rules.json").content,
+  );
+  assert.equal(engine.pdf.page_limit.main_body, 8);
+  assert.match(engine.pdf._sources.page_limit, /S1.*requirements.tex.*8 pages/);
   const rules = exported.skills[0].resources.find(
     (resource) => resource.path === "references/rules.json",
   );

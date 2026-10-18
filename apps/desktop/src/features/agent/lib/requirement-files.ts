@@ -61,7 +61,8 @@ export async function readRequirementFiles(
       } else if (TEXT_EXTENSIONS.test(file.name)) {
         const bytes = await file.arrayBuffer();
         try {
-          text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+          // Preserve a style file's BOM for official-file integrity comparisons.
+          text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         } catch {
           throw new Error(`${file.name}: ${errors.unreadable}`);
         }

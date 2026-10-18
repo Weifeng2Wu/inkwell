@@ -2,9 +2,11 @@ import { buildFormatReviewSkill, createFormatReviewSkill } from "./format-review
 import { importGitHubSkill, syncBundledSkills, syncGitHubSkills } from "./github-skills.mjs";
 import { SkillLibrary } from "./library.mjs";
 import { changeMarketSkill, importSkill, marketCatalog } from "./market.mjs";
+import { venueFactoryContext } from "./venue-factory.mjs";
 import { readRequirementZip } from "./zip-skills.mjs";
 
 export async function sharedSkills(directory, request) {
+  if (request.type === "format_factory_context") return venueFactoryContext();
   if (request.type === "format_requirements_zip") return readRequirementZip(request.data);
   if (request.type === "format_skill_preview") return buildFormatReviewSkill(request);
   if (request.type === "format_skill_create") {

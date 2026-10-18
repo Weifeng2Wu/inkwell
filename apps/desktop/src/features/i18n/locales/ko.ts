@@ -2,6 +2,9 @@ import type { TranslationDictionary } from "./en";
 
 export const ko: TranslationDictionary = {
   skillCatalog: {
+    natureSuiteName: "Nature 학술 글쓰기 도구 모음",
+    natureSuiteDescription:
+      "논문 작성 및 교정, 연구 제안서, 인용 검증, 데이터 공개 명세, 통계 보고, 모의 동료 심사와 수정 답변을 위한 9개 모듈을 작업에 맞게 사용합니다.",
     posterDescription:
       "논문으로 편집 가능한 학술 포스터를 만듭니다. 클래식·미니멀·모던 스타일과 다양한 용지 크기 및 방향을 지원합니다. Inkwell에서 텍스트, 글꼴 크기, 이미지와 배치를 편집하고 PPTX 또는 SVG로 내보낼 수 있습니다.",
     builtIn: "Inkwell 기본 제공",
@@ -43,7 +46,8 @@ export const ko: TranslationDictionary = {
   },
   formatSkill: {
     title: "형식 검토 Skill 만들기",
-    scope: "투고 형식과 제출 규정만 확인합니다. 연구 평가, 문장 교정 및 다시 쓰기는 하지 않습니다.",
+    scope:
+      "Author kit에서 출처가 있는 규칙과 PDF, LaTeX, Word 검사 스크립트를 포함한 전용 Skill을 생성합니다.",
     create: "형식 검토 Skill 만들기",
     usingAgent: "{name}으로 생성",
     privacy:
@@ -72,8 +76,12 @@ export const ko: TranslationDictionary = {
       "읽을 수 있는 파일 80개, 추출 텍스트 80 KB 또는 PDF당 120페이지를 초과했습니다. 관련 요구사항을 더 작은 자료 모음으로 업로드하세요. 자동으로 잘라내지 않습니다.",
     invalidOutput:
       "Agent가 유효한 형식 체크리스트 또는 확인 가능한 원문 인용을 반환하지 않았습니다. 자료를 확인하고 다시 시도하세요.",
+    questions: "계속하려면 투고 정보를 보충하세요",
+    answers: "위 질문에 순서대로 답하세요",
+    calibration:
+      "공식 및 위반 샘플로 보정하지 않았습니다. 저장은 규정 준수를 보장하지 않습니다. 자동 검사에는 Python 환경과 실행 권한이 필요합니다.",
     working: "처리 중…",
-    generate: "체크리스트 생성",
+    generate: "투고 형식 검사기 생성",
     preview: "체크리스트 확인 · {count}개 규칙",
     reviewHint:
       "저장 전 모든 규칙, 예외 및 원문 근거를 확인하세요. 형식 위험을 줄일 수 있지만 게재나 데스크 리젝 방지를 보장하지 않습니다.",

@@ -1071,6 +1071,8 @@ pub async fn agent_shared_skills(
             "skills/github-bundle.json",
             include_str!("../../../../../packages/academic-agent/skills/github-bundle.json"),
         ),
+        ("venue-factory.mjs", include_str!("../../../../../packages/academic-agent/src/venue-factory.mjs")),
+        ("skills/venue-factory-bundle.json", include_str!("../../../../../packages/academic-agent/skills/venue-factory-bundle.json")),
         (
             "skills/nature-bundle.json",
             include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json"),

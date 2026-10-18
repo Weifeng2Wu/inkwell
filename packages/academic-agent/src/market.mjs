@@ -11,7 +11,25 @@ import {
 import { AppDatabase } from "./storage.mjs";
 import { importSkillZip } from "./zip-skills.mjs";
 
-const TEXT_EXTENSIONS = new Set([".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".bib", ".tex"]);
+// Scripts are stored as declared text resources; importing never executes them.
+const TEXT_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".csv",
+  ".bib",
+  ".tex",
+  ".py",
+  ".sty",
+  ".cls",
+  ".bst",
+  ".bbx",
+  ".cbx",
+  ".def",
+  ".cfg",
+]);
 
 export async function withSkillStoreLock(directory, operation) {
   const lock = path.join(directory, ".skill-store-lock");
@@ -95,7 +113,7 @@ async function importSkillContents(directory, sourcePath) {
     throw new Error("Choose a local SKILL.md file or skill folder.");
   const sourceInfo = await lstat(sourcePath);
   if (sourceInfo.isSymbolicLink()) throw new Error("Symlinked uploads are not allowed.");
-  if (sourceInfo.isFile() && path.extname(sourcePath).toLowerCase() === ".zip") {
+  if (sourceInfo.isFile() && [".zip", ".skill"].includes(path.extname(sourcePath).toLowerCase())) {
     if (sourceInfo.size > 8 * 1024 * 1024) throw new Error("ZIP exceeds the 8 MiB limit.");
     return importSkillZip(sourcePath, (folder) => importSkillContents(directory, folder));
   }

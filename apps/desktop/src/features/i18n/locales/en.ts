@@ -1,5 +1,8 @@
 export const en = {
   skillCatalog: {
+    natureSuiteName: "Nature Academic Writing Suite",
+    natureSuiteDescription:
+      "Nine modules for manuscript writing and polishing, research proposals, citation verification, data statements, statistical reporting, mock peer review and revision responses, selected to match your task.",
     posterDescription:
       "Generate a visual poster reference from a paper, then rebuild it as an editable Inkwell .poster.json. Preserve verified claims and original figures, edit the native canvas, and export to PPTX, SVG, PDF or images.",
     builtIn: "Inkwell built-in",
@@ -43,7 +46,8 @@ export const en = {
   },
   formatSkill: {
     title: "Create a format-review Skill",
-    scope: "Check submission formatting only — no scientific review, rewriting or writing advice.",
+    scope:
+      "Build a venue-specific format Skill from an author kit, with sourced rules and PDF, LaTeX and Word checking scripts.",
     create: "Create format-review Skill",
     usingAgent: "Generate with {name}",
     privacy:
@@ -72,8 +76,12 @@ export const en = {
       "Requirements exceed 80 readable files, 80 KB extracted text or 120 pages per PDF. Upload a smaller set of relevant requirements; nothing is silently truncated.",
     invalidOutput:
       "The Agent did not return a valid format checklist with verifiable source quotes. Review the requirements and try again.",
+    questions: "Clarify the submission details to continue",
+    answers: "Answer the questions above in order",
+    calibration:
+      "Not calibrated on official or mutated samples. Saving does not establish compliance. Automated checks require a working Python environment and execution permission.",
     working: "Processing…",
-    generate: "Generate checklist",
+    generate: "Generate venue checker",
     preview: "Review checklist · {count} rules",
     reviewHint:
       "Verify every rule, exception and source quote before saving. This check reduces formatting risk but cannot guarantee acceptance or prevent desk rejection.",

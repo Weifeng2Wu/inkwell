@@ -8,6 +8,7 @@ const keys = new Set([
   "rightPanelWidth",
   "terminalHeight",
   "inkwell-agent-selection-v1",
+  "inkwell-acp-consent-v1",
   "inkwell-layout-parser-v1",
   "inkwell-quick-start-v1",
   "inkwell-keyboard-shortcuts-v1",

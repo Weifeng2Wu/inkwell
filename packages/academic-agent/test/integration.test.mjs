@@ -84,6 +84,12 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
         }),
       },
     },
+    {
+      name: "run_python",
+      arguments: {
+        code: "from pathlib import Path\nPath('python-result.txt').write_text(str(6*7))\nprint(6*7)",
+      },
+    },
   ];
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/v1/models") {
@@ -195,7 +201,10 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
         else waiting.reject(new Error(event.error));
       }
     } else if (event.type === "permission_request") {
-      if (event.path.endsWith(".poster.json")) {
+      if (event.kind === "python") {
+        assert.match(event.after, /print\(6\*7\)/);
+        assert.match(event.after, /Working directory:/);
+      } else if (event.path.endsWith(".poster.json")) {
         assert.equal(event.before, null);
         assert.equal(JSON.parse(event.after).version, 1);
       } else {
@@ -283,21 +292,25 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
   });
   assert.equal(searchSession.supportsWebSearch, true);
   assert.ok(searchSession.tools.includes("web_search"));
-  await assert.rejects(command("test_web_search", {
-    webSearch: { baseUrl: "http://invalid.example" },
-    webSearchApiKey: "fixture-search-key",
-  }), /HTTPS/);
+  await assert.rejects(
+    command("test_web_search", {
+      webSearch: { baseUrl: "http://invalid.example" },
+      webSearchApiKey: "fixture-search-key",
+    }),
+    /HTTPS/,
+  );
   const session = await command("configure", configuration);
   assert.equal(session.supportsWebSearch, false);
   assert.equal(session.supportsImages, false);
   assert.deepEqual(
     new Set(session.tools),
-    new Set(["read", "write_poster", "edit", "load_skill", "read_skill_resource"]),
+    new Set(["run_python", "read", "write_poster", "edit", "load_skill", "read_skill_resource"]),
   );
   const result = await command("prompt", { text: "Run the test workflow." });
   assert.equal(result.text, "Completed fixture task.");
   assert.equal(await readFile(path.join(project, "paper.tex"), "utf8"), "Revised");
-  assert.equal(requests.length, 6);
+  assert.equal(requests.length, 7);
+  assert.equal(await readFile(path.join(project, "python-result.txt"), "utf8"), "42");
   assert.equal(
     JSON.parse(await readFile(path.join(project, "posters/result.poster.json"), "utf8")).title,
     "Poster",
@@ -425,7 +438,10 @@ test("real runtime: lazy skills, tool loop, edit approval, isolated resume, canc
     permissionMode: "auto",
     skillIds: [],
   });
-  assert.deepEqual(new Set(automatic.tools), new Set(["read", "write_poster", "edit"]));
+  assert.deepEqual(
+    new Set(automatic.tools),
+    new Set(["run_python", "read", "write_poster", "edit"]),
+  );
   const asking = await command("configure", {
     ...configuration,
     permissionMode: "ask",

@@ -431,7 +431,7 @@ export function useAcademicAgent({
         filters:
           mode === true
             ? undefined
-            : [{ name: "Skill", extensions: [mode === "zip" ? "zip" : "md"] }],
+            : [{ name: "Skill", extensions: mode === "zip" ? ["zip", "skill"] : ["md"] }],
       });
       if (!sourcePath || typeof sourcePath !== "string") return;
       const result = await requestOperation<AgentCatalog>("skill_import", { sourcePath }, false);

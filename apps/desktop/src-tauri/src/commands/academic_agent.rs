@@ -46,10 +46,13 @@ fn runtime_files() -> Vec<(&'static str, &'static str)> {
         ("github-skills.mjs", GITHUB_SKILLS),
         ("zip-skills.mjs", ZIP_SKILLS),
         ("skills/github-bundle.json", GITHUB_BUNDLE),
+        ("venue-factory.mjs", include_str!("../../../../../packages/academic-agent/src/venue-factory.mjs")),
+        ("skills/venue-factory-bundle.json", include_str!("../../../../../packages/academic-agent/skills/venue-factory-bundle.json")),
         ("skills/nature-bundle.json", include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json")),
         ("skills/poster-bundle.json", include_str!("../../../../../packages/academic-agent/skills/poster-bundle.json")),
         ("history.mjs", HISTORY),
         ("policy.mjs", POLICY),
+        ("python.mjs", include_str!("../../../../../packages/academic-agent/src/python.mjs")),
         ("protocol.mjs", PROTOCOL),
     ]
 }
@@ -132,8 +135,11 @@ fn project_path(state: &tauri::State<'_, Mutex<ProjectState>>) -> Result<String,
 async fn stop_runtime(runtime: &mut Option<Runtime>) {
     if let Some(mut running) = runtime.take() {
         let _ = running.stdin.shutdown().await;
-        let _ = running.child.kill().await;
-        let _ = running.child.wait().await;
+        // Allow the bridge to cancel Python process groups and remove temporary resources.
+        if tokio::time::timeout(Duration::from_secs(2), running.child.wait()).await.is_err() {
+            let _ = running.child.kill().await;
+            let _ = running.child.wait().await;
+        }
     }
 }
 

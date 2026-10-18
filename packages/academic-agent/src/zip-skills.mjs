@@ -4,7 +4,7 @@ import path from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { MAX_RESOURCE_BYTES } from "./library.mjs";
 
-const TEXT = /\.(md|txt|json|yaml|yml|csv|bib|tex)$/i;
+const TEXT = /\.(md|txt|json|yaml|yml|csv|bib|tex|py|sty|cls|bst|bbx|cbx|def|cfg)$/i;
 const MAX_ARCHIVE = 8 * 1024 * 1024;
 
 function checksum(bytes) {

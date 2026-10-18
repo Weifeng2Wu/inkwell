@@ -34,6 +34,7 @@ describe("Agent product copy", () => {
     expect(academicLabels.en.keySaveFailed).toContain("SQLite");
     expect(academicLabels.en.disclosure).toContain("permission mode");
     expect(academicLabels.en.permissionsDefault).toContain("Restricted mode allows reading only");
-    expect(academicLabels.en.marketHint).toContain("Skill scripts are not run");
+    expect(academicLabels.en.marketHint).toContain("Python skill scripts can run");
+    expect(academicLabels.en.permissionsDefault).toContain("disables Python");
   });
 });

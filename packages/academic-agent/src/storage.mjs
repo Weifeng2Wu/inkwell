@@ -19,6 +19,7 @@ const KEYS = new Set([
   "rightPanelWidth",
   "terminalHeight",
   "inkwell-agent-selection-v1",
+  "inkwell-acp-consent-v1",
   "inkwell-layout-parser-v1",
   "inkwell-quick-start-v1",
   "inkwell-keyboard-shortcuts-v1",
@@ -88,23 +89,35 @@ function safeSetting(key, value) {
     safe.imageGeneration = { baseUrl: image.baseUrl, model: image.model };
   }
   if (safe.webSearch !== undefined) {
-    if (!safe.webSearch || typeof safe.webSearch.baseUrl !== "string" || safe.webSearch.baseUrl.length > 2048)
+    if (
+      !safe.webSearch ||
+      typeof safe.webSearch.baseUrl !== "string" ||
+      safe.webSearch.baseUrl.length > 2048
+    )
       throw new Error("Invalid web-search configuration.");
     safe.webSearch = { baseUrl: safe.webSearch.baseUrl };
   }
   if (safe.modelCapabilities !== undefined) {
     const profiles = safe.modelCapabilities;
     const sources = ["provider", "catalog", "manual", "unknown", "runtime"];
-    const valid = (cap) => cap && (cap.supported === null || typeof cap.supported === "boolean") && sources.includes(cap.source);
+    const valid = (cap) =>
+      cap &&
+      (cap.supported === null || typeof cap.supported === "boolean") &&
+      sources.includes(cap.source);
     safe.modelCapabilities = Object.fromEntries(
-      Object.entries(profiles && typeof profiles === "object" && !Array.isArray(profiles) ? profiles : {})
+      Object.entries(
+        profiles && typeof profiles === "object" && !Array.isArray(profiles) ? profiles : {},
+      )
         .slice(-256)
         .filter(([, profile]) => valid(profile?.vision) && valid(profile?.reasoning))
-        .map(([scope, profile]) => [scope, {
-          vision: { supported: profile.vision.supported, source: profile.vision.source },
-          reasoning: { supported: profile.reasoning.supported, source: profile.reasoning.source },
-          web: { supported: false, source: "runtime" },
-        }]),
+        .map(([scope, profile]) => [
+          scope,
+          {
+            vision: { supported: profile.vision.supported, source: profile.vision.source },
+            reasoning: { supported: profile.reasoning.supported, source: profile.reasoning.source },
+            web: { supported: false, source: "runtime" },
+          },
+        ]),
     );
   }
   return JSON.stringify(safe);
@@ -306,13 +319,22 @@ export class AppDatabase {
       if (typeof request.account !== "string" || !/^[a-f0-9]{64}$/.test(request.account))
         throw new Error("Invalid credential account.");
       if (request.type === "credential_read") {
-        const record = this.db.prepare("SELECT value FROM api_credentials WHERE account=?").get(request.account);
+        const record = this.db
+          .prepare("SELECT value FROM api_credentials WHERE account=?")
+          .get(request.account);
         return { value: record?.value ?? null };
       }
-      if (typeof request.apiKey !== "string" || !request.apiKey.trim() || request.apiKey.length > 16384)
+      if (
+        typeof request.apiKey !== "string" ||
+        !request.apiKey.trim() ||
+        request.apiKey.length > 16384
+      )
         throw new Error("Invalid API key.");
       return this.transaction(() => {
-        this.db.prepare("INSERT INTO api_credentials VALUES (?,?,?) ON CONFLICT(account) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
+        this.db
+          .prepare(
+            "INSERT INTO api_credentials VALUES (?,?,?) ON CONFLICT(account) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
+          )
           .run(request.account, request.apiKey.trim(), Date.now());
         return { ok: true };
       });

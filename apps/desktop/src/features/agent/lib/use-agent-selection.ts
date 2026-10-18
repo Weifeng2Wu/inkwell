@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { appStorage } from "@/lib/storage/app-storage";
+import { hasAcpConsent } from "./acp-consent";
 import {
   type AgentSelection,
   type ExternalAgentId,
@@ -70,14 +71,14 @@ export function useAgentSelection() {
 
   const setSelected = useCallback(
     (next: AgentSelection) => {
-      if (next === "builtin" || next === selected) {
+      if (next === "builtin" || next === selected || hasAcpConsent(next, launches[next])) {
         setPendingSelection(null);
         commitSelected(next);
       } else {
         setPendingSelection(next);
       }
     },
-    [selected],
+    [selected, launches],
   );
 
   function confirmSelection() {

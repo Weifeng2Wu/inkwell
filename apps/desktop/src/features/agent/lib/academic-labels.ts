@@ -48,7 +48,7 @@ const en = {
   invalidGitHubLink: "Enter an HTTPS GitHub repository or skill folder link.",
   uploadFolder: "Import skill folder",
   marketHint:
-    "Import SKILL.md or a skill folder to add writing guidance. Installed skills are available to the current Agent and disclose their instructions progressively. Skill scripts are not run.",
+    "Import SKILL.md or a skill folder to add writing guidance. Installed skills are available to the current Agent and disclose their instructions progressively. Python skill scripts can run with the selected permission mode.",
   skillScopeHint:
     "Installed Skills are available to the current Agent; their instructions are still disclosed progressively only when needed.",
   marketSearch: "Search skills",
@@ -65,7 +65,7 @@ const en = {
   marketEmpty: "No matching skills. Try another search or import a skill.",
   marketConflict: "This skill is managed outside Inkwell and cannot be changed here.",
   permissionsDefault:
-    "Restricted mode allows reading only. Ask every time approves each edit in the review copy. Auto approve skips tool confirmation. Original files change only after you accept the diff.",
+    "Restricted mode allows reading only and disables Python. Ask every time requests approval for edits and Python code. Auto approve skips tool confirmation. Python runs locally with your account’s file and network access; it is not an OS sandbox. Manuscript edits should stay in the review copy.",
   settings: "Agent settings",
   settingsDescription: "Models and response preferences",
   connectForSkills: "Load skills to choose which to use in this project.",
@@ -145,6 +145,8 @@ const en = {
   original: "Original",
   proposed: "Proposed content",
   editRequest: "Edit approval",
+  pythonRequest: "Python execution approval",
+  pythonCode: "Code and execution details",
   openProject: "Open a project first.",
   settingsProjectHint:
     "You can configure settings now. Open a project to fetch models or test the connection.",
@@ -204,7 +206,7 @@ export const academicLabels: Record<Locale, typeof en> = {
     invalidGitHubLink: "请输入 HTTPS GitHub 仓库或 Skill 文件夹链接。",
     uploadFolder: "导入 Skill 文件夹",
     marketHint:
-      "导入 SKILL.md 或 Skill 文件夹，添加写作指导。已安装的 Skill 可供当前 Agent 使用，并按需渐进式披露指令；不会运行其中的脚本。",
+      "导入 SKILL.md 或 Skill 文件夹，添加写作指导。已安装的 Skill 可供当前 Agent 使用，并按需渐进式披露指令；Python 脚本按所选权限模式执行。",
     skillScopeHint: "已安装的 Skill 可供当前 Agent 使用，并仍按需渐进式披露指令。",
     marketSearch: "搜索 Skills",
     install: "安装",
@@ -220,7 +222,7 @@ export const academicLabels: Record<Locale, typeof en> = {
     marketEmpty: "暂无匹配的 Skill，可更换搜索词或导入 Skill。",
     marketConflict: "此 Skill 由外部来源管理，无法在此修改。",
     permissionsDefault:
-      "受限模式仅读取文件；每次询问需确认工作副本修改；自动批准跳过工具确认。所有修改均需审阅接受后才写入原文件。",
+      "受限模式仅读取并禁用 Python；每次询问需确认文件修改和 Python 代码；自动批准跳过工具确认。Python 以当前账户在本地运行，可访问文件和网络，并非系统沙箱。稿件修改应保留在审阅副本中。",
     personalPrompt: "回答偏好（选填）",
     personalPromptPlaceholder: "例如：默认使用中文回复，回答简洁，保留原有 LaTeX 命令。",
     personalPromptHint: "设置回答的语气、长度或写作风格。",
@@ -293,6 +295,8 @@ export const academicLabels: Record<Locale, typeof en> = {
     original: "原内容",
     proposed: "拟写入内容",
     editRequest: "修改确认",
+    pythonRequest: "Python 执行确认",
+    pythonCode: "代码与执行信息",
     openProject: "请先打开项目。",
     settingsProjectHint: "可先配置并自动保存设置，打开项目后即可获取模型列表和测试连接。",
     closeHint: "关闭面板将停止 Agent，对话记录保存在本机。",
@@ -349,7 +353,7 @@ export const academicLabels: Record<Locale, typeof en> = {
     invalidGitHubLink: "HTTPS GitHub 저장소 또는 Skill 폴더 링크를 입력하세요.",
     uploadFolder: "Skill 폴더 가져오기",
     marketHint:
-      "SKILL.md 또는 Skill 폴더를 가져와 글쓰기 지침을 추가하세요. 설치된 Skill은 현재 Agent가 사용할 수 있으며 지침은 필요할 때 점진적으로 공개됩니다. 스크립트는 실행하지 않습니다.",
+      "SKILL.md 또는 Skill 폴더를 가져와 글쓰기 지침을 추가하세요. 설치된 Skill은 현재 Agent가 사용할 수 있으며 지침은 필요할 때 점진적으로 공개됩니다. Python 스크립트는 선택한 권한 모드에 따라 실행됩니다.",
     skillScopeHint:
       "설치된 Skill은 현재 Agent가 사용할 수 있으며 지침은 필요할 때 점진적으로 공개됩니다.",
     marketSearch: "Skills 검색",
@@ -366,7 +370,7 @@ export const academicLabels: Record<Locale, typeof en> = {
     marketEmpty: "일치하는 Skill이 없습니다. 검색어를 바꾸거나 Skill을 가져오세요.",
     marketConflict: "이 Skill은 Inkwell 외부에서 관리되어 여기서 변경할 수 없습니다.",
     permissionsDefault:
-      "제한 모드는 읽기만 허용합니다. 매번 확인은 작업 사본 수정을 승인하고 자동 승인은 도구 확인을 생략합니다. 원본은 차이를 검토하고 수락한 뒤에만 변경됩니다.",
+      "제한 모드는 읽기만 허용하고 Python을 비활성화합니다. 매번 확인은 파일 수정과 Python 코드를 승인하며 자동 승인은 확인을 생략합니다. Python은 현재 계정의 파일 및 네트워크 권한으로 로컬 실행되며 OS 샌드박스가 아닙니다. 원고 수정은 검토 사본에 보관해야 합니다.",
     personalPrompt: "응답 선호 (선택 사항)",
     personalPromptPlaceholder: "예: 한국어로 간결하게 답하고 기존 LaTeX 명령을 유지하세요.",
     personalPromptHint: "원하는 말투, 길이 또는 글쓰기 스타일을 설정하세요.",
@@ -388,7 +392,8 @@ export const academicLabels: Record<Locale, typeof en> = {
     provider: "공급자 ID",
     model: "모델 이름",
     key: "API 키",
-    keyHint: "키를 입력하거나 덮어쓰세요. 입력란을 벗어나면 이 기기의 SQLite 데이터베이스에 저장됩니다.",
+    keyHint:
+      "키를 입력하거나 덮어쓰세요. 입력란을 벗어나면 이 기기의 SQLite 데이터베이스에 저장됩니다.",
     keyLoading: "API 키 불러오는 중…",
     imageGeneration: "이미지 생성",
     imageGenerationBaseUrl: "이미지 API Base URL",
@@ -404,7 +409,8 @@ export const academicLabels: Record<Locale, typeof en> = {
     webSearchGetKey: "API 키 발급",
     webSearchBaseUrl: "검색 API Base URL",
     webSearchKey: "검색 API 키",
-    webSearchKeyHint: "Tavily API 키를 이 기기에 저장하면 Agent에서 web_search를 사용할 수 있습니다.",
+    webSearchKeyHint:
+      "Tavily API 키를 이 기기에 저장하면 Agent에서 web_search를 사용할 수 있습니다.",
     testWebSearch: "검색 API 테스트",
     webSearchTestHint: "Tavily 검색 요청 1회로 검색 크레딧이 사용될 수 있습니다.",
     testingWebSearch: "테스트 중…",
@@ -443,6 +449,8 @@ export const academicLabels: Record<Locale, typeof en> = {
     original: "원본",
     proposed: "제안 내용",
     editRequest: "편집 승인",
+    pythonRequest: "Python 실행 승인",
+    pythonCode: "코드 및 실행 정보",
     openProject: "먼저 프로젝트를 여세요.",
     settingsProjectHint:
       "설정은 지금 수정하고 자동 저장할 수 있습니다. 모델 조회와 연결 테스트는 프로젝트를 연 뒤 사용할 수 있습니다.",

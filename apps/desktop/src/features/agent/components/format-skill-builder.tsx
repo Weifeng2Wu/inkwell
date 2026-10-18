@@ -7,10 +7,12 @@ import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { useI18n } from "@/features/i18n";
 import { EXTERNAL_AGENTS } from "../lib/external-agent-catalog";
 import {
+  type FormatRule,
   formatReviewPrompt,
   MAX_REQUIREMENT_BYTES,
-  parseFormatRules,
+  parseVenueDraft,
   type RequirementSource,
+  type VenueFactoryContext,
 } from "../lib/format-review";
 import { REQUIREMENT_ACCEPT, readRequirementFiles } from "../lib/requirement-files";
 import type { AcademicAgentController } from "../lib/use-academic-agent";
@@ -20,7 +22,9 @@ import { AgentLogo } from "./agent-logo";
 
 type Draft = {
   name: string;
-  rules: ReturnType<typeof parseFormatRules>;
+  rules: FormatRule[];
+  checkerRules: Record<string, unknown>;
+  kitNotes: string;
   sources: RequirementSource[];
   instructions: string;
 };
@@ -44,6 +48,9 @@ export function FormatSkillBuilder({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [answers, setAnswers] = useState("");
+  const [decisions, setDecisions] = useState("");
   const pending = useRef(false);
   const upload = useRef<HTMLInputElement>(null);
   const titleId = useId();
@@ -64,6 +71,12 @@ export function FormatSkillBuilder({
     !runner ||
     Boolean(selection && !selection.ready) ||
     (external && !externalAgent?.connected);
+
+  function resetInterview() {
+    setQuestions([]);
+    setAnswers("");
+    setDecisions("");
+  }
 
   async function attach(files: File[]) {
     if (pending.current) return;
@@ -93,6 +106,7 @@ export function FormatSkillBuilder({
         throw new Error(t("formatSkill.tooLong"));
       setSources(merged.map((source, index) => ({ ...source, id: `S${index + 1}` })));
       setDraft(null);
+      resetInterview();
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -117,21 +131,53 @@ export function FormatSkillBuilder({
           name: t("formatSkill.pasted"),
           text: text.trim(),
         });
+      const userDecisions = [
+        decisions,
+        answers.trim()
+          ? `${questions.map((question, index) => `${index + 1}. ${question}`).join("\n")}\nUser answers: ${answers.trim()}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      if (userDecisions)
+        inputs.push({
+          id: `S${inputs.length + 1}`,
+          name: "User decisions",
+          text: userDecisions,
+        });
       if (!name.trim() || !inputs.length) throw new Error(t("formatSkill.required"));
       if (
         new TextEncoder().encode(inputs.map((source) => source.text).join("\n")).length >
         MAX_REQUIREMENT_BYTES
       )
         throw new Error(t("formatSkill.tooLong"));
-      const response = await runner.generateFormatSkill(formatReviewPrompt(name.trim(), inputs));
+      const factory = await invoke<VenueFactoryContext>("agent_shared_skills", {
+        request: { type: "format_factory_context" },
+      });
       if (activeScope.current !== scope) return;
-      let rules: ReturnType<typeof parseFormatRules>;
+      const response = await runner.generateFormatSkill(
+        formatReviewPrompt(name.trim(), inputs, factory),
+      );
+      if (activeScope.current !== scope) return;
+      let result: ReturnType<typeof parseVenueDraft>;
       try {
-        rules = parseFormatRules(response, inputs);
+        result = parseVenueDraft(response, inputs);
       } catch {
         throw new Error(t("formatSkill.invalidOutput"));
       }
-      const request = { name: name.trim(), rules, sources: inputs };
+      if ("questions" in result) {
+        setQuestions(result.questions ?? []);
+        setDecisions(userDecisions);
+        setAnswers("");
+        return;
+      }
+      const request = {
+        name: name.trim(),
+        rules: result.rules,
+        checkerRules: result.checkerRules,
+        kitNotes: result.kitNotes,
+        sources: inputs,
+      };
       const preview = await invoke<{ instructions: string }>("agent_shared_skills", {
         request: { ...request, type: "format_skill_preview" },
       });
@@ -155,6 +201,8 @@ export function FormatSkillBuilder({
         request: {
           name: draft.name,
           rules: draft.rules,
+          checkerRules: draft.checkerRules,
+          kitNotes: draft.kitNotes,
           sources: draft.sources,
           type: "format_skill_create",
         },
@@ -215,6 +263,7 @@ export function FormatSkillBuilder({
               disabled={busy}
               onChange={(event) => {
                 setName(event.target.value);
+                resetInterview();
                 setDraft(null);
                 setSuccess(false);
               }}
@@ -273,6 +322,7 @@ export function FormatSkillBuilder({
                     aria-label={t("formatSkill.remove", { name: source.name })}
                     onClick={() => {
                       setSources(sources.filter((entry) => entry !== source));
+                      resetInterview();
                       setDraft(null);
                     }}
                   >
@@ -293,6 +343,7 @@ export function FormatSkillBuilder({
               disabled={busy}
               onChange={(event) => {
                 setText(event.target.value);
+                resetInterview();
                 setDraft(null);
                 setSuccess(false);
               }}
@@ -329,10 +380,36 @@ export function FormatSkillBuilder({
               {t("formatSkill.saved")}
             </p>
           )}
+          {questions.length > 0 && (
+            <div className="space-y-2 rounded-md border border-border p-3 text-xs">
+              <p className="font-medium">{t("formatSkill.questions")}</p>
+              <ol className="list-decimal space-y-1 pl-5">
+                {questions.map((question) => (
+                  <li key={question}>{question}</li>
+                ))}
+              </ol>
+              <textarea
+                className="settings-control min-h-24 w-full py-2"
+                aria-label={t("formatSkill.answers")}
+                placeholder={t("formatSkill.answers")}
+                value={answers}
+                disabled={busy}
+                onChange={(event) => {
+                  setAnswers(event.target.value);
+                  setDraft(null);
+                }}
+              />
+            </div>
+          )}
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            disabled={disabled || !name.trim() || (!sources.length && !text.trim())}
+            disabled={
+              disabled ||
+              !name.trim() ||
+              (!sources.length && !text.trim()) ||
+              (questions.length > 0 && !answers.trim())
+            }
             onClick={() => void generate()}
           >
             <SparkleIcon className="size-4" aria-hidden="true" />
@@ -344,6 +421,12 @@ export function FormatSkillBuilder({
                 {t("formatSkill.preview", { count: draft.rules.length })}
               </h4>
               <p className="text-xs text-muted">{t("formatSkill.reviewHint")}</p>
+              <p className="text-xs text-warning">{t("formatSkill.calibration")}</p>
+              {draft.kitNotes && (
+                <div className="max-h-48 overflow-auto text-xs">
+                  <MarkdownContent text={draft.kitNotes} />
+                </div>
+              )}
               <div className="max-h-80 space-y-3 overflow-y-auto">
                 {draft.rules.map((rule, index) => (
                   <article

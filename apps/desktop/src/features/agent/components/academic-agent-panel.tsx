@@ -175,18 +175,23 @@ export function AcademicAgentPanel({
               <section
                 key={change.id}
                 className="space-y-2 rounded-md border border-border p-3"
-                aria-label={labels.editRequest}
+                aria-label={change.kind === "python" ? labels.pythonRequest : labels.editRequest}
               >
                 <h3 className="text-xs font-medium">
-                  {labels.editRequest}: <span className="font-mono break-all">{change.path}</span>
+                  {change.kind === "python" ? labels.pythonRequest : labels.editRequest}:{" "}
+                  <span className="font-mono break-all">{change.path}</span>
                 </h3>
-                <details>
-                  <summary className="cursor-pointer text-xs">{labels.original}</summary>
-                  <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
-                    {change.before}
-                  </pre>
-                </details>
-                <p className="text-xs">{labels.proposed}</p>
+                {change.kind !== "python" && (
+                  <details>
+                    <summary className="cursor-pointer text-xs">{labels.original}</summary>
+                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">
+                      {change.before}
+                    </pre>
+                  </details>
+                )}
+                <p className="text-xs">
+                  {change.kind === "python" ? labels.pythonCode : labels.proposed}
+                </p>
                 <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-secondary p-2 font-mono text-xs">
                   {change.after}
                 </pre>
