@@ -17,6 +17,11 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+# Reports include Unicode symbols and manuscript text even on Windows pipes.
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from checks.common import Finding, deep_merge  # noqa: E402
 

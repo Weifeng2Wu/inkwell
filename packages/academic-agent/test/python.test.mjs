@@ -17,13 +17,13 @@ test("Python runs code in the review copy, returns arguments and errors, and cle
   const tool = createPythonTool(root, "auto");
   const result = await tool.execute("call", {
     code: "import pathlib, sys, os\npathlib.Path('result.txt').write_text('computed')\nprint(6*7, sys.argv[1], os.environ['INKWELL_PYTHON_WORK'])",
-    args: ["argument with spaces"],
+    args: ["argument with spaces 中文 ✅"],
   });
   assert.equal(result.details.exitCode, 0);
-  assert.match(result.details.stdout, /^42 argument with spaces /);
+  assert.match(result.details.stdout, /^42 argument with spaces 中文 ✅ /);
   assert.equal(await readFile(path.join(root, "result.txt"), "utf8"), "computed");
   assert.deepEqual(await readdir(root), ["result.txt"]);
-  const temporary = result.details.stdout.trim().slice("42 argument with spaces ".length);
+  const temporary = result.details.stdout.trim().slice("42 argument with spaces 中文 ✅ ".length);
   await assert.rejects(readFile(path.join(temporary, "main.py")), /ENOENT/);
   const failure = await tool.execute("call", { code: "raise RuntimeError('fixture failure')" });
   assert.equal(failure.isError, true);

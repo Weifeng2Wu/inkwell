@@ -36,7 +36,7 @@ async function runProcess(script, args, cwd, temporary, timeout, signal) {
   return await new Promise((resolve, reject) => {
     const child = spawn(
       process.platform === "win32" ? "python" : "python3",
-      ["-I", "-u", script, ...args],
+      ["-I", "-X", "utf8", "-u", script, ...args],
       {
         cwd,
         env: pythonEnvironment(temporary),

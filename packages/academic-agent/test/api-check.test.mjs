@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 test("standalone API checks return independent results and failures without a chat session", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell-api-check-"));
@@ -26,7 +26,7 @@ test("standalone API checks return independent results and failures without a ch
   ));`);
   function run(request) {
     return new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, ["--import", preload,
+      const child = spawn(process.execPath, ["--import", pathToFileURL(preload).href,
         fileURLToPath(new URL("../src/api-check.mjs", import.meta.url)), sdk, directory],
         { stdio: ["pipe", "pipe", "pipe"] });
       let stdout = "";

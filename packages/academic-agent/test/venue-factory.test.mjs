@@ -162,7 +162,10 @@ test("the bundled engine passes a clean source and detects an anonymity violatio
         "--names",
         "Alice Example",
       ],
-      { encoding: "utf8", env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" } },
+      {
+        encoding: "utf8",
+        env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1", PYTHONIOENCODING: "cp1252" },
+      },
     );
   await writeFile(
     paper,
