@@ -131,7 +131,7 @@ export function ExternalAgentPanel({
               {labels.connecting}
             </p>
           )}
-          {!agent.connected && !agent.working && agent.error && directory && (
+          {!agent.connected && !agent.working && directory && (
             <button
               type="button"
               className="btn btn-sm"
@@ -141,7 +141,7 @@ export function ExternalAgentPanel({
                 else void agent.connect();
               }}
             >
-              {labels.retryConnection}
+              {agent.error ? labels.retryConnection : labels.connect}
             </button>
           )}
           {!directory && <p className="text-sm text-muted-foreground">{labels.noProject}</p>}

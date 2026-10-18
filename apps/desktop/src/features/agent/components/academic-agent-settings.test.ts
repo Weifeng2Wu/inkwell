@@ -206,6 +206,9 @@ describe("Agent configuration location", () => {
             agentSelection: {
               selected: "builtin",
               setSelected: vi.fn(),
+              pendingSelection: null,
+              confirmSelection: vi.fn(),
+              cancelSelection: vi.fn(),
               launches: {},
               saveLaunch: vi.fn(),
               ready: true,
@@ -510,7 +513,11 @@ describe("Agent configuration location", () => {
     expect(markup).toMatch(/<button[^>]*aria-label="[^"]+"[^>]*disabled=""/);
   });
 
-  it.each(["en", "zh", "ko"] as const)("shows localized starter buttons for a configured local model in %s", (locale) => {
+  it.each([
+    "en",
+    "zh",
+    "ko",
+  ] as const)("shows localized starter buttons for a configured local model in %s", (locale) => {
     const agent = createAgent({ apiKey: "", labels: academicLabels[locale] });
     const markup = renderToStaticMarkup(
       createElement(AcademicAgentPanel, { agent, onOpenSettings: vi.fn() }),

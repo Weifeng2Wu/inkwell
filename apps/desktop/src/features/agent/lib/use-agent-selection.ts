@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { appStorage } from "@/lib/storage/app-storage";
 import {
   type AgentSelection,
+  type ExternalAgentId,
   isAgentSelection,
   type LaunchOverride,
 } from "./external-agent-catalog";
@@ -11,7 +12,8 @@ import {
 const STORAGE_KEY = "inkwell-agent-selection-v1";
 
 export function useAgentSelection() {
-  const [selected, setSelected] = useState<AgentSelection>("builtin");
+  const [selected, commitSelected] = useState<AgentSelection>("builtin");
+  const [pendingSelection, setPendingSelection] = useState<ExternalAgentId | null>(null);
   const [launches, setLaunches] = useState<Record<string, LaunchOverride>>({});
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,8 @@ export function useAgentSelection() {
     try {
       const stored: unknown = JSON.parse(appStorage.getItem(STORAGE_KEY) ?? "null");
       if (stored && typeof stored === "object") {
-        if ("selected" in stored && isAgentSelection(stored.selected)) setSelected(stored.selected);
+        if ("selected" in stored && isAgentSelection(stored.selected))
+          commitSelected(stored.selected);
         if ("launches" in stored && stored.launches && typeof stored.launches === "object") {
           const valid: Record<string, LaunchOverride> = {};
           for (const [id, launch] of Object.entries(stored.launches)) {
@@ -65,7 +68,35 @@ export function useAgentSelection() {
     });
   }
 
-  return { selected, setSelected, launches, saveLaunch, ready, error };
+  const setSelected = useCallback(
+    (next: AgentSelection) => {
+      if (next === "builtin" || next === selected) {
+        setPendingSelection(null);
+        commitSelected(next);
+      } else {
+        setPendingSelection(next);
+      }
+    },
+    [selected],
+  );
+
+  function confirmSelection() {
+    if (!pendingSelection) return;
+    commitSelected(pendingSelection);
+    setPendingSelection(null);
+  }
+
+  return {
+    selected,
+    setSelected,
+    pendingSelection,
+    confirmSelection,
+    cancelSelection: () => setPendingSelection(null),
+    launches,
+    saveLaunch,
+    ready,
+    error,
+  };
 }
 
 export type AgentSelectionController = ReturnType<typeof useAgentSelection>;

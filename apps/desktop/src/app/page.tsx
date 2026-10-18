@@ -21,6 +21,7 @@ function safeConvertFileSrc(filePath: string, protocol = "asset"): string {
 }
 
 import { Logo } from "@/components/logo";
+import { AcpConnectionDialog } from "@/features/agent/components/acp-connection-dialog";
 import { InputDialog } from "@/components/ui/input-dialog";
 import {
   TabBar,
@@ -2339,6 +2340,15 @@ export default function EditorPage() {
 
   return (
     <div className="h-dvh flex flex-col">
+      {externalAgent.confirmationAgent !== "builtin" && (
+        <AcpConnectionDialog
+          selected={externalAgent.confirmationAgent}
+          directory={daemon.projectPath ?? undefined}
+          open={externalAgent.connectionConfirmation}
+          onConfirm={externalAgent.confirmConnection}
+          onCancel={externalAgent.cancelConnection}
+        />
+      )}
       <div data-workspace-shell className="flex-shrink-0 flex flex-col">
         <header className="h-12 border-b border-border flex items-center">
           <div className="w-full px-4 flex items-center justify-between gap-4">

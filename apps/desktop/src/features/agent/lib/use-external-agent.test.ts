@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLayoutImage, parseLayoutPdf } from "@/features/settings";
 import { DEFAULT_ACADEMIC_CONFIG } from "./academic-config";
 import type { AcpEvent } from "./acp-client";
-import type { AgentSelectionController } from "./use-agent-selection";
+import { type AgentSelectionController, useAgentSelection } from "./use-agent-selection";
 import { useExternalAgent } from "./use-external-agent";
 
 const hooks = vi.hoisted(() => ({
@@ -106,6 +106,7 @@ vi.mock("./acp-client", () => ({
 let selection: AgentSelectionController;
 let directory: string | undefined;
 let configReady = true;
+let autoConfirm = true;
 let config = { ...DEFAULT_ACADEMIC_CONFIG };
 function render() {
   hooks.cursor = 0;
@@ -118,10 +119,14 @@ function render() {
     onPendingMessageSent: vi.fn(),
   });
   for (const effect of hooks.pending.splice(0)) effect();
+  if (autoConfirm && agent.connectionConfirmation) agent.confirmConnection();
   return agent;
 }
 async function settle() {
-  await vi.runAllTimersAsync();
+  for (let step = 0; step < 3; step += 1) {
+    await vi.runAllTimersAsync();
+    render();
+  }
   return render();
 }
 
@@ -142,11 +147,15 @@ beforeEach(() => {
     ready: true,
     launches: {},
     setSelected: vi.fn(),
+    pendingSelection: null,
+    confirmSelection: vi.fn(),
+    cancelSelection: vi.fn(),
     saveLaunch: vi.fn(),
     error: null,
   };
   directory = "/project";
   configReady = true;
+  autoConfirm = true;
   config = { ...DEFAULT_ACADEMIC_CONFIG };
 });
 afterEach(async () => {
@@ -157,6 +166,133 @@ afterEach(async () => {
 });
 
 describe("external Agent lifecycle", () => {
+  function renderSelection() {
+    // Keep the real selection hook's state separate from the connection hook.
+    for (let step = 0; step < 3; step += 1) {
+      hooks.cursor = 10000;
+      selection = useAgentSelection();
+      for (const effect of hooks.pending.splice(0)) effect();
+    }
+    return selection;
+  }
+
+  it.each([
+    "builtin",
+    "codex",
+  ] as const)("keeps the saved %s Agent and its connection when a switch is cancelled", async (original) => {
+    const storage = new Map([
+      ["inkwell-agent-selection-v1", JSON.stringify({ selected: original, launches: {} })],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+    });
+    renderSelection();
+    render();
+    await settle();
+    const connections = transport.connect.mock.calls.length;
+    const disconnects = transport.disconnect.mock.calls.length;
+    autoConfirm = false;
+    selection.setSelected("claude");
+    renderSelection();
+    render();
+    let agent = await settle();
+    expect(selection.selected).toBe(original);
+    expect(agent.confirmationAgent).toBe("claude");
+    expect(agent.connectionConfirmation).toBe(true);
+    expect(JSON.parse(storage.get("inkwell-agent-selection-v1")!).selected).toBe(original);
+    agent.cancelConnection();
+    renderSelection();
+    render();
+    agent = await settle();
+    expect(selection.selected).toBe(original);
+    expect(selection.pendingSelection).toBeNull();
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(transport.connect).toHaveBeenCalledTimes(connections);
+    expect(transport.disconnect).toHaveBeenCalledTimes(disconnects);
+    expect(JSON.parse(storage.get("inkwell-agent-selection-v1")!).selected).toBe(original);
+  });
+
+  it("saves and connects the chosen Agent only after confirmation, without a second prompt", async () => {
+    const write = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem: write });
+    autoConfirm = false;
+    renderSelection();
+    render();
+    await settle();
+    selection.setSelected("claude");
+    renderSelection();
+    render();
+    (await settle()).confirmConnection();
+    renderSelection();
+    render();
+    const agent = await settle();
+    expect(selection.selected).toBe("claude");
+    expect(selection.pendingSelection).toBeNull();
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(agent.connected).toBe(true);
+    expect(transport.connect).toHaveBeenCalledExactlyOnceWith("claude", "/project", undefined);
+    expect(write).toHaveBeenLastCalledWith(
+      "inkwell-agent-selection-v1",
+      JSON.stringify({ selected: "claude", launches: {} }),
+    );
+  });
+
+  it("does not launch ACP until the user confirms, preserving their draft", async () => {
+    autoConfirm = false;
+    render();
+    let agent = await settle();
+    expect(agent.connectionConfirmation).toBe(true);
+    expect(transport.clients).toHaveLength(0);
+    expect(transport.connect).not.toHaveBeenCalled();
+    agent.setInput("Keep my draft");
+    agent.confirmConnection();
+    agent = await settle();
+    expect(agent.connected).toBe(true);
+    expect(agent.input).toBe("Keep my draft");
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(transport.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays disconnected after cancellation and lets the user reopen confirmation", async () => {
+    autoConfirm = false;
+    render();
+    (await settle()).cancelConnection();
+    let agent = await settle();
+    expect(agent.connectionConfirmation).toBe(false);
+    expect(transport.connect).not.toHaveBeenCalled();
+    await agent.connect();
+    agent = render();
+    expect(agent.connectionConfirmation).toBe(true);
+    agent.confirmConnection();
+    expect((await settle()).connected).toBe(true);
+  });
+
+  it("requires fresh confirmation when the project, executable, or permissions change", async () => {
+    render();
+    await settle();
+    autoConfirm = false;
+    directory = "/other-project";
+    render();
+    let agent = await settle();
+    expect(agent.connectionConfirmation).toBe(true);
+    expect(transport.connect).toHaveBeenCalledTimes(1);
+    agent.confirmConnection();
+    await settle();
+    selection = { ...selection, launches: { codex: { command: "/custom/codex", args: [] } } };
+    render();
+    agent = await settle();
+    expect(agent.connectionConfirmation).toBe(true);
+    expect(transport.connect).toHaveBeenCalledTimes(2);
+    const staleApproval = agent.confirmConnection;
+    config = { ...config, permissionMode: "auto" };
+    render();
+    staleApproval();
+    agent = await settle();
+    expect(agent.connectionConfirmation).toBe(true);
+    expect(transport.connect).toHaveBeenCalledTimes(2);
+  });
+
   it("sends parsed PDF reference content to text-only ACP agents", async () => {
     vi.mocked(invoke).mockImplementation(async (command) =>
       command === "read_chat_pdf" ? [37, 80, 68, 70] : { skills: [] },

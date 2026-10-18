@@ -49,6 +49,9 @@ export function useExternalAgent({
   translateRef.current = t;
   const visionAbort = useRef<AbortController | null>(null);
   const [connected, setConnected] = useState(false);
+  const [confirmationScope, setConfirmationScope] = useState<string | null>(null);
+  const approvedScope = useRef<string | null>(null);
+  const pendingReplacement = useRef(false);
   const [working, setWorking] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -97,6 +100,8 @@ export function useExternalAgent({
 
   useEffect(() => {
     scopeRef.current = sessionScope;
+    if (approvedScope.current !== sessionScope) approvedScope.current = null;
+    setConfirmationScope(null);
     messageScope.current = null;
     setConnected(false);
     setWorking(false);
@@ -307,6 +312,11 @@ export function useExternalAgent({
       )
         return;
       if (clientRef.current?.sessionId) return clientRef.current;
+      if (approvedScope.current !== scopeRef.current) {
+        pendingReplacement.current = replaceExisting;
+        setConfirmationScope(scopeRef.current);
+        return;
+      }
       busy.current = true;
       setWorking(true);
       setError(null);
@@ -634,6 +644,29 @@ export function useExternalAgent({
       return true;
     },
     connect,
+    connectionConfirmation:
+      Boolean(selection.pendingSelection) || confirmationScope === sessionScope,
+    confirmationAgent: selection.pendingSelection ?? selection.selected,
+    confirmConnection: () => {
+      if (selection.pendingSelection) {
+        approvedScope.current = JSON.stringify([
+          selection.pendingSelection,
+          directory,
+          JSON.stringify(selection.launches[selection.pendingSelection]),
+          config.permissionMode,
+        ]);
+        selection.confirmSelection();
+        return;
+      }
+      if (confirmationScope !== scopeRef.current) return;
+      approvedScope.current = confirmationScope;
+      setConfirmationScope(null);
+      void connect(pendingReplacement.current);
+    },
+    cancelConnection: () => {
+      setConfirmationScope(null);
+      selection.cancelSelection();
+    },
     disconnect,
     send,
     permission,

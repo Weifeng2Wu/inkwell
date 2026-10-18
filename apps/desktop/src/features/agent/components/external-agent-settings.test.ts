@@ -19,6 +19,9 @@ vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn(() => true), invoke: vi.
 const selection: AgentSelectionController = {
   selected: "codex",
   setSelected: vi.fn(),
+  pendingSelection: null,
+  confirmSelection: vi.fn(),
+  cancelSelection: vi.fn(),
   launches: {},
   saveLaunch: vi.fn(),
   ready: true,
@@ -33,6 +36,10 @@ describe("external Agent settings", () => {
   it("offers adapter authentication without requiring another terminal login", () => {
     const agent: ExternalAgentController = {
       connected: false,
+      connectionConfirmation: false,
+      confirmationAgent: "codex",
+      confirmConnection: vi.fn(),
+      cancelConnection: vi.fn(),
       working: true,
       input: "",
       setInput: vi.fn(),
@@ -94,7 +101,7 @@ describe("external Agent settings", () => {
       createElement(I18nProvider, null, createElement(AgentSelectionSettings, { selection })),
     );
     expect(markup).toContain('role="combobox"');
-    expect(markup).toContain('Default Agent');
+    expect(markup).toContain("Default Agent");
     expect(markup).not.toContain('value="codex"');
     expect(markup).not.toContain("External agents use ACP directly");
     expect(markup).not.toContain("Response preferences, skills and permission mode are shared");
@@ -122,7 +129,7 @@ describe("external Agent settings", () => {
       createElement(I18nProvider, null, createElement(AgentSelectionSettings, { selection })),
     );
     expect(markup).toContain('role="combobox"');
-    expect(markup).toContain('Default Agent');
+    expect(markup).toContain("Default Agent");
   });
   it("shows one compact logo/name/install row per Agent without technical setup fields", () => {
     const markup = renderToStaticMarkup(
@@ -169,7 +176,7 @@ describe("external Agent settings", () => {
     expect(markup).toContain("border-accent bg-accent text-accent-foreground");
     expect(markup).toContain("bg-success/5");
     expect(markup).toContain("bg-success/15");
-    expect(markup).toContain('>Install ACP adapter</button>');
+    expect(markup).toContain(">Install ACP adapter</button>");
     expect(markup).toContain('aria-label="Install · Pi"');
     expect(markup).toContain('aria-label="Unavailable · Grok Build"');
     expect(markup).not.toContain("/private/");

@@ -1,6 +1,20 @@
 import type { Locale } from "@/features/i18n";
 
 const en = {
+  connectionTitle: "Connect {agent} to Inkwell",
+  connectionDescription: "Connect this Agent to your current project through ACP.",
+  connectionAction: "Connect",
+  accessTitle: "Access to your project",
+  accessDescription:
+    "The Agent can read project files, suggest edits, and run tools using its own CLI permissions. ACP does not isolate the process from your system.",
+  dataTitle: "Your chosen provider",
+  dataDescription:
+    "Messages and project context may be sent to the Agent’s provider under its own account and data policies. Inkwell’s API keys are not shared.",
+  controlTitle: "You control the connection",
+  controlDescription:
+    "Tool approvals follow your selected permission mode and the Agent’s capabilities. You can disconnect or switch Agents at any time.",
+  projectLabel: "Project",
+  closeConnection: "Close connection confirmation",
   title: "Popular Agents",
   checking: "Checking…",
   unavailable: "Unavailable",
@@ -74,6 +88,19 @@ const en = {
 };
 
 const zh: typeof en = {
+  connectionTitle: "将 {agent} 连接到 Inkwell",
+  connectionDescription: "通过 ACP 将此 Agent 连接到当前项目。",
+  connectionAction: "连接",
+  accessTitle: "访问当前项目",
+  accessDescription:
+    "Agent 可以读取项目文件、提出修改并调用工具，具体访问范围取决于其 CLI 权限。ACP 不会将该进程与系统隔离。",
+  dataTitle: "使用你选择的服务商",
+  dataDescription:
+    "消息和项目上下文可能发送至 Agent 的服务商，遵循其账户设置和数据政策。Inkwell 的 API Key 不会共享给第三方 Agent。",
+  controlTitle: "由你掌控连接",
+  controlDescription: "工具审批取决于所选权限模式和 Agent 的能力。你可以随时断开连接或切换 Agent。",
+  projectLabel: "当前项目",
+  closeConnection: "关闭连接确认",
   community:
     "ZCode 使用社区 ACP 适配器（zcode-acp-server），非官方适配器。请先从官网安装 ZCode 本体。",
   title: "常用 Agent",
@@ -146,6 +173,20 @@ const zh: typeof en = {
 };
 
 const ko: typeof en = {
+  connectionTitle: "{agent}를 Inkwell에 연결",
+  connectionDescription: "ACP를 통해 이 Agent를 현재 프로젝트에 연결합니다.",
+  connectionAction: "연결",
+  accessTitle: "프로젝트 접근",
+  accessDescription:
+    "Agent는 자체 CLI 권한으로 프로젝트 파일을 읽고, 수정을 제안하고, 도구를 실행할 수 있습니다. ACP는 프로세스를 시스템에서 격리하지 않습니다.",
+  dataTitle: "선택한 서비스 제공자",
+  dataDescription:
+    "메시지와 프로젝트 문맥은 Agent 제공자의 계정 설정과 데이터 정책에 따라 전송될 수 있습니다. Inkwell API 키는 외부 Agent와 공유되지 않습니다.",
+  controlTitle: "연결 제어",
+  controlDescription:
+    "도구 승인은 선택한 권한 모드와 Agent 기능에 따라 처리됩니다. 언제든 연결을 해제하거나 Agent를 전환할 수 있습니다.",
+  projectLabel: "현재 프로젝트",
+  closeConnection: "연결 확인 닫기",
   community:
     "ZCode는 공식 어댑터가 아닌 커뮤니티 ACP 어댑터(zcode-acp-server)를 사용합니다. 먼저 공식 웹사이트에서 ZCode를 설치하세요.",
   title: "주요 Agent",
