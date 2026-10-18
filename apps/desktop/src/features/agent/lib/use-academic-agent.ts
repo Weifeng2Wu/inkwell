@@ -122,6 +122,7 @@ export function useAcademicAgent({
   const generatedImages = useRef<GeneratedImage[]>([]);
   const visionAbort = useRef<AbortController | null>(null);
   const lifecycle = useRef(0);
+  const automaticAttempts = useRef({ connect: "", configure: "" });
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
   const configuration = JSON.stringify({
@@ -160,6 +161,7 @@ export function useAcademicAgent({
     setInput("");
     setError(null);
     setActivity("");
+    automaticAttempts.current = { connect: "", configure: "" };
     receivedPending.current = null;
     streamingId.current = null;
     return () => {
@@ -177,6 +179,7 @@ export function useAcademicAgent({
     setWorking(false);
     setPermissions([]);
     if (!enabled) {
+      automaticAttempts.current = { connect: "", configure: "" };
       visionAbort.current?.abort();
       lifecycle.current += 1;
       const client = clientRef.current;
@@ -261,6 +264,7 @@ export function useAcademicAgent({
         );
       } else if (event.type === "status") setActivity(event.status);
       else if (event.type === "fatal" || event.type === "exit") {
+        clientRef.current = null;
         setConnected(false);
         setSession(null);
         setPermissions([]);
@@ -530,7 +534,12 @@ export function useAcademicAgent({
     }
   }
 
-  async function configure(resume: boolean, sessionKey?: string) {
+  async function configure(
+    resume: boolean,
+    sessionKey?: string,
+    { preserveInput = false }: { preserveInput?: boolean } = {},
+  ) {
+    const generation = lifecycle.current;
     try {
       if (webSearchApiKeyLoading) throw new Error(labels.keyLoading);
       if (config.imageGeneration.model.trim() && imageGenerationApiKeyLoading)
@@ -548,10 +557,10 @@ export function useAcademicAgent({
       setMessages(displayMessages(result.messages));
       setPermissions([]);
       setActivity("");
-      setInput("");
+      if (!preserveInput) setInput("");
       return true;
     } catch (caught) {
-      setError(String(caught));
+      if (generation === lifecycle.current) setError(String(caught));
       return false;
     }
   }
@@ -652,6 +661,52 @@ export function useAcademicAgent({
     setWorking(false);
     setPermissions([]);
   }
+
+  // Connect first so the runtime's skill catalog settles before configuring the session.
+  const automaticActions = useRef({ connect, configure });
+  automaticActions.current = { connect, configure };
+  const modelConfigured = Boolean(
+    config.model.trim() && (config.protocol || config.provider.trim()),
+  );
+  const credentialsReady =
+    !apiKeyLoading &&
+    apiKeyError !== "load" &&
+    !webSearchApiKeyLoading &&
+    (!config.imageGeneration.model.trim() || !imageGenerationApiKeyLoading);
+  useEffect(() => {
+    if (
+      !enabled ||
+      !directory ||
+      loadedDirectory !== directory ||
+      !modelConfigured ||
+      !credentialsReady ||
+      working ||
+      utilityOperation.current ||
+      (session && (!dirty || messages.length > 0))
+    )
+      return;
+    const scope = JSON.stringify([directory, configuration]);
+    const phase = connected ? "configure" : "connect";
+    if (automaticAttempts.current[phase] === scope) return;
+    automaticAttempts.current[phase] = scope;
+    if (connected) {
+      void automaticActions.current.configure(!session, undefined, { preserveInput: true });
+    } else {
+      void automaticActions.current.connect();
+    }
+  }, [
+    enabled,
+    directory,
+    loadedDirectory,
+    modelConfigured,
+    credentialsReady,
+    working,
+    session,
+    dirty,
+    messages.length,
+    connected,
+    configuration,
+  ]);
 
   return {
     labels,

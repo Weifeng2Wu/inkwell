@@ -8,6 +8,19 @@ import { useAcademicAgent } from "./use-academic-agent";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 
+const transport = vi.hoisted(() => ({
+  connect: vi.fn(),
+  request: vi.fn(),
+  disconnect: vi.fn(),
+}));
+vi.mock("./academic-client", () => ({
+  AcademicClient: class {
+    connect = transport.connect;
+    request = transport.request;
+    disconnect = transport.disconnect;
+  },
+}));
+
 const hooks = vi.hoisted(() => ({
   cursor: 0,
   changed: false,
@@ -89,12 +102,20 @@ async function settleAgent(directory?: string) {
   await vi.waitFor(() => {
     agent = renderAgent(directory);
     expect(agent.apiKeyLoading).toBe(false);
+    expect(agent.working).toBe(false);
     expect(agent.settingsSaved || agent.settingsSaveError !== null).toBe(true);
   });
   return agent;
 }
 
 beforeEach(() => {
+  transport.connect.mockReset().mockResolvedValue({ skills: [], market: [] });
+  transport.request.mockReset().mockResolvedValue({
+    sessionId: "session",
+    messages: [],
+    tools: ["read"],
+  });
+  transport.disconnect.mockReset().mockResolvedValue(undefined);
   vi.mocked(invoke).mockReset();
   vi.mocked(open).mockReset();
   hooks.slots.clear();
@@ -154,6 +175,79 @@ describe("shared skill imports", () => {
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("automatic Agent sessions", () => {
+  function saveModel() {
+    storage.set(
+      "inkwell-agent-config-v1:/project",
+      JSON.stringify({
+        ...DEFAULT_ACADEMIC_CONFIG,
+        model: "fixture-model",
+      }),
+    );
+  }
+
+  it("resumes a session after the skill catalog settles and preserves the draft", async () => {
+    saveModel();
+    transport.connect.mockResolvedValue({ skills: [{ id: "writing" }], market: [] });
+    renderAgent("/project").setInput("Keep this draft");
+    const agent = await settleAgent("/project");
+    expect(agent.connected).toBe(true);
+    expect(agent.session?.sessionId).toBe("session");
+    expect(agent.dirty).toBe(false);
+    expect(agent.input).toBe("Keep this draft");
+    expect(transport.connect).toHaveBeenCalledTimes(1);
+    expect(transport.request).toHaveBeenCalledExactlyOnceWith(
+      "configure",
+      expect.objectContaining({
+        resume: true,
+        skillIds: ["writing"],
+        model: "fixture-model",
+      }),
+    );
+  });
+
+  it("waits for credentials before starting the runtime", async () => {
+    saveModel();
+    const pendingReads: ((value: string | null) => void)[] = [];
+    vi.mocked(readAgentApiKey).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendingReads.push(resolve);
+        }),
+    );
+    renderAgent("/project");
+    await vi.waitFor(() => expect(pendingReads.length).toBeGreaterThan(0));
+    expect(transport.connect).not.toHaveBeenCalled();
+    vi.mocked(readAgentApiKey).mockResolvedValue(null);
+    for (const resolve of pendingReads) resolve(null);
+    const agent = await settleAgent("/project");
+    expect(agent.session?.sessionId).toBe("session");
+    expect(transport.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not start without a model, project, or in external mode", async () => {
+    await settleAgent("/project");
+    expect(transport.connect).not.toHaveBeenCalled();
+    saveModel();
+    renderAgent("/project", false);
+    renderAgent(undefined, false);
+    expect(transport.connect).not.toHaveBeenCalled();
+  });
+
+  it("does not loop on configuration failure and allows a manual retry", async () => {
+    saveModel();
+    transport.request.mockRejectedValueOnce(new Error("Invalid credentials"));
+    let agent = await settleAgent("/project");
+    expect(agent.error).toContain("Invalid credentials");
+    agent = await settleAgent("/project");
+    expect(transport.request).toHaveBeenCalledTimes(1);
+    expect(await agent.configure(false)).toBe(true);
+    agent = await settleAgent("/project");
+    expect(agent.dirty).toBe(false);
+    expect(transport.request).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("independent API checks", () => {
   it("runs image discovery and search while the model check is pending without starting chat", async () => {

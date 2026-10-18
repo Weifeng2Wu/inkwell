@@ -132,6 +132,10 @@ const en = {
   placeholder: "Ask for help with writing, editing, LaTeX, or current information.",
   start:
     "Start a new conversation or continue one from your history. The Agent connects automatically.",
+  suggestPolish: "Polish the academic writing",
+  suggestStructure: "Review the paper’s structure",
+  suggestLatex: "Check for LaTeX issues",
+  suggestSummary: "Summarize the paper’s contributions",
   dirty: "Configuration changed. Start or resume a compatible session to apply it.",
   busy: "Working…",
   visionConfigMissing:
@@ -276,6 +280,10 @@ export const academicLabels: Record<Locale, typeof en> = {
     stop: "停止",
     placeholder: "描述写作、修改、LaTeX 或最新资料搜索问题。",
     start: "新建对话或继续历史对话，Agent 将自动连接。",
+    suggestPolish: "润色论文表达",
+    suggestStructure: "检查论文结构",
+    suggestLatex: "排查 LaTeX 问题",
+    suggestSummary: "总结论文贡献",
     dirty: "配置已变更，请新建或恢复兼容会话使其生效。",
     busy: "执行中…",
     visionConfigMissing:
@@ -422,6 +430,10 @@ export const academicLabels: Record<Locale, typeof en> = {
     stop: "중지",
     placeholder: "글쓰기, 수정, LaTeX 또는 최신 정보를 검색해 달라고 요청하세요.",
     start: "새 대화를 시작하거나 이전 대화를 이어가세요. Agent는 자동으로 연결됩니다.",
+    suggestPolish: "논문 표현 다듬기",
+    suggestStructure: "논문 구조 검토하기",
+    suggestLatex: "LaTeX 문제 확인하기",
+    suggestSummary: "논문의 기여 요약하기",
     dirty: "설정이 바뀌었습니다. 호환 세션을 시작하거나 복원하세요.",
     busy: "작업 중…",
     visionConfigMissing:

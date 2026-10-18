@@ -2,12 +2,13 @@
 
 import { ArrowRightIcon, GearSixIcon, SparkleIcon } from "@phosphor-icons/react";
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FileNode } from "@/types/files";
 import { archiveKey } from "../lib/conversation-archive";
 import type { AcademicAgentController } from "../lib/use-academic-agent";
 import { useChatScroll } from "../lib/use-chat-scroll";
 import { ChatComposer } from "./chat-composer";
+import { ChatMessage, ChatSuggestions } from "./chat-presentation";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationHistory } from "./conversation-history";
 import { MarkdownText } from "./markdown-text";
@@ -22,6 +23,7 @@ export function AcademicAgentPanel({
   onOpenSettings?: () => void;
 }) {
   const [showHistory, setShowHistory] = useState(false);
+  const panel = useRef<HTMLElement>(null);
   const {
     labels,
     directory,
@@ -48,6 +50,7 @@ export function AcademicAgentPanel({
     !session &&
     messages.length === 0 &&
     (!config.model.trim() || (!config.protocol && !config.provider.trim()));
+  const showSuggestions = !needsSetup && messages.length === 0 && !working;
   if (showHistory)
     return (
       <ConversationHistory
@@ -59,6 +62,7 @@ export function AcademicAgentPanel({
     );
   return (
     <section
+      ref={panel}
       className="flex h-full min-h-0 flex-col bg-background text-foreground"
       aria-label={labels.title}
     >
@@ -81,7 +85,7 @@ export function AcademicAgentPanel({
       </header>
       <div
         ref={scroll.viewport}
-        className={`min-h-0 flex-1 overflow-y-auto p-3 ${needsSetup ? "flex flex-col" : ""}`}
+        className={`min-h-0 flex-1 overflow-y-auto p-3 ${needsSetup || showSuggestions ? "flex flex-col" : ""}`}
         style={{ overflowAnchor: "none", scrollBehavior: "auto" }}
       >
         {needsSetup ? (
@@ -110,55 +114,56 @@ export function AcademicAgentPanel({
             )}
           </div>
         ) : (
-          <div ref={scroll.content} className="flow-root space-y-4">
+          <div
+            ref={scroll.content}
+            className={showSuggestions ? "flex flex-1 flex-col gap-4" : "flow-root space-y-4"}
+          >
             {!directory && <p className="text-sm text-muted-foreground">{labels.openProject}</p>}
 
-            {session && (
-              <p className="text-xs text-muted-foreground">
-                {labels.tools}:{" "}
-                <span className="font-mono">{session.tools.join(", ") || labels.none}</span>
-              </p>
-            )}
             {session && dirty && <p className="text-xs text-warning">{labels.dirty}</p>}
-            {!session && <p className="text-sm text-muted-foreground">{labels.start}</p>}
+            {showSuggestions && (
+              <ChatSuggestions
+                labels={labels}
+                onSelect={(prompt) => {
+                  setInput(prompt);
+                  panel.current?.querySelector("textarea")?.focus();
+                }}
+              />
+            )}
             <div aria-live="polite" aria-busy={working} className="space-y-4">
               {messages.map((message) => (
-                <article key={message.id} className="space-y-1">
-                  <h3 className="text-xs font-medium text-muted-foreground">
-                    {message.role === "user" ? labels.you : labels.assistant}
-                  </h3>
-                  <div
-                    className="min-w-0 break-words text-sm"
-                    style={{ fontFamily: "var(--font-family-body)" }}
-                  >
-                    {message.role === "user" ? (
-                      <p className="whitespace-pre-wrap">
-                        {message.content || (working ? labels.busy : "")}
-                      </p>
-                    ) : (
-                      <>
-                        <MarkdownText text={message.content || (working ? labels.busy : "")} />
-                        {message.generatedImages?.map((image) => (
-                          <figure key={image.path} className="mt-3 max-w-lg">
-                            <a href={image.src} target="_blank" rel="noreferrer">
-                              <Image
-                                unoptimized
-                                src={image.src ?? ""}
-                                alt={labels.generatedReference}
-                                width={512}
-                                height={768}
-                                className="max-h-[28rem] w-auto max-w-full border border-border object-contain"
-                              />
-                            </a>
-                            <figcaption className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                              {labels.generatedReference}: {image.relativePath}
-                            </figcaption>
-                          </figure>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </article>
+                <ChatMessage
+                  key={message.id}
+                  role={message.role}
+                  label={message.role === "user" ? labels.you : labels.assistant}
+                >
+                  {message.role === "user" ? (
+                    <p className="whitespace-pre-wrap">
+                      {message.content || (working ? labels.busy : "")}
+                    </p>
+                  ) : (
+                    <>
+                      <MarkdownText text={message.content || (working ? labels.busy : "")} />
+                      {message.generatedImages?.map((image) => (
+                        <figure key={image.path} className="mt-3 max-w-lg">
+                          <a href={image.src} target="_blank" rel="noreferrer">
+                            <Image
+                              unoptimized
+                              src={image.src ?? ""}
+                              alt={labels.generatedReference}
+                              width={512}
+                              height={768}
+                              className="max-h-[28rem] w-auto max-w-full border border-border object-contain"
+                            />
+                          </a>
+                          <figcaption className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                            {labels.generatedReference}: {image.relativePath}
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </>
+                  )}
+                </ChatMessage>
               ))}
             </div>
             {activity && (
@@ -211,6 +216,12 @@ export function AcademicAgentPanel({
           </div>
         )}
       </div>
+      {session && (
+        <p className="shrink-0 break-words px-3 pb-2 text-xs text-muted-foreground">
+          {labels.tools}:{" "}
+          <span className="font-mono">{session.tools.join(", ") || labels.none}</span>
+        </p>
+      )}
       <ChatComposer
         value={input}
         onChange={setInput}

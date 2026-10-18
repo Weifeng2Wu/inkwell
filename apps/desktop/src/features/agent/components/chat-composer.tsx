@@ -248,9 +248,9 @@ export function ChatComposer({
               void submit();
             }
           }}
-          className="block h-36 w-full resize-none overflow-y-auto rounded-xl bg-transparent px-3 pt-3 pb-14 text-sm leading-relaxed text-foreground outline-none"
+          className="block h-24 w-full resize-none overflow-y-auto rounded-t-xl bg-transparent px-3 pt-3 pb-1 text-sm leading-relaxed text-foreground outline-none"
         />
-        <div className="pointer-events-none absolute right-2 bottom-2 left-2 flex items-center justify-between">
+        <div className="relative mx-2 my-2 flex items-center justify-between">
           <input
             ref={upload}
             type="file"
@@ -265,7 +265,7 @@ export function ChatComposer({
           />
           <button
             type="button"
-            className="toolbar-icon-button pointer-events-auto bg-surface text-muted hover:text-foreground"
+            className="toolbar-icon-button bg-surface text-muted hover:text-foreground"
             title={addLabel}
             aria-label={addLabel}
             disabled={working || reading || images.length >= MAX_CHAT_IMAGES}
@@ -282,7 +282,7 @@ export function ChatComposer({
               if (working) void onStop();
               else void submit();
             }}
-            className="pointer-events-auto flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-35"
+            className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-35"
           >
             {working ? (
               <StopIcon size={16} weight="fill" aria-hidden="true" />

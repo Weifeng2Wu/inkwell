@@ -510,13 +510,17 @@ describe("Agent configuration location", () => {
     expect(markup).toMatch(/<button[^>]*aria-label="[^"]+"[^>]*disabled=""/);
   });
 
-  it("does not require an API key for a configured local model", () => {
-    const agent = createAgent({ apiKey: "" });
+  it.each(["en", "zh", "ko"] as const)("shows localized starter buttons for a configured local model in %s", (locale) => {
+    const agent = createAgent({ apiKey: "", labels: academicLabels[locale] });
     const markup = renderToStaticMarkup(
       createElement(AcademicAgentPanel, { agent, onOpenSettings: vi.fn() }),
     );
     expect(markup).not.toContain(agent.labels.setupTitle);
-    expect(markup).toContain(agent.labels.start);
+    expect(markup).toContain(agent.labels.suggestPolish);
+    expect(markup).toContain(agent.labels.suggestStructure);
+    expect(markup).toContain(agent.labels.suggestLatex);
+    expect(markup).toContain(agent.labels.suggestSummary);
+    expect(markup).not.toContain(agent.labels.start);
   });
 
   it("preserves conversation messages when model settings are cleared", () => {

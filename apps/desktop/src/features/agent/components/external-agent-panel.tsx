@@ -3,7 +3,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import type { FileNode } from "@/types/files";
 import type { SkillMetadata } from "../lib/academic-client";
@@ -15,6 +15,7 @@ import { useChatScroll } from "../lib/use-chat-scroll";
 import type { ExternalAgentController } from "../lib/use-external-agent";
 import { AgentLogo } from "./agent-logo";
 import { ChatComposer } from "./chat-composer";
+import { ChatMessage, ChatSuggestions } from "./chat-presentation";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationHistory } from "./conversation-history";
 import { MarkdownText } from "./markdown-text";
@@ -37,6 +38,8 @@ export function ExternalAgentPanel({
   const { locale } = useI18n();
   const labels = externalAgentLabels(locale);
   const historyLabels = academicLabels[locale];
+  const panel = useRef<HTMLElement>(null);
+  const showSuggestions = agent.messages.length === 0 && !agent.working && !agent.authentication;
   const [showHistory, setShowHistory] = useState(false);
   const [sharedSkills, setSharedSkills] = useState<SkillMetadata[]>([]);
   const [confirmReconnect, setConfirmReconnect] = useState(false);
@@ -95,6 +98,7 @@ export function ExternalAgentPanel({
     );
   return (
     <section
+      ref={panel}
       className="flex h-full min-h-0 flex-col bg-background text-foreground"
       aria-label={name}
     >
@@ -114,11 +118,14 @@ export function ExternalAgentPanel({
       </header>
       <div
         ref={scroll.viewport}
-        className="min-h-0 flex-1 overflow-y-auto p-3"
+        className={`min-h-0 flex-1 overflow-y-auto p-3 ${showSuggestions ? "flex flex-col" : ""}`}
         aria-live="polite"
         style={{ overflowAnchor: "none", scrollBehavior: "auto" }}
       >
-        <div ref={scroll.content} className="flow-root space-y-4">
+        <div
+          ref={scroll.content}
+          className={showSuggestions ? "flex flex-1 flex-col gap-4" : "flow-root space-y-4"}
+        >
           {!agent.connected && agent.working && !agent.authentication && (
             <p role="status" className="text-xs text-muted-foreground">
               {labels.connecting}
@@ -157,14 +164,24 @@ export function ExternalAgentPanel({
               ))}
             </div>
           )}
+          {showSuggestions && (
+            <ChatSuggestions
+              labels={historyLabels}
+              onSelect={(prompt) => {
+                agent.setInput(prompt);
+                panel.current?.querySelector("textarea")?.focus();
+              }}
+            />
+          )}
           {agent.messages.map((message) =>
             message.role === "assistant" &&
             !message.content &&
             !message.generatedImages?.length &&
             !agent.working ? null : (
-              <article
+              <ChatMessage
                 key={message.id}
-                className={`min-w-0 rounded-lg border border-border p-3 ${message.role === "user" ? "bg-surface" : "bg-background"}`}
+                role={message.role}
+                label={message.role === "user" ? historyLabels.you : historyLabels.assistant}
               >
                 {message.role === "user" ? (
                   <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
@@ -178,25 +195,25 @@ export function ExternalAgentPanel({
                       )
                     )}
                     {message.generatedImages?.map((image) => (
-                      <figure key={image.path} className="mt-3 space-y-1.5">
+                      <figure key={image.path} className="mt-3 max-w-lg">
                         <a href={convertFileSrc(image.path)} target="_blank" rel="noreferrer">
                           <Image
                             unoptimized
                             src={convertFileSrc(image.path)}
-                            alt={image.relativePath}
+                            alt={historyLabels.generatedReference}
                             width={512}
-                            height={512}
-                            className="max-h-80 max-w-full rounded-md border border-border object-contain"
+                            height={768}
+                            className="max-h-[28rem] w-auto max-w-full border border-border object-contain"
                           />
                         </a>
-                        <figcaption className="text-xs text-muted-foreground">
-                          {image.relativePath}
+                        <figcaption className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                          {historyLabels.generatedReference}: {image.relativePath}
                         </figcaption>
                       </figure>
                     ))}
                   </>
                 )}
-              </article>
+              </ChatMessage>
             ),
           )}
           {agent.activity && (
