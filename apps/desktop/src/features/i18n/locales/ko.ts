@@ -27,7 +27,7 @@ export const ko: TranslationDictionary = {
     model: "모델",
     prompt: "분석 프롬프트",
     secure:
-      "API Key는 localStorage가 아닌 시스템 자격 증명 저장소에 저장됩니다. 입력 후 저장 또는 테스트하세요.",
+      "API Key는 localStorage가 아닌 이 기기의 SQLite 데이터베이스에 암호화 없이 저장됩니다. 입력 후 저장 또는 테스트하세요.",
     privacy: "PDF를 선택한 분석 제공업체에 업로드하고, 추출 텍스트를 선택한 Agent에 보냅니다.",
     save: "설정 저장",
     test: "연결 테스트",
@@ -38,7 +38,7 @@ export const ko: TranslationDictionary = {
     failed: "작업 실패:",
     missing:
       "일반 설정에서 분석 제공업체와 API Key를 설정하세요. 사용자 지정 제공업체는 Base URL, 모델 및 프롬프트도 필요합니다.",
-    keyError: "시스템 자격 증명 저장소에서 분석 API Key를 읽지 못했습니다.",
+    keyError: "로컬 SQLite 데이터베이스에서 분석 API Key를 읽지 못했습니다.",
     saveError: "분석 설정을 저장하지 못했습니다.",
   },
   formatSkill: {

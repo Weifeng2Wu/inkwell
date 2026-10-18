@@ -92,7 +92,7 @@ Git operates per opened workspace, so separate paper folders can have independen
 
 ## Local First
 
-Your manuscripts remain ordinary files. Conversations use JSONL; settings and indexes are being moved to SQLite in the application persistence layer. This describes ongoing storage work, not a guarantee that migration is complete. Built-in API keys use the operating system credential vault rather than plaintext project settings.
+Your manuscripts remain ordinary files. Conversations use JSONL; settings and indexes are being moved to SQLite in the application persistence layer. This describes ongoing storage work, not a guarantee that migration is complete. Model, image, search and layout-parser API keys are stored unencrypted in a dedicated table in the local `academic-agent/inkwell.sqlite` application database, separate from project settings and ordinary settings responses. Database files are restricted to the current user on macOS/Linux. Keys previously saved in the operating system credential vault must be entered again once; Inkwell no longer accesses that vault or triggers its authorization prompt.
 
 No Inkwell cloud account or hosted application backend is required. AI requests send context to the provider or Agent you select; Git operations, updates, and downloads can also use the network. **Local-first does not mean every feature is offline or that content never leaves your device.**
 

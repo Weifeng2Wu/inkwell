@@ -26,7 +26,7 @@ export const zh: TranslationDictionary = {
     baseUrl: "Base URL",
     model: "模型",
     prompt: "解析提示词",
-    secure: "API Key 保存到系统凭据库，不写入 localStorage。填写后请点击保存或测试。",
+    secure: "API Key 以未加密形式保存在本机 SQLite 数据库，不写入 localStorage。填写后请点击保存或测试。",
     privacy: "PDF 将上传到所选解析服务商，解析后的文本再发送给当前 Agent。",
     save: "保存配置",
     test: "测试连通性",
@@ -36,7 +36,7 @@ export const zh: TranslationDictionary = {
     failed: "操作失败：",
     missing:
       "请先在通用设置中配置版面解析服务商与 API Key；自定义服务商还需填写 Base URL、模型和提示词。",
-    keyError: "无法从系统凭据库读取版面解析 API Key。",
+    keyError: "无法从本机 SQLite 数据库读取版面解析 API Key。",
     saveError: "无法保存版面解析配置。",
   },
   formatSkill: {

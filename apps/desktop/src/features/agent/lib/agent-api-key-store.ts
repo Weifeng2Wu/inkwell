@@ -39,6 +39,6 @@ export async function readAgentApiKey(scope: string): Promise<string | null> {
 }
 
 export async function writeAgentApiKey(scope: string, apiKey: string): Promise<void> {
-  if (!isTauri()) throw new Error("Secure credential storage requires the desktop app.");
+  if (!isTauri()) throw new Error("Local API key storage requires the desktop app.");
   await invoke("agent_api_key_write", { scope, apiKey });
 }

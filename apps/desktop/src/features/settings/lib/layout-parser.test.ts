@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("shared layout parser configuration", () => {
-  it("stores preferences but reads the parsing key only from the credential vault", async () => {
+  it("stores preferences separately and reads the parsing key through the credential command", async () => {
     saveLayoutConfig(DEFAULT_LAYOUT_CONFIG);
     vi.mocked(invoke).mockImplementation(async (command) =>
       command === "agent_api_key_read" ? "parser-key" : { text: "Extracted labels" },

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -114,14 +114,16 @@ export class AppDatabase {
     mkdirSync(path.dirname(filename), { recursive: true });
     this.db = new DatabaseSync(filename, { timeout: 5000 });
     try {
+      if (process.platform !== "win32") chmodSync(filename, 0o600);
       this.db.exec(
         "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
       );
       const version = this.db.prepare("PRAGMA user_version").get().user_version;
-      if (version > 1) throw new Error("Database was created by a newer Inkwell version.");
+      if (version > 2) throw new Error("Database was created by a newer Inkwell version.");
       this.transaction(() => {
         this.db.exec(`
           CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL) STRICT;
+          CREATE TABLE IF NOT EXISTS api_credentials (account TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL) STRICT;
           CREATE TABLE IF NOT EXISTS migrations (id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL) STRICT;
           CREATE TABLE IF NOT EXISTS legacy_backup (key TEXT PRIMARY KEY, value TEXT NOT NULL, imported_at INTEGER NOT NULL) STRICT;
           CREATE TABLE IF NOT EXISTS conversations (scope TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL, modified TEXT NOT NULL, renamed INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(scope,id)) STRICT;
@@ -132,9 +134,14 @@ export class AppDatabase {
           CREATE TABLE IF NOT EXISTS app_records (namespace TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(namespace,key)) STRICT;
           CREATE TABLE IF NOT EXISTS session_index (root TEXT NOT NULL, key TEXT NOT NULL, project TEXT NOT NULL, size INTEGER NOT NULL, mtime REAL NOT NULL, ctime REAL NOT NULL, metadata TEXT NOT NULL, PRIMARY KEY(root,key)) STRICT;
           CREATE INDEX IF NOT EXISTS session_index_project ON session_index(root,project);
-          PRAGMA user_version=1;
+          PRAGMA user_version=2;
         `);
       });
+      if (process.platform !== "win32") {
+        for (const suffix of ["-wal", "-shm"]) {
+          if (existsSync(`${filename}${suffix}`)) chmodSync(`${filename}${suffix}`, 0o600);
+        }
+      }
     } catch (error) {
       this.db.close();
       throw error;
@@ -295,6 +302,21 @@ export class AppDatabase {
     });
   }
   request(request) {
+    if (request.type === "credential_read" || request.type === "credential_write") {
+      if (typeof request.account !== "string" || !/^[a-f0-9]{64}$/.test(request.account))
+        throw new Error("Invalid credential account.");
+      if (request.type === "credential_read") {
+        const record = this.db.prepare("SELECT value FROM api_credentials WHERE account=?").get(request.account);
+        return { value: record?.value ?? null };
+      }
+      if (typeof request.apiKey !== "string" || !request.apiKey.trim() || request.apiKey.length > 16384)
+        throw new Error("Invalid API key.");
+      return this.transaction(() => {
+        this.db.prepare("INSERT INTO api_credentials VALUES (?,?,?) ON CONFLICT(account) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at")
+          .run(request.account, request.apiKey.trim(), Date.now());
+        return { ok: true };
+      });
+    }
     if (request.type === "record_read" || request.type === "record_write") {
       if (!["agent-review", "skill-sync"].includes(request.namespace) || !validString(request.key))
         throw new Error("Invalid record scope.");

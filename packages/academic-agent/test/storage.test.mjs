@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -92,7 +92,7 @@ test("conversation metadata is paged, bodies are lazy, scopes isolated and delet
   );
 });
 
-test("provider secrets never enter SQLite settings or migration backups", async (context) => {
+test("provider secrets never enter ordinary settings or migration backups", async (context) => {
   const { database } = await fixture(context);
   const config = JSON.stringify({
     provider: "custom",
@@ -137,6 +137,59 @@ test("provider secrets never enter SQLite settings or migration backups", async 
   assert.throws(() => database.set("apiKey", "secret"), /Invalid setting/);
   assert.throws(() => database.request({ type: "conversation_list", scope: "../escape" }));
   assert.throws(() => database.request({ type: "conversation_list", scope, limit: -1 }));
+});
+
+test("SQLite credentials survive restarts, overwrite per account, and stay outside bootstrap", async (context) => {
+  const { database, filename } = await fixture(context);
+  const modelAccount = "a".repeat(64);
+  const searchAccount = "b".repeat(64);
+  assert.deepEqual(database.request({ type: "credential_read", account: modelAccount }), { value: null });
+  database.request({ type: "credential_write", account: modelAccount, apiKey: "  model-fixture-key  " });
+  database.request({ type: "credential_write", account: searchAccount, apiKey: "search-fixture-key" });
+  const reopened = new AppDatabase(filename);
+  try {
+    assert.deepEqual(reopened.request({ type: "credential_read", account: modelAccount }), { value: "model-fixture-key" });
+    reopened.request({ type: "credential_write", account: modelAccount, apiKey: "replacement-fixture-key" });
+    assert.deepEqual(database.request({ type: "credential_read", account: modelAccount }), { value: "replacement-fixture-key" });
+    assert.deepEqual(reopened.request({ type: "credential_read", account: searchAccount }), { value: "search-fixture-key" });
+    assert.doesNotMatch(JSON.stringify(reopened.request({ type: "bootstrap" })), /fixture-key/);
+    assert.equal(reopened.db.prepare("SELECT COUNT(*) AS count FROM api_credentials").get().count, 2);
+    if (process.platform !== "win32") {
+      for (const suffix of ["", "-wal", "-shm"])
+        assert.equal((await stat(`${filename}${suffix}`)).mode & 0o777, 0o600);
+    }
+  } finally {
+    reopened.close();
+  }
+});
+
+test("version 1 databases gain the credential table without losing existing data", async (context) => {
+  const { database, filename } = await fixture(context);
+  database.set("theme", "dark");
+  database.db.exec("DROP TABLE api_credentials; PRAGMA user_version=1;");
+  const reopened = new AppDatabase(filename);
+  try {
+    assert.equal(reopened.settings().theme, "dark");
+    assert.equal(reopened.db.prepare("PRAGMA user_version").get().user_version, 2);
+    const account = "c".repeat(64);
+    reopened.request({ type: "credential_write", account, apiKey: "new-key" });
+    assert.deepEqual(reopened.request({ type: "credential_read", account }), { value: "new-key" });
+  } finally {
+    reopened.close();
+  }
+});
+
+test("credentials reject invalid scopes and empty or oversized keys without changing saved values", async (context) => {
+  const { database } = await fixture(context);
+  const account = "a".repeat(64);
+  database.request({ type: "credential_write", account, apiKey: "original-key" });
+  for (const value of [null, "", "short", "../outside", "x".repeat(64)]) {
+    assert.throws(() => database.request({ type: "credential_read", account: value }), /Invalid credential account/);
+    assert.throws(() => database.request({ type: "credential_write", account: value, apiKey: "key" }), /Invalid credential account/);
+  }
+  for (const apiKey of [null, "", " ", "x".repeat(16385), 123])
+    assert.throws(() => database.request({ type: "credential_write", account, apiKey }), /Invalid API key/);
+  assert.deepEqual(database.request({ type: "credential_read", account }), { value: "original-key" });
 });
 
 test("invalid settings batches and messages roll back rather than leave partial writes", async (context) => {

@@ -1,7 +1,6 @@
 mod commands;
 
 use commands::academic_agent::AcademicAgentState;
-use commands::agent_credentials::AgentCredentialState;
 use commands::external_agent::ExternalAgentState;
 use commands::fs::{ProjectState, WatcherState};
 use commands::latex::LaTeXCompilationState;
@@ -45,7 +44,6 @@ pub fn run() {
         .manage(PtyState::default())
         .manage(OpenCodeState::default())
         .manage(AcademicAgentState::default())
-        .manage(AgentCredentialState::default())
         .manage(commands::agent_review::AgentReviewState::default())
         .manage(ExternalAgentState::default())
         .manage(commands::storage::StorageState::default())

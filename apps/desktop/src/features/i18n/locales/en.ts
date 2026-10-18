@@ -25,7 +25,7 @@ export const en = {
     model: "Model",
     prompt: "Parsing prompt",
     secure:
-      "API Keys are stored in the system credential vault, not localStorage. Click Save or Test after entering a key.",
+      "API Keys are stored unencrypted in this device's SQLite database, not localStorage. Click Save or Test after entering a key.",
     privacy:
       "PDFs are uploaded to your selected parsing provider. Parsed text is then sent to your selected Agent.",
     save: "Save configuration",
@@ -38,7 +38,7 @@ export const en = {
     failed: "Operation failed:",
     missing:
       "Configure document layout parsing in General settings first (provider and API Key; custom providers also need Base URL, model and prompt).",
-    keyError: "Could not read the parser API Key from the system credential vault.",
+    keyError: "Could not read the parser API Key from the local SQLite database.",
     saveError: "Could not save parser settings.",
   },
   formatSkill: {

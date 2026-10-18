@@ -1,12 +1,6 @@
-use keyring::Entry;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-
-const SERVICE: &str = "com.inkwell.agent.api-key";
-
-#[derive(Default)]
-pub struct AgentCredentialState {
-    access: tokio::sync::Mutex<()>,
-}
+use tauri::AppHandle;
 
 fn credential_account(scope: &str) -> Result<String, String> {
     if scope.len() > 4096 {
@@ -47,50 +41,39 @@ fn credential_account(scope: &str) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn agent_api_key_read(
+    app: AppHandle,
     scope: String,
-    state: tauri::State<'_, AgentCredentialState>,
 ) -> Result<Option<String>, String> {
     let account = credential_account(&scope)?;
-    let _guard = state.access.lock().await;
-    tokio::task::spawn_blocking(move || {
-        let entry = Entry::new(SERVICE, &account)
-            .map_err(|_| "System credential storage is unavailable.".to_string())?;
-        match entry.get_password() {
-            Ok(value) => Ok(Some(value)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err("Could not read the API key from system credential storage.".into()),
-        }
-    })
-    .await
-    .map_err(|_| "Could not access system credential storage.".to_string())?
+    let response = super::storage::internal_request(&app, json!({
+        "type": "credential_read", "account": account,
+    })).await?;
+    match response.get("value") {
+        Some(Value::String(value)) => Ok(Some(value.clone())),
+        Some(Value::Null) => Ok(None),
+        _ => Err("Invalid API key database response.".into()),
+    }
 }
 
 #[tauri::command]
 pub async fn agent_api_key_write(
+    app: AppHandle,
     scope: String,
     api_key: String,
-    state: tauri::State<'_, AgentCredentialState>,
 ) -> Result<(), String> {
     let account = credential_account(&scope)?;
     if api_key.trim().is_empty() || api_key.len() > 16_384 {
         return Err("Invalid API key.".into());
     }
-    let _guard = state.access.lock().await;
-    tokio::task::spawn_blocking(move || {
-        let entry = Entry::new(SERVICE, &account)
-            .map_err(|_| "System credential storage is unavailable.".to_string())?;
-        entry
-            .set_password(api_key.trim())
-            .map_err(|_| "Could not save the API key in system credential storage.".to_string())
-    })
-    .await
-    .map_err(|_| "Could not access system credential storage.".to_string())?
+    super::storage::internal_request(&app, json!({
+        "type": "credential_write", "account": account, "apiKey": api_key.trim(),
+    })).await?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{credential_account, SERVICE};
-    use keyring::Entry;
+    use super::credential_account;
 
     #[test]
     fn normalizes_endpoints_and_separates_providers() {
@@ -127,21 +110,4 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore = "Requires unlocked system credential storage"]
-    fn platform_vault_round_trip() {
-        let account = uuid::Uuid::new_v4().to_string();
-        let service = format!("{SERVICE}.test");
-        let entry = Entry::new(&service, &account).unwrap();
-        entry.set_password("inkwell-test-first-key").unwrap();
-        let reopened = Entry::new(&service, &account).unwrap();
-        let first = reopened.get_password();
-        let overwrite = reopened.set_password("inkwell-test-overwritten-key");
-        let second = Entry::new(&service, &account).unwrap().get_password();
-        let cleanup = reopened.delete_credential();
-        assert_eq!(first.unwrap(), "inkwell-test-first-key");
-        overwrite.unwrap();
-        assert_eq!(second.unwrap(), "inkwell-test-overwritten-key");
-        cleanup.unwrap();
-    }
 }

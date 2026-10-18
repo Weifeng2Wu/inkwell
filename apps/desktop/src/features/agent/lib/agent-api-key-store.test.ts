@@ -9,7 +9,7 @@ beforeEach(() => {
   vi.mocked(isTauri).mockReturnValue(true);
 });
 
-describe("secure API key storage", () => {
+describe("local SQLite API key storage", () => {
   it("shows only the first and last four characters", () => {
     expect(maskApiKey("sk-fixture-secret-1234")).toBe("sk-f***1234");
     expect(maskApiKey("")).toBe("");
@@ -29,7 +29,7 @@ describe("secure API key storage", () => {
       apiKeyScope({ protocol: "", provider: "inkwell-imagegen", baseUrl: "https://api.openai.com/v1" }),
     ).not.toBe(scope);
   });
-  it("reads and writes exclusively through the secure IPC commands", async () => {
+  it("reads and writes exclusively through the dedicated credential IPC commands", async () => {
     const scope = apiKeyScope(DEFAULT_ACADEMIC_CONFIG);
     vi.mocked(invoke).mockResolvedValueOnce("fixture-key");
     expect(await readAgentApiKey(scope)).toBe("fixture-key");

@@ -255,7 +255,7 @@ describe("Agent settings auto-save", () => {
     expect(agent.settingsSaveError).toBeNull();
   });
 
-  it("saves API keys in credential storage, never localStorage", async () => {
+  it("saves API keys through the local credential store, never localStorage", async () => {
     let agent = await settleAgent("/project");
     agent.setApiKey("fixture-secure-key");
     expect(renderAgent("/project").settingsSaved).toBe(false);
@@ -357,7 +357,7 @@ describe("Agent settings auto-save", () => {
     expect(credentials.size).toBe(0);
   });
 
-  it("allows replacing a credential after a vault read failure", async () => {
+  it("allows replacing a credential after a database read failure", async () => {
     vi.mocked(readAgentApiKey).mockRejectedValueOnce(new Error("Vault locked"));
     let agent = await settleAgent("/project");
     expect(agent.settingsSaved).toBe(false);
