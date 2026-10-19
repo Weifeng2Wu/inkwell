@@ -13,12 +13,10 @@
     "withGlobalTauri": true,
     "windows": [],
     "security": {
-      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; img-src 'self' asset: http://asset.localhost data: blob: https://*.githubusercontent.com; media-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost blob:; connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* ipc: http://ipc.localhost",
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; img-src 'self' asset: http://asset.localhost data: blob: https://*.githubusercontent.com; media-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost blob:; connect-src 'self' asset: http://asset.localhost https://asset.localhost http://localhost:* ws://localhost:* wss://localhost:* ipc: http://ipc.localhost; worker-src 'self' blob:",
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "**"
-        ]
+        "scope": ["**"]
       }
     },
     "macOSPrivateApi": true
