@@ -7,8 +7,10 @@ import test from "node:test";
 import { pathToFileURL } from "node:url";
 import {
   assertNoSymlinks,
+  assertWindowsInstallPaths,
   materializeDeployment,
   nodeDistribution,
+  omitAlternateAwsBuild,
   runtimeResources,
   runtimeTarget,
   tauriDirectory,
@@ -18,6 +20,161 @@ import {
   windowsResourcePattern,
   withRuntimeBundleConfig,
 } from "../desktop-runtime.mjs";
+
+test("selects alternate AWS builds using Node export conditions in declaration order", () => {
+  const manifest = { name: "@aws-sdk/core", main: "./dist-cjs/index.js" };
+  assert.equal(omitAlternateAwsBuild(manifest), true);
+  assert.equal(omitAlternateAwsBuild({ ...manifest, name: "other-package" }), false);
+  for (const condition of ["import", "require", "default", "module-sync"]) {
+    assert.equal(
+      omitAlternateAwsBuild({
+        ...manifest,
+        exports: { [condition]: "./dist-es/index.js", node: "./dist-cjs/index.js" },
+      }),
+      false,
+    );
+  }
+  assert.equal(
+    omitAlternateAwsBuild({
+      ...manifest,
+      exports: {
+        ".": { node: "./dist-cjs/index.js", import: "./dist-es/index.js" },
+        "./client": "./dist-es/client.js",
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    omitAlternateAwsBuild({ ...manifest, imports: { "#client": "./dist-es/index.js" } }),
+    false,
+  );
+});
+
+test("omits unused AWS ES builds and preserves ES builds selected by Node", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell AWS builds "));
+  try {
+    const deployed = path.join(directory, "deployed");
+    const destination = path.join(directory, "sdk");
+    await mkdir(deployed);
+    await writeFile(
+      path.join(deployed, "package.json"),
+      JSON.stringify({
+        name: "runtime",
+        type: "module",
+        dependencies: { "@aws-sdk/core": "1", "@smithy/core": "1" },
+      }),
+    );
+    await writeFile(
+      path.join(deployed, "index.js"),
+      "import aws from '@aws-sdk/core'; import smithy from '@smithy/core'; export const result = [aws.value, smithy.value];",
+    );
+    for (const [name, needsEs] of [
+      ["@aws-sdk/core", false],
+      ["@smithy/core", true],
+    ]) {
+      const location = path.join(deployed, "node_modules", name);
+      await mkdir(path.join(location, "dist-cjs"), { recursive: true });
+      await mkdir(path.join(location, "dist-es"));
+      await writeFile(
+        path.join(location, "package.json"),
+        JSON.stringify({
+          name,
+          main: "./dist-cjs/index.js",
+          exports: needsEs
+            ? { import: "./dist-es/index.mjs", node: "./dist-cjs/index.js" }
+            : { node: "./dist-cjs/index.js", import: "./dist-es/index.mjs" },
+        }),
+      );
+      await writeFile(path.join(location, "dist-cjs/index.js"), "exports.value = 'cjs';");
+      await writeFile(path.join(location, "dist-es/index.mjs"), "export default { value: 'es' };");
+    }
+    await materializeDeployment(deployed, destination);
+    await assert.rejects(access(path.join(destination, "node_modules/@aws-sdk/core/dist-es")));
+    await access(path.join(destination, "node_modules/@smithy/core/dist-es/index.mjs"));
+    await rm(deployed, { recursive: true, force: true });
+    const relocated = await import(pathToFileURL(path.join(destination, "index.js")).href);
+    assert.deepEqual(relocated.result, ["cjs", "es"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("omits TypeScript declarations while preserving executable modules and assets", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell runtime declarations "));
+  try {
+    const deployed = path.join(directory, "deployed");
+    const destination = path.join(directory, "sdk");
+    await mkdir(deployed);
+    await writeFile(
+      path.join(deployed, "package.json"),
+      JSON.stringify({ name: "runtime", type: "module", main: "index.js" }),
+    );
+    await writeFile(path.join(deployed, "index.js"), "export const ready = true;");
+    const declarations = ["index.d.ts", "index.d.mts", "index.d.cts", "index.d.ts.map"];
+    const assets = ["worker.mjs", "helper.cjs", "schema.json", "LICENSE", "index.js.map"];
+    for (const filename of [...declarations, ...assets])
+      await writeFile(path.join(deployed, filename), "asset");
+    const types = path.join(deployed, "dist-types/ts3.4/submodules/client");
+    await mkdir(types, { recursive: true });
+    await writeFile(path.join(types, "getRecursionDetectionPlugin.browser.d.ts"), "export {};");
+    await materializeDeployment(deployed, destination);
+    await rm(deployed, { recursive: true, force: true });
+    for (const filename of declarations)
+      await assert.rejects(access(path.join(destination, filename)), {
+        code: "ENOENT",
+      });
+    await assert.rejects(
+      access(
+        path.join(
+          destination,
+          "dist-types/ts3.4/submodules/client/getRecursionDetectionPlugin.browser.d.ts",
+        ),
+      ),
+      { code: "ENOENT" },
+    );
+    for (const filename of assets) await access(path.join(destination, filename));
+    const relocated = await import(pathToFileURL(path.join(destination, "index.js")).href);
+    assert.equal(relocated.ready, true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("checks installed Windows paths independently of the staging directory", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell install paths "));
+  try {
+    await mkdir(path.join(directory, "sdk"));
+    const filename = path.join(directory, "sdk", `${"a".repeat(165)}.js`);
+    await writeFile(filename, "");
+    await assertWindowsInstallPaths(directory);
+    await writeFile(path.join(directory, "sdk", `${"a".repeat(166)}.js`), "");
+    await assert.rejects(
+      assertWindowsInstallPaths(directory),
+      /260 characters.*staging directory/s,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects Windows directory paths that exceed the legacy creation limit", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell directory paths "));
+  try {
+    const allowed = path.join(directory, "sdk", "a".repeat(156));
+    await mkdir(allowed, { recursive: true });
+    await writeFile(path.join(allowed, "index.js"), "");
+    await assertWindowsInstallPaths(directory);
+    const oversized = path.join(directory, "sdk", "b".repeat(157));
+    await mkdir(oversized, { recursive: true });
+    await writeFile(path.join(oversized, "index.js"), "");
+    await assert.rejects(
+      assertWindowsInstallPaths(directory),
+      /Windows installer resource path is too long/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("passes bundle configuration as a JSON file and cleans up after success or failure", async () => {
   for (const fails of [false, true]) {
@@ -36,7 +193,9 @@ test("passes bundle configuration as a JSON file and cleans up after success or 
         if (fails) throw new Error("build failed");
         return "built";
       },
-      { INKWELL_RUNTIME_RESOURCES: path.win32.resolve(tauriDirectory, "..", "iw-agent") },
+      {
+        INKWELL_RUNTIME_RESOURCES: path.win32.resolve(tauriDirectory, "..", "iw-agent"),
+      },
       "win32",
     );
     if (fails) await assert.rejects(build, /build failed/);
@@ -242,7 +401,11 @@ test("preserves isolated transitive dependency resolution after relocation", asy
     await writeFile(path.join(first, "index.js"), "export { ready } from 'balanced-match';");
     await writeFile(
       path.join(second, "package.json"),
-      JSON.stringify({ name: "balanced-match", type: "module", main: "index.js" }),
+      JSON.stringify({
+        name: "balanced-match",
+        type: "module",
+        main: "index.js",
+      }),
     );
     await writeFile(path.join(second, "index.js"), "export const ready = true;");
     await symlink(first, path.join(deployed, "node_modules/brace-expansion"), "junction");
@@ -265,7 +428,12 @@ test("shares diamond dependencies while preserving conflicting versions and cycl
       await mkdir(location, { recursive: true });
       await writeFile(
         path.join(location, "package.json"),
-        JSON.stringify({ name, type: "module", main: "index.js", dependencies }),
+        JSON.stringify({
+          name,
+          type: "module",
+          main: "index.js",
+          dependencies,
+        }),
       );
       await writeFile(path.join(location, "index.js"), contents);
     }
@@ -315,6 +483,93 @@ test("shares diamond dependencies while preserving conflicting versions and cycl
   }
 });
 
+test("hoists nested AWS versions only when all dependency resolutions remain correct", async () => {
+  for (const blocksHoisting of [false, true]) {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell AWS layout "));
+    try {
+      const deployed = path.join(directory, "deployed");
+      const resources = path.join(directory, "agent");
+      const destination = path.join(resources, "sdk");
+      const coreName = "@aws-sdk/core";
+      const providerName = "@aws-sdk/credential-providers";
+      const bedrockName = "@aws/bedrock-token-generator";
+      const bedrock = path.join(deployed, "node_modules", bedrockName);
+      const provider = path.join(bedrock, "node_modules", providerName);
+      const nestedCore = path.join(provider, "node_modules", coreName);
+      const coreFile =
+        "dist-es/submodules/account-id-endpoint/AccountIdEndpointModeConfigResolver.js";
+      async function createPackage(location, name, dependencies, contents) {
+        await mkdir(location, { recursive: true });
+        await writeFile(
+          path.join(location, "package.json"),
+          JSON.stringify({ name, type: "module", main: "index.js", dependencies }),
+        );
+        await writeFile(path.join(location, "index.js"), contents);
+      }
+      await createPackage(
+        deployed,
+        "runtime",
+        { [bedrockName]: "1", [providerName]: "1", [coreName]: "1" },
+        `import { value as bedrock } from '${bedrockName}'; import { value as provider } from '${providerName}'; import { value as core } from '${coreName}'; export const result = [bedrock, provider, core];`,
+      );
+      await createPackage(
+        path.join(deployed, "node_modules", coreName),
+        coreName,
+        {},
+        "export const value = 'core-one';",
+      );
+      await createPackage(
+        path.join(deployed, "node_modules", providerName),
+        providerName,
+        {},
+        "export const value = 'provider-one';",
+      );
+      await createPackage(
+        bedrock,
+        bedrockName,
+        { [providerName]: "2", ...(blocksHoisting ? { [coreName]: "1" } : {}) },
+        `import { value as provider } from '${providerName}'; ${blocksHoisting ? `import { value as core } from '${coreName}';` : ""} export const value = ${blocksHoisting ? "[provider, core]" : "provider"};`,
+      );
+      await createPackage(
+        provider,
+        providerName,
+        { [coreName]: "2" },
+        `export { value } from '${coreName}';`,
+      );
+      await createPackage(nestedCore, coreName, {}, `export { value } from './${coreFile}';`);
+      await mkdir(path.dirname(path.join(nestedCore, coreFile)), { recursive: true });
+      await writeFile(path.join(nestedCore, coreFile), "export const value = 'core-two';");
+      await materializeDeployment(deployed, destination);
+      const bundledBedrock = path.join(destination, "node_modules", bedrockName);
+      if (blocksHoisting) {
+        await access(
+          path.join(
+            bundledBedrock,
+            "node_modules",
+            providerName,
+            "node_modules",
+            coreName,
+            coreFile,
+          ),
+        );
+        await assert.rejects(access(path.join(bundledBedrock, "node_modules", coreName)));
+      } else {
+        await access(path.join(bundledBedrock, "node_modules", coreName, coreFile));
+        await assertWindowsInstallPaths(resources);
+      }
+      await rm(deployed, { recursive: true, force: true });
+      const relocated = await import(pathToFileURL(path.join(destination, "index.js")).href);
+      assert.deepEqual(relocated.result, [
+        blocksHoisting ? ["core-two", "core-one"] : "core-two",
+        "provider-one",
+        "core-one",
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+});
+
 test("bounds copying when conflicting packages form repeated dependency diamonds", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell dependency diamonds "));
   try {
@@ -325,7 +580,12 @@ test("bounds copying when conflicting packages form repeated dependency diamonds
       await mkdir(location, { recursive: true });
       await writeFile(
         path.join(location, "package.json"),
-        JSON.stringify({ name, type: "module", main: "index.js", dependencies }),
+        JSON.stringify({
+          name,
+          type: "module",
+          main: "index.js",
+          dependencies,
+        }),
       );
       await writeFile(path.join(location, "index.js"), contents);
     }

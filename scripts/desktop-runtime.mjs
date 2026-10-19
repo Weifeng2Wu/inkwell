@@ -141,6 +141,52 @@ export async function assertNoSymlinks(directory) {
   }
 }
 
+export async function assertWindowsInstallPaths(directory) {
+  const installDirectoryLength = 80;
+  const resourcePrefixLength = installDirectoryLength + "\\agent\\".length;
+  async function inspect(current) {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const filename = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        await inspect(filename);
+      } else {
+        const relative = path.relative(directory, filename).split(path.sep).join("\\");
+        const installedLength = resourcePrefixLength + relative.length;
+        const parentLength = resourcePrefixLength + path.win32.dirname(relative).length;
+        if (installedLength >= 260 || parentLength > 247)
+          throw new Error(
+            `Windows installer resource path is too long (${installedLength} characters with an ${installDirectoryLength}-character install directory): agent\\${relative}. Reduce runtime dependency nesting before packaging. Shortening the build staging directory does not shorten installed paths.`,
+          );
+      }
+    }
+  }
+  await inspect(directory);
+}
+
+function nodeExportTargets(exports, conditions) {
+  if (typeof exports === "string") return [exports];
+  if (!exports || typeof exports !== "object") return [];
+  if (Array.isArray(exports))
+    return exports.flatMap((entry) => nodeExportTargets(entry, conditions));
+  const entries = Object.entries(exports);
+  if (entries.some(([name]) => name.startsWith(".")))
+    return entries.flatMap(([, entry]) => nodeExportTargets(entry, conditions));
+  const selected = entries.find(([condition]) => conditions.has(condition));
+  return selected ? nodeExportTargets(selected[1], conditions) : [];
+}
+
+export function omitAlternateAwsBuild(manifest) {
+  if (!/^@(aws-sdk|smithy)\//.test(manifest.name) || !/^\.\/dist-cjs\//.test(manifest.main ?? ""))
+    return false;
+  if (JSON.stringify(manifest.imports ?? {}).includes("dist-es")) return false;
+  return ["import", "require"].every((mode) =>
+    nodeExportTargets(
+      manifest.exports,
+      new Set(["node", "node-addons", "module-sync", "default", mode]),
+    ).every((target) => target !== "./dist-es" && !target.startsWith("./dist-es/")),
+  );
+}
+
 export async function materializeDeployment(deployed, destination) {
   const packages = new Map();
   let copied = 0;
@@ -176,7 +222,11 @@ export async function materializeDeployment(deployed, destination) {
       !/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(manifest.name)
     )
       throw new Error("Invalid deployed runtime package name.");
-    const entry = { name: manifest.name, dependencies: new Map() };
+    const entry = {
+      name: manifest.name,
+      omitEsBuild: omitAlternateAwsBuild(manifest),
+      dependencies: new Map(),
+    };
     packages.set(canonical, entry);
     const optional = manifest.optionalDependencies ?? {};
     for (const name of Object.keys({ ...manifest.dependencies, ...optional })) {
@@ -207,6 +257,7 @@ export async function materializeDeployment(deployed, destination) {
     const placements = [rootPlacement];
     function place(owner, name, canonical) {
       const placement = {
+        name,
         canonical,
         target: path.join(owner.target, "node_modules", name),
         parent: owner,
@@ -243,13 +294,60 @@ export async function materializeDeployment(deployed, destination) {
         place(owner, name, canonical);
       }
     }
+    phase = "shortening dependency paths";
+    function resolvesDependencies() {
+      return placements.every((owner) =>
+        [...packages.get(owner.canonical).dependencies].every(([name, canonical]) => {
+          let scope = owner;
+          while (scope && !scope.children.has(name)) scope = scope.parent;
+          return scope?.children.get(name).canonical === canonical;
+        }),
+      );
+    }
+    let shortened;
+    do {
+      shortened = false;
+      for (const placement of placements.slice(1)) {
+        const previous = placement.parent;
+        const { name } = placement;
+        const ancestors = [];
+        for (let ancestor = previous.parent; ancestor; ancestor = ancestor.parent)
+          ancestors.push(ancestor);
+        for (const ancestor of ancestors.reverse()) {
+          if (ancestor.children.has(name)) continue;
+          previous.children.delete(name);
+          ancestor.children.set(name, placement);
+          placement.parent = ancestor;
+          if (resolvesDependencies()) {
+            shortened = true;
+            break;
+          }
+          placement.parent = previous;
+          ancestor.children.delete(name);
+          previous.children.set(name, placement);
+        }
+      }
+    } while (shortened);
+    function updateTargets(owner) {
+      for (const [name, child] of owner.children) {
+        child.target = path.join(owner.target, "node_modules", name);
+        updateTargets(child);
+      }
+    }
+    updateTargets(rootPlacement);
     phase = "copying dependencies";
     progress();
     for (const placement of placements) {
       await cp(placement.canonical, placement.target, {
         recursive: true,
         dereference: true,
-        filter: (filename) => path.basename(filename) !== "node_modules",
+        filter: (filename) =>
+          path.basename(filename) !== "node_modules" &&
+          !/\.d\.(?:ts|mts|cts)(?:\.map)?$/i.test(filename) &&
+          !(
+            packages.get(placement.canonical).omitEsBuild &&
+            path.relative(placement.canonical, filename) === "dist-es"
+          ),
       });
       copied += 1;
     }
@@ -374,6 +472,7 @@ export async function prepareRuntime() {
         2,
       ),
     );
+    if (process.platform === "win32") await assertWindowsInstallPaths(resources);
     console.log(`Portable Agent runtime verified: ${target}, ${process.version}`);
   } finally {
     await rm(temporary, { recursive: true, force: true });
