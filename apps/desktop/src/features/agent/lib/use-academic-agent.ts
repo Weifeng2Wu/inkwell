@@ -4,6 +4,7 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import { appStorage } from "@/lib/storage/app-storage";
+import type { SelectionAttachment } from "@/types/editor-selection";
 import {
   AcademicClient,
   type AcademicConfig,
@@ -21,6 +22,7 @@ import { readConfig } from "./academic-config";
 import { academicLabels } from "./academic-labels";
 import type { ChatImage } from "./chat-input";
 import { prepareChatVision } from "./chat-vision";
+import { withSelectionContext } from "./selection-context";
 import { useAgentApiKey } from "./use-agent-api-key";
 
 type DisplayMessage = AcademicMessage & { id: string };
@@ -565,7 +567,11 @@ export function useAcademicAgent({
     }
   }
 
-  async function send(draft = input.trim(), images: ChatImage[] = []) {
+  async function send(
+    draft = input.trim(),
+    images: ChatImage[] = [],
+    selections: SelectionAttachment[] = [],
+  ) {
     const client = clientRef.current;
     if (
       !enabledRef.current ||
@@ -577,7 +583,7 @@ export function useAcademicAgent({
       !draft.trim()
     )
       return false;
-    const text = draft.trim();
+    const text = withSelectionContext(draft.trim(), selections);
     const assistantId = crypto.randomUUID();
     streamingId.current = assistantId;
     generatedImages.current = [];
@@ -621,7 +627,7 @@ export function useAcademicAgent({
       return true;
     } catch (caught) {
       if (clientRef.current === client) setError(String(caught));
-      if (clientRef.current === client) setInput((current) => current || text);
+      if (clientRef.current === client) setInput((current) => current || draft);
       return false;
     } finally {
       if (visionAbort.current === abort) visionAbort.current = null;

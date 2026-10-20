@@ -2,10 +2,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/features/i18n";
-import { ChatComposer } from "./chat-composer";
+import type { SelectionAttachment } from "@/types/editor-selection";
 import type { FileNode } from "@/types/files";
+import { ChatComposer } from "./chat-composer";
 
-function render(working: boolean, value = "Hello", files: FileNode[] = []) {
+function render(
+  working: boolean,
+  value = "Hello",
+  files: FileNode[] = [],
+  selections: SelectionAttachment[] = [],
+) {
   return renderToStaticMarkup(
     createElement(
       I18nProvider,
@@ -21,11 +27,63 @@ function render(working: boolean, value = "Hello", files: FileNode[] = []) {
         sendLabel: "Send",
         stopLabel: "Stop",
         files,
+        selections,
+        onRemoveSelection: vi.fn(),
+        onRevealSelection: vi.fn(),
       }),
     ),
   );
 }
 describe("chat composer", () => {
+  it("shows compact source links without exposing the excerpt and allows sending without a typed message", () => {
+    const markup = render(
+      false,
+      "",
+      [],
+      [
+        {
+          id: "selection-1",
+          path: "intro.tex",
+          text: "<script>unsaved</script>",
+          startLineNumber: 2,
+          startColumn: 3,
+          endLineNumber: 4,
+          endColumn: 5,
+        },
+      ],
+    );
+    expect(markup).toContain("intro.tex");
+    expect(markup).toContain("Lines 2–4");
+    expect(markup).toContain('aria-label="Show intro.tex, Lines 2–4 in editor"');
+    expect(markup).not.toContain("intro.tex:2:3");
+    expect(markup).not.toContain("unsaved");
+    expect(markup).not.toContain("<details");
+    expect(markup).toContain('aria-label="Remove selected text from intro.tex"');
+    expect(markup).not.toMatch(/<button[^>]*aria-label="Send"[^>]*\sdisabled="/);
+    expect(render(false, "")).toMatch(/<button[^>]*aria-label="Send"[^>]*\sdisabled="/);
+  });
+  it("shows the basename with a single inclusive line while keeping the full path in the tooltip", () => {
+    const markup = render(
+      false,
+      "",
+      [],
+      [
+        {
+          id: "selection-2",
+          path: "chapters/intro.tex",
+          text: "A sentence.\n",
+          startLineNumber: 12,
+          startColumn: 1,
+          endLineNumber: 13,
+          endColumn: 1,
+        },
+      ],
+    );
+    expect(markup).toContain('title="chapters/intro.tex"');
+    expect(markup).toContain('aria-label="Show intro.tex, Line 12 in editor"');
+    expect(markup).not.toContain("Lines 12–13");
+    expect(markup).not.toContain("A sentence.");
+  });
   it("uses an upload plus and one icon action, rather than text Send/Stop buttons", () => {
     const markup = render(false);
     expect(markup).toContain('aria-label="Add images"');
@@ -55,9 +113,7 @@ describe("chat composer", () => {
     expect(markup).toContain(
       '</textarea><div class="relative mx-2 my-2 flex items-center justify-between">',
     );
-    expect(markup).toMatch(
-      /<button[^>]*class="toolbar-icon-button[^>]*aria-label="Add images"/,
-    );
+    expect(markup).toMatch(/<button[^>]*class="toolbar-icon-button[^>]*aria-label="Add images"/);
     expect(markup).toMatch(/<button[^>]*aria-label="Send"[^>]*class="flex size-8/);
   });
   it("shows all matching file choices instead of truncating the list", () => {

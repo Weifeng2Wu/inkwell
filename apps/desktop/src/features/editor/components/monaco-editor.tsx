@@ -4,7 +4,7 @@ import "@/features/editor/monaco/config";
 
 import Editor, { type Monaco, type OnChange, type OnMount } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { registerLaTeXLanguage } from "@/features/editor/monaco/latex";
 import { defineEditorThemes } from "@/features/editor/monaco/themes";
 import { useI18n } from "@/features/i18n";
@@ -14,6 +14,7 @@ import {
   resolveEditorFontFamily,
   useKeyboardShortcuts,
 } from "@/features/settings";
+import type { EditorSelection } from "@/types/editor-selection";
 import type { BibliographyEntry } from "../lib/bibliography";
 import { bindBibliography } from "../monaco/citation-completion";
 import { registerMarkdownLanguage } from "../monaco/markdown";
@@ -28,7 +29,9 @@ type Props = {
   editorTheme?: EditorTheme;
   onContentChange?: (content: string) => void;
   goToLine?: number;
+  goToSelection?: EditorSelection & { requestId: string };
   bibliography?: readonly BibliographyEntry[];
+  onAddSelection?: (selection: EditorSelection) => void;
 };
 
 type VimModeController = {
@@ -69,7 +72,9 @@ export const MonacoEditor = memo(function MonacoEditor({
   editorTheme = "one-light",
   onContentChange,
   goToLine,
+  goToSelection,
   bibliography = EMPTY_BIBLIOGRAPHY,
+  onAddSelection,
 }: Props) {
   const { t } = useI18n();
   const { bindings: keyboardShortcuts } = useKeyboardShortcuts();
@@ -80,6 +85,141 @@ export const MonacoEditor = memo(function MonacoEditor({
   const vimModeRef = useRef<VimModeController | null>(null);
   const vimStatusRef = useRef<HTMLDivElement | null>(null);
   const [editorReady, setEditorReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectionButtonRef = useRef<HTMLButtonElement>(null);
+  const [selectionAnchor, setSelectionAnchor] = useState<{ left: number; top: number } | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const button = selectionButtonRef.current;
+    if (!selectionAnchor || !container || !button) return;
+    const bounds = container.getBoundingClientRect();
+    const size = button.getBoundingClientRect();
+    const left = Math.max(8, Math.min(selectionAnchor.left + 12, bounds.width - size.width - 8));
+    const below = selectionAnchor.top + 12;
+    const top =
+      below + size.height <= bounds.height - 8 ? below : selectionAnchor.top - size.height - 12;
+    button.style.left = `${left}px`;
+    button.style.top = `${Math.max(8, Math.min(top, bounds.height - size.height - 8))}px`;
+  }, [selectionAnchor]);
+
+  const addSelection = useCallback(() => {
+    const instance = editorRef.current;
+    const range = instance?.getSelection();
+    const model = instance?.getModel();
+    if (!range || !model || range.isEmpty()) return;
+    const text = model.getValueInRange(range);
+    if (!text.trim()) return;
+    onAddSelection?.({
+      text,
+      startLineNumber: range.startLineNumber,
+      startColumn: range.startColumn,
+      endLineNumber: range.endLineNumber,
+      endColumn: range.endColumn,
+    });
+    setSelectionAnchor(null);
+  }, [onAddSelection]);
+
+  useEffect(() => {
+    const instance = editorRef.current;
+    if (!editorReady || !instance || !onAddSelection) return;
+    let selecting = false;
+    const update = (pointer?: MouseEvent) => {
+      const range = instance.getSelection();
+      const container = containerRef.current;
+      if (
+        selecting ||
+        !range ||
+        !instance.getModel()?.getValueInRange(range).trim() ||
+        !container
+      ) {
+        setSelectionAnchor(null);
+        return;
+      }
+      const bounds = container.getBoundingClientRect();
+      if (
+        pointer &&
+        pointer.clientX >= bounds.left &&
+        pointer.clientX <= bounds.right &&
+        pointer.clientY >= bounds.top &&
+        pointer.clientY <= bounds.bottom
+      ) {
+        setSelectionAnchor({
+          left: pointer.clientX - bounds.left,
+          top: pointer.clientY - bounds.top,
+        });
+        return;
+      }
+      const position = instance.getScrolledVisiblePosition(range.getPosition());
+      if (
+        !position ||
+        position.top < 0 ||
+        position.top + position.height > bounds.height ||
+        position.left < 0 ||
+        position.left > bounds.width
+      ) {
+        setSelectionAnchor(null);
+        return;
+      }
+      setSelectionAnchor({ left: position.left, top: position.top + position.height });
+    };
+    const listener = instance.onDidChangeCursorSelection(() => update());
+    const mouseDown = instance.onMouseDown((event) => {
+      if (!event.event.leftButton) return;
+      selecting = true;
+      setSelectionAnchor(null);
+    });
+    const mouseUp = (event: MouseEvent) => {
+      if (!selecting || event.button !== 0) return;
+      selecting = false;
+      update(event);
+    };
+    window.addEventListener("mouseup", mouseUp);
+    const scroll = instance.onDidScrollChange(() => setSelectionAnchor(null));
+    const layout = instance.onDidLayoutChange(() => setSelectionAnchor(null));
+    const keyDown = instance.onKeyDown((event) => {
+      if (event.browserEvent.key === "Escape") setSelectionAnchor(null);
+    });
+    const action = instance.addAction({
+      id: "add-selection-to-agent",
+      label: t("interface.addSelection"),
+      precondition: "editorHasSelection",
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.5,
+      run: addSelection,
+    });
+    return () => {
+      listener.dispose();
+      mouseDown.dispose();
+      window.removeEventListener("mouseup", mouseUp);
+      scroll.dispose();
+      layout.dispose();
+      keyDown.dispose();
+      action.dispose();
+    };
+  }, [editorReady, onAddSelection, addSelection, t]);
+
+  useEffect(() => {
+    const instance = editorRef.current;
+    const model = instance?.getModel();
+    if (!editorReady || !goToSelection || !instance || !model) return;
+    let range = model.validateRange(goToSelection);
+    if (model.getValueInRange(range) !== goToSelection.text) {
+      const matches = model.findMatches(goToSelection.text, false, false, true, null, false);
+      const nearest = matches.sort(
+        (first, second) =>
+          Math.abs(first.range.startLineNumber - goToSelection.startLineNumber) -
+          Math.abs(second.range.startLineNumber - goToSelection.startLineNumber),
+      )[0];
+      if (nearest) range = nearest.range;
+    }
+    instance.setSelection(range);
+    instance.revealRangeInCenter(range);
+    instance.focus();
+    setSelectionAnchor(null);
+  }, [editorReady, goToSelection]);
   const loadingRows = [70, 45, 60, 80, 35, 55, 40, 65].map((width) => ({
     id: `monaco-loading-${width}`,
     width,
@@ -344,7 +484,18 @@ export const MonacoEditor = memo(function MonacoEditor({
   }, []);
 
   return (
-    <div className={`relative flex flex-col ${className}`}>
+    <div ref={containerRef} className={`relative flex flex-col ${className}`}>
+      {onAddSelection && selectionAnchor && (
+        <button
+          ref={selectionButtonRef}
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={addSelection}
+          className="absolute z-20 max-w-[calc(100%-16px)] rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground shadow-sm hover:bg-surface"
+        >
+          {t("interface.addSelection")}
+        </button>
+      )}
       {editorSettings?.vimMode && !readOnly && (
         <div
           ref={vimStatusRef}

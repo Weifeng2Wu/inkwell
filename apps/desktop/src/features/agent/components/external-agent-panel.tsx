@@ -5,6 +5,7 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
+import type { SelectionAttachment } from "@/types/editor-selection";
 import type { FileNode } from "@/types/files";
 import type { SkillMetadata } from "../lib/academic-client";
 import { academicLabels } from "../lib/academic-labels";
@@ -27,6 +28,9 @@ export function ExternalAgentPanel({
   files = [],
   skills = [],
   enabledSkillIds = [],
+  selections,
+  onRemoveSelection,
+  onRevealSelection,
 }: {
   agent: ExternalAgentController;
   selected: AgentSelection;
@@ -34,6 +38,9 @@ export function ExternalAgentPanel({
   files?: FileNode[];
   skills?: SkillMetadata[];
   enabledSkillIds?: string[];
+  selections?: SelectionAttachment[];
+  onRemoveSelection?: (id: string) => void;
+  onRevealSelection?: (selection: SelectionAttachment) => void;
 }) {
   const { locale } = useI18n();
   const labels = externalAgentLabels(locale);
@@ -41,6 +48,10 @@ export function ExternalAgentPanel({
   const panel = useRef<HTMLElement>(null);
   const showSuggestions = agent.messages.length === 0 && !agent.working && !agent.authentication;
   const [showHistory, setShowHistory] = useState(false);
+  const latestSelection = selections?.at(-1)?.id;
+  useEffect(() => {
+    if (latestSelection) setShowHistory(false);
+  }, [latestSelection]);
   const [sharedSkills, setSharedSkills] = useState<SkillMetadata[]>([]);
   const [confirmReconnect, setConfirmReconnect] = useState(false);
   const skillKey = JSON.stringify(enabledSkillIds);
@@ -295,11 +306,14 @@ export function ExternalAgentPanel({
         </Dialog.Portal>
       </Dialog.Root>
       <ChatComposer
+        selections={selections}
+        onRemoveSelection={onRemoveSelection}
+        onRevealSelection={onRevealSelection}
         value={agent.input}
         onChange={agent.setInput}
-        onSend={(text, images) => {
+        onSend={(text, images, excerpts) => {
           scroll.scrollToBottom();
-          return agent.send(text, images);
+          return agent.send(text, images, excerpts);
         }}
         onStop={agent.stop}
         working={agent.working && agent.connected}

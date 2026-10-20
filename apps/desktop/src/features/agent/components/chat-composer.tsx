@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowUpIcon, PlusIcon, StopIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, FileTextIcon, PlusIcon, StopIcon, XIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import { matchesShortcut, useKeyboardShortcuts } from "@/features/settings";
+import type { SelectionAttachment } from "@/types/editor-selection";
 import type { FileNode } from "@/types/files";
 import type { SkillMetadata } from "../lib/academic-client";
 import {
@@ -30,10 +31,17 @@ export function ChatComposer({
   files = [],
   skills = [],
   directory,
+  selections = [],
+  onRemoveSelection,
+  onRevealSelection,
 }: {
   value: string;
   onChange: (value: string) => void;
-  onSend: (text: string, images: ChatImage[]) => Promise<unknown>;
+  onSend: (
+    text: string,
+    images: ChatImage[],
+    selections: SelectionAttachment[],
+  ) => Promise<unknown>;
   onStop: () => Promise<unknown>;
   working: boolean;
   disabled: boolean;
@@ -44,6 +52,9 @@ export function ChatComposer({
   files?: FileNode[];
   skills?: SkillMetadata[];
   directory?: string;
+  selections?: SelectionAttachment[];
+  onRemoveSelection?: (id: string) => void;
+  onRevealSelection?: (selection: SelectionAttachment) => void;
 }) {
   const { t, locale } = useI18n();
   const { bindings } = useKeyboardShortcuts();
@@ -61,6 +72,10 @@ export function ChatComposer({
   const mentionList = useRef<HTMLDivElement>(null);
   const listId = useId();
   const mention = dismissed ? null : mentionQuery(value, caret);
+  const latestSelection = selections.at(-1)?.id;
+  useEffect(() => {
+    if (latestSelection) textarea.current?.focus();
+  }, [latestSelection]);
   const slashMatch = dismissed ? null : /(?:^|\s)\/([^\s/]*)$/.exec(value.slice(0, caret));
   const slashQuery = slashMatch
     ? {
@@ -70,7 +85,8 @@ export function ChatComposer({
       }
     : null;
   const skillQuery = slashQuery ?? (mention ? { ...mention, skillsOnly: false } : null);
-  const options: { key: string; name: string; token: string; type: string; folder?: boolean }[] = [];
+  const options: { key: string; name: string; token: string; type: string; folder?: boolean }[] =
+    [];
   if (skillQuery) {
     if (slashQuery) {
       options.push(
@@ -84,17 +100,23 @@ export function ChatComposer({
     } else {
       options.push(
         ...workspaceMentions(files, directory, mention?.query ?? "").map((entry) => ({
-            key: `${entry.folder ? "folder" : "file"}:${entry.path}`,
-            name: entry.name,
-            token: entry.folder ? `@${entry.path}/` : `@file:${JSON.stringify(entry.path)}`,
-            type: entry.folder ? ({ zh: "文件夹", en: "Folder", ko: "폴더" }[locale]) : t("interface.file"),
-            folder: entry.folder,
-          })),
+          key: `${entry.folder ? "folder" : "file"}:${entry.path}`,
+          name: entry.name,
+          token: entry.folder ? `@${entry.path}/` : `@file:${JSON.stringify(entry.path)}`,
+          type: entry.folder
+            ? { zh: "文件夹", en: "Folder", ko: "폴더" }[locale]
+            : t("interface.file"),
+          folder: entry.folder,
+        })),
       );
     }
-    options.splice(0, options.length, ...options.filter((item) =>
-          `${item.name} ${item.key}`.toLowerCase().includes(skillQuery.query.toLowerCase()),
-        ));
+    options.splice(
+      0,
+      options.length,
+      ...options.filter((item) =>
+        `${item.name} ${item.key}`.toLowerCase().includes(skillQuery.query.toLowerCase()),
+      ),
+    );
   }
   useEffect(() => {
     mentionList.current
@@ -117,13 +139,27 @@ export function ChatComposer({
     });
   }
   async function submit() {
-    if (working || disabled || reading || sending.current || (!value.trim() && !images.length))
+    if (
+      working ||
+      disabled ||
+      reading ||
+      sending.current ||
+      (!value.trim() && !images.length && !selections.length)
+    )
       return;
     sending.current = true;
     setError(null);
     try {
-      const result = await onSend(value.trim() || t("interface.analyzeImages"), images);
-      if (result !== false) setImages([]);
+      const result = await onSend(
+        value.trim() ||
+          t(selections.length ? "interface.analyzeSelection" : "interface.analyzeImages"),
+        images,
+        selections,
+      );
+      if (result !== false) {
+        setImages([]);
+        for (const selection of selections) onRemoveSelection?.(selection.id);
+      }
     } catch (caught) {
       setError(String(caught));
     } finally {
@@ -158,6 +194,54 @@ export function ChatComposer({
   return (
     <footer className="border-t border-border p-3">
       <div className="relative rounded-xl border border-border bg-surface focus-within:border-accent/60 focus-within:ring-2 focus-within:ring-accent/10">
+        {selections.length > 0 && (
+          <section
+            className="max-h-48 space-y-1.5 overflow-y-auto px-3 pt-3"
+            aria-label={t("interface.selectedExcerpt")}
+          >
+            {selections.map((selection) => {
+              const name = selection.path.split(/[\\/]/).at(-1) || selection.path;
+              const endLine =
+                selection.endColumn === 1 && selection.endLineNumber > selection.startLineNumber
+                  ? selection.endLineNumber - 1
+                  : selection.endLineNumber;
+              const lines =
+                selection.startLineNumber === endLine
+                  ? t("interface.selectionLine", { line: selection.startLineNumber })
+                  : t("interface.selectionLines", {
+                      start: selection.startLineNumber,
+                      end: endLine,
+                    });
+              return (
+                <div
+                  key={selection.id}
+                  className="relative rounded-md border border-border bg-background text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onRevealSelection?.(selection)}
+                    aria-label={t("interface.revealSelection", { name, lines })}
+                    className="flex w-full items-center gap-2 rounded-md py-2 pl-2.5 pr-8 text-left hover:bg-surface"
+                    title={selection.path}
+                  >
+                    <FileTextIcon size={14} className="shrink-0 text-muted" aria-hidden="true" />
+                    <span className="min-w-0 truncate font-medium text-foreground">{name}</span>
+                    <span className="shrink-0 text-muted">· {lines}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={working}
+                    aria-label={t("interface.removeSelection", { name: selection.path })}
+                    onClick={() => onRemoveSelection?.(selection.id)}
+                    className="absolute right-1.5 top-1.5 rounded p-1 text-muted hover:text-foreground"
+                  >
+                    <XIcon size={12} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
+          </section>
+        )}
         {options.length > 0 && (
           <div
             id={listId}
@@ -277,7 +361,11 @@ export function ChatComposer({
             type="button"
             aria-label={working ? stopLabel : sendLabel}
             title={working ? stopLabel : sendLabel}
-            disabled={working ? !canStop : disabled || reading || (!value.trim() && !images.length)}
+            disabled={
+              working
+                ? !canStop
+                : disabled || reading || (!value.trim() && !images.length && !selections.length)
+            }
             onClick={() => {
               if (working) void onStop();
               else void submit();

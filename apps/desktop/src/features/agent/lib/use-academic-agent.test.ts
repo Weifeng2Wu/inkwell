@@ -207,6 +207,52 @@ describe("automatic Agent sessions", () => {
     );
   });
 
+  it("sends unsaved selected text with its range to the built-in Agent", async () => {
+    saveModel();
+    const agent = await settleAgent("/project");
+    const selection = {
+      id: "selection-1",
+      path: "intro.tex",
+      text: "An unsaved selected sentence.",
+      startLineNumber: 5,
+      startColumn: 2,
+      endLineNumber: 5,
+      endColumn: 31,
+    };
+    expect(await agent.send("Polish this", [], [selection])).toBe(true);
+    expect(transport.request).toHaveBeenCalledWith("prompt", {
+      text: expect.stringContaining(selection.text),
+    });
+    expect(transport.request).toHaveBeenCalledWith("prompt", {
+      text: expect.stringContaining('"intro.tex":5:2-5:31'),
+    });
+    expect(renderAgent("/project").input).toBe("");
+  });
+
+  it("restores the original built-in draft without duplicating excerpts after failure", async () => {
+    saveModel();
+    const agent = await settleAgent("/project");
+    transport.request.mockRejectedValueOnce(new Error("Prompt failed"));
+    expect(
+      await agent.send(
+        "Polish this",
+        [],
+        [
+          {
+            id: "selection-1",
+            path: "intro.tex",
+            text: "A selected sentence.",
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 21,
+          },
+        ],
+      ),
+    ).toBe(false);
+    expect(renderAgent("/project").input).toBe("Polish this");
+  });
+
   it("waits for credentials before starting the runtime", async () => {
     saveModel();
     const pendingReads: ((value: string | null) => void)[] = [];

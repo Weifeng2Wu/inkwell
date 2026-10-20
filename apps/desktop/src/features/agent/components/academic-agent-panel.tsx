@@ -2,7 +2,8 @@
 
 import { ArrowRightIcon, GearSixIcon, SparkleIcon } from "@phosphor-icons/react";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { SelectionAttachment } from "@/types/editor-selection";
 import type { FileNode } from "@/types/files";
 import { archiveKey } from "../lib/conversation-archive";
 import type { AcademicAgentController } from "../lib/use-academic-agent";
@@ -17,12 +18,22 @@ export function AcademicAgentPanel({
   agent,
   files = [],
   onOpenSettings,
+  selections,
+  onRemoveSelection,
+  onRevealSelection,
 }: {
   agent: AcademicAgentController;
   files?: FileNode[];
   onOpenSettings?: () => void;
+  selections?: SelectionAttachment[];
+  onRemoveSelection?: (id: string) => void;
+  onRevealSelection?: (selection: SelectionAttachment) => void;
 }) {
   const [showHistory, setShowHistory] = useState(false);
+  const latestSelection = selections?.at(-1)?.id;
+  useEffect(() => {
+    if (latestSelection) setShowHistory(false);
+  }, [latestSelection]);
   const panel = useRef<HTMLElement>(null);
   const {
     labels,
@@ -228,11 +239,14 @@ export function AcademicAgentPanel({
         </p>
       )}
       <ChatComposer
+        selections={selections}
+        onRemoveSelection={onRemoveSelection}
+        onRevealSelection={onRevealSelection}
         value={input}
         onChange={setInput}
-        onSend={(text, images) => {
+        onSend={(text, images, excerpts) => {
           scroll.scrollToBottom();
-          return send(text, images);
+          return send(text, images, excerpts);
         }}
         onStop={stop}
         working={working}

@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
+import type { SelectionAttachment } from "@/types/editor-selection";
 import type { AcademicConfig } from "./academic-client";
 import { type AcpAuthMethod, AcpClient, type AcpPermission, sharedPrompt } from "./acp-client";
 import { hasAcpConsent, rememberAcpConsent } from "./acp-consent";
@@ -17,6 +18,7 @@ import {
   renameChatRecord,
   saveChatRecord,
 } from "./external-chat-history";
+import { withSelectionContext } from "./selection-context";
 import type { AgentSelectionController } from "./use-agent-selection";
 
 type Message = {
@@ -510,13 +512,17 @@ export function useExternalAgent({
     }
   }
 
-  async function send(text = input.trim(), images: ChatImage[] = []) {
+  async function send(
+    text = input.trim(),
+    images: ChatImage[] = [],
+    selections: SelectionAttachment[] = [],
+  ) {
     if (!text.trim() || busy.current) return false;
     const client = clientRef.current;
     const scope = scopeRef.current;
     setInput((current) => (current.trim() === text.trim() ? "" : current));
     try {
-      await sendText(text, images);
+      await sendText(withSelectionContext(text, selections), images);
       return true;
     } catch (caught) {
       if (clientRef.current === client && scopeRef.current === scope) {

@@ -355,6 +355,53 @@ describe("external Agent lifecycle", () => {
       [],
     );
   });
+  it("sends selected snapshots without reading the source file and clears the original draft", async () => {
+    render();
+    await settle();
+    render().setInput("Polish this");
+    const selection = {
+      id: "selection-1",
+      path: "intro.tex",
+      text: "An unsaved selected sentence.",
+      startLineNumber: 5,
+      startColumn: 2,
+      endLineNumber: 5,
+      endColumn: 31,
+    };
+    vi.mocked(invoke).mockClear();
+    expect(await render().send("Polish this", [], [selection])).toBe(true);
+    expect(transport.prompt).toHaveBeenCalledWith(expect.stringContaining(selection.text), []);
+    expect(transport.prompt).toHaveBeenCalledWith(
+      expect.stringContaining('"intro.tex":5:2-5:31'),
+      [],
+    );
+    expect(render().input).toBe("");
+    expect(vi.mocked(invoke).mock.calls.some(([command]) => command === "read_file")).toBe(false);
+  });
+  it("restores only the original draft after a failed send with excerpts", async () => {
+    render();
+    await settle();
+    transport.prompt.mockRejectedValueOnce(new Error("Prompt failed"));
+    render().setInput("Polish this");
+    expect(
+      await render().send(
+        "Polish this",
+        [],
+        [
+          {
+            id: "selection-1",
+            path: "intro.tex",
+            text: "Selected sentence.",
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 19,
+          },
+        ],
+      ),
+    ).toBe(false);
+    expect(render().input).toBe("Polish this");
+  });
   it("does not prompt ACP when a referenced PDF cannot be parsed", async () => {
     vi.mocked(invoke).mockImplementation(async (command) => {
       if (command === "read_chat_pdf") throw new Error("PDF is outside project directory");

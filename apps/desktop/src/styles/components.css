@@ -241,6 +241,7 @@ kbd {
    ========================================================================== */
 
 .dockview-editor-layout {
+  isolation: isolate;
   --dv-group-view-background-color: var(--background);
   --dv-tabs-and-actions-container-background-color: var(--background);
   --dv-tab-divider-color: var(--border);

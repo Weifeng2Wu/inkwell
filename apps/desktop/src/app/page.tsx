@@ -5,9 +5,9 @@ import {
   FolderOpenIcon,
   GearIcon,
   PlayIcon,
-  SquaresFourIcon,
   SidebarSimpleIcon,
   SparkleIcon,
+  SquaresFourIcon,
   TerminalIcon,
 } from "@phosphor-icons/react";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
@@ -21,7 +21,6 @@ function safeConvertFileSrc(filePath: string, protocol = "asset"): string {
 }
 
 import { Logo } from "@/components/logo";
-import { AcpConnectionDialog } from "@/features/agent/components/acp-connection-dialog";
 import { InputDialog } from "@/components/ui/input-dialog";
 import {
   TabBar,
@@ -40,6 +39,7 @@ import {
   useAgentSelection,
   useExternalAgent,
 } from "@/features/agent";
+import { AcpConnectionDialog } from "@/features/agent/components/acp-connection-dialog";
 import {
   type DockviewPanelItem,
   DockviewPanelLayout,
@@ -98,6 +98,7 @@ import { INSTANT_TRANSITION, MAX_SIDEBAR_WIDTH, MIN_PANEL_WIDTH, PANEL_SPRING } 
 import { pathSync } from "@/lib/path";
 import { appStorage, storedPanelWidth } from "@/lib/storage/app-storage";
 import { useTauriDaemon } from "@/lib/tauri";
+import type { EditorSelection, SelectionAttachment } from "@/types/editor-selection";
 
 type EditorViewMode = "file" | "git-diff";
 type GitDiffPreviewState = {
@@ -144,8 +145,60 @@ export default function EditorPage() {
   const [binaryPreviewUrl, setBinaryPreviewUrl] = useState<string | null>(null);
   const [pdfRefreshKey, setPdfRefreshKey] = useState(0);
   const [pendingGoToLine, setPendingGoToLine] = useState(0);
+  const [pendingSelection, setPendingSelection] = useState<
+    | (SelectionAttachment & {
+        requestId: string;
+        pane: "primary" | "split";
+      })
+    | null
+  >(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(false);
+  const [selectionDraft, setSelectionDraft] = useState<{
+    projectPath: string | null;
+    items: SelectionAttachment[];
+  }>({ projectPath: daemon.projectPath, items: [] });
+  const selectionAttachments =
+    selectionDraft.projectPath === daemon.projectPath ? selectionDraft.items : [];
+  useEffect(() => {
+    if (selectionDraft.projectPath !== daemon.projectPath) {
+      setSelectionDraft({ projectPath: daemon.projectPath, items: [] });
+      setPendingSelection(null);
+    }
+  }, [daemon.projectPath, selectionDraft.projectPath]);
+  const addSelectionAttachment = useCallback(
+    (filePath: string, selection: EditorSelection) => {
+      const root = daemon.projectPath?.replace(/\\/g, "/").replace(/\/$/, "");
+      const normalized = filePath.replace(/\\/g, "/");
+      const path =
+        root && normalized.startsWith(`${root}/`) ? normalized.slice(root.length + 1) : normalized;
+      const attachment = { ...selection, id: crypto.randomUUID(), path };
+      setSelectionDraft((current) => {
+        const items = current.projectPath === daemon.projectPath ? current.items : [];
+        const duplicate = items.some(
+          (item) =>
+            item.path === path &&
+            item.text === selection.text &&
+            item.startLineNumber === selection.startLineNumber &&
+            item.startColumn === selection.startColumn &&
+            item.endLineNumber === selection.endLineNumber &&
+            item.endColumn === selection.endColumn,
+        );
+        return {
+          projectPath: daemon.projectPath,
+          items: duplicate ? items : [...items, attachment],
+        };
+      });
+      setShowRightPanel(true);
+    },
+    [daemon.projectPath],
+  );
+  const removeSelectionAttachment = useCallback((id: string) => {
+    setSelectionDraft((current) => ({
+      ...current,
+      items: current.items.filter((item) => item.id !== id),
+    }));
+  }, []);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() =>
@@ -601,6 +654,30 @@ export default function EditorPage() {
       toast,
       t,
       agentReview.changes,
+      agentReview.setOpen,
+    ],
+  );
+
+  const revealSelectionAttachment = useCallback(
+    async (selection: SelectionAttachment) => {
+      const projectPath = daemon.projectPath;
+      const path = selection.path;
+      const pane = splitPane?.selectedFile === path && selectedFile !== path ? "split" : "primary";
+      if (pane === "primary") {
+        if (selectedFile !== path) await handleFileSelect(path);
+        if (activeProjectPathRef.current !== projectPath) return;
+        setEditorViewMode("file");
+        setGitDiffPreview(null);
+        agentReview.setOpen(false);
+      }
+      if (activeProjectPathRef.current !== projectPath) return;
+      setPendingSelection({ ...selection, requestId: crypto.randomUUID(), pane });
+    },
+    [
+      daemon.projectPath,
+      selectedFile,
+      splitPane?.selectedFile,
+      handleFileSelect,
       agentReview.setOpen,
     ],
   );
@@ -1294,14 +1371,7 @@ export default function EditorPage() {
 
     // No tex files found
     toast(t("latex.noTexFilesToast"), "error");
-  }, [
-    daemon.projectPath,
-    hasAnyCompiler,
-    latexSettings,
-    toast,
-    t,
-    performCompile,
-  ]);
+  }, [daemon.projectPath, hasAnyCompiler, latexSettings, toast, t, performCompile]);
 
   // Handle main file selection from dialog
   const handleMainFileSelect = useCallback(
@@ -1633,6 +1703,15 @@ export default function EditorPage() {
               <EditorErrorBoundary>
                 <DocumentEditor
                   filePath={splitSelectedFile}
+                  goToSelection={
+                    pendingSelection?.pane === "split" &&
+                    pendingSelection.path === splitSelectedFile
+                      ? pendingSelection
+                      : undefined
+                  }
+                  onAddSelection={(selection) =>
+                    addSelectionAttachment(splitSelectedFile, selection)
+                  }
                   projectPath={daemon.projectPath ?? ""}
                   content={splitPane.content}
                   bibliography={bibliography}
@@ -1651,6 +1730,8 @@ export default function EditorPage() {
     },
     [
       splitPane,
+      addSelectionAttachment,
+      pendingSelection,
       bibliography,
       getFileType,
       closeSplitPane,
@@ -2294,6 +2375,7 @@ export default function EditorPage() {
               <DocumentEditor
                 filePath={selectedFile}
                 projectPath={daemon.projectPath ?? ""}
+                onAddSelection={(selection) => addSelectionAttachment(selectedFile, selection)}
                 content={fileContent}
                 bibliography={bibliography}
                 readOnly={false}
@@ -2302,6 +2384,11 @@ export default function EditorPage() {
                 editorSettings={editorSettings.settings}
                 editorTheme={editorSettings.editorTheme}
                 goToLine={pendingGoToLine}
+                goToSelection={
+                  pendingSelection?.pane === "primary" && pendingSelection.path === selectedFile
+                    ? pendingSelection
+                    : undefined
+                }
                 className="h-full"
               />
             </EditorErrorBoundary>
@@ -2644,12 +2731,8 @@ export default function EditorPage() {
                     if (first) void handleFileSelect(first.path);
                   }}
                 >
-                  {
-                    { zh: "Agent 修改建议", en: "Agent suggestions", ko: "Agent 제안" }[
-                      locale
-                    ]
-                  }{" "}
-                  ({agentReview.changes.length})
+                  {{ zh: "Agent 修改建议", en: "Agent suggestions", ko: "Agent 제안" }[locale]} (
+                  {agentReview.changes.length})
                 </button>
               </div>
             )}
@@ -2762,6 +2845,9 @@ export default function EditorPage() {
               >
                 {agentSelection.ready && agentSelection.selected !== "builtin" ? (
                   <ExternalAgentPanel
+                    selections={selectionAttachments}
+                    onRemoveSelection={removeSelectionAttachment}
+                    onRevealSelection={revealSelectionAttachment}
                     agent={externalAgent}
                     selected={agentSelection.selected}
                     directory={daemon.projectPath ?? undefined}
@@ -2773,6 +2859,9 @@ export default function EditorPage() {
                   />
                 ) : (
                   <AcademicAgentPanel
+                    selections={selectionAttachments}
+                    onRemoveSelection={removeSelectionAttachment}
+                    onRevealSelection={revealSelectionAttachment}
                     key={daemon.projectPath ?? "no-project"}
                     agent={academicAgent}
                     files={daemon.files}
