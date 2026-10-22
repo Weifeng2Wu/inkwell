@@ -13,6 +13,88 @@ const custom = {
 const mineru = { ...custom, provider: "mineru" };
 const json = (value) => new Response(JSON.stringify(value));
 
+test("MinerU connection tests normalize pasted Bearer tokens and authenticate the upload request", async () => {
+  for (const apiKey of ["  token-value  ", "Bearer token-value", " bearer\t token-value "]) {
+    let calls = 0;
+    const result = await layoutParser(
+      { type: "test", config: mineru, apiKey },
+      {
+        fetch: async (url, options) => {
+          calls++;
+          assert.equal(url, "https://mineru.net/api/v4/file-urls/batch");
+          assert.equal(options.headers.Authorization, "Bearer token-value");
+          return json({
+            code: 0,
+            data: { batch_id: "batch", file_urls: ["https://cdn-mineru.openxlab.org.cn/upload"] },
+          });
+        },
+      },
+    );
+    assert.deepEqual(result, { ok: true, scope: "upload-authorization" });
+    assert.equal(calls, 1);
+  }
+});
+
+test("MinerU reports rejected or expired credentials without leaking server content", async () => {
+  for (const response of [
+    new Response("Authorization: Bearer secret-token", { status: 401 }),
+    json({ code: "A0202", msg: "secret-token" }),
+    json({ code: "A0211", msg: "secret-token" }),
+  ]) {
+    await assert.rejects(
+      layoutParser(
+        { type: "test", config: mineru, apiKey: "secret-token" },
+        { fetch: async () => response },
+      ),
+      (error) => {
+        assert.match(error.message, /invalid or expired/);
+        assert.match(error.message, /mineru\.net\/apiManage\/token/);
+        assert.doesNotMatch(error.message, /secret-token/);
+        return true;
+      },
+    );
+  }
+});
+
+test("rejects empty or malformed tokens before making a network request", async () => {
+  for (const apiKey of ["Bearer   ", "token\nother-token"]) {
+    await assert.rejects(
+      layoutParser(
+        { type: "test", config: mineru, apiKey },
+        {
+          fetch: async () => {
+            assert.fail("Invalid credentials must not be sent");
+          },
+        },
+      ),
+      /Invalid parser API Key format/,
+    );
+  }
+});
+
+test("distinguishes permission, quota and server failures without echoing response bodies", async () => {
+  for (const [status, description] of [
+    [403, /permissions/],
+    [429, /quota/],
+    [503, /Service unavailable/],
+  ]) {
+    await assert.rejects(
+      layoutParser(
+        { type: "test", config: mineru, apiKey: "key" },
+        {
+          fetch: async () => new Response("private gateway details", { status }),
+        },
+      ),
+      (error) => {
+        assert.match(error.message, new RegExp(`HTTP ${status}`));
+        assert.match(error.message, description);
+        assert.doesNotMatch(error.message, /private gateway details/);
+        return true;
+      },
+    );
+  }
+});
+
 test("custom parser accepts PNG, JPEG and WebP and sends only its own key", async () => {
   const calls = [];
   const result = await layoutParser(

@@ -3,9 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_LAYOUT_CONFIG,
   layoutKeyScope,
+  layoutParserErrorKey,
+  normalizeLayoutKey,
   parseLayoutImage,
   readLayoutConfig,
   saveLayoutConfig,
+  saveLayoutKey,
 } from "./layout-parser";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: () => true }));
@@ -23,6 +26,29 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("shared layout parser configuration", () => {
+  it.each([
+    ["MinerU HTTP 401: rejected", "unauthorized"],
+    ["MinerU authentication failed (A0202)", "unauthorized"],
+    ["MinerU authentication failed (A0211)", "unauthorized"],
+    ["Parser HTTP 403: denied", "forbidden"],
+    ["Parser HTTP 429: quota", "rateLimited"],
+    ["Parser HTTP 503: unavailable", "serviceUnavailable"],
+    ["TimeoutError: request timed out", "timedOut"],
+    ["TypeError: fetch failed", "networkError"],
+  ])("maps %s to an actionable message", (message, key) => {
+    expect(layoutParserErrorKey(message)).toBe(`layoutParser.${key}`);
+  });
+  it("preserves unrecognized parsing failures", () => {
+    expect(layoutParserErrorKey("Invalid MinerU upload response.")).toBeUndefined();
+  });
+  it("saves the token without a pasted Authorization prefix", async () => {
+    await saveLayoutKey(DEFAULT_LAYOUT_CONFIG, "  Bearer mineru-token  ");
+    expect(invoke).toHaveBeenCalledWith("agent_api_key_write", {
+      scope: layoutKeyScope(DEFAULT_LAYOUT_CONFIG),
+      apiKey: "mineru-token",
+    });
+    expect(normalizeLayoutKey("  bare-token  ")).toBe("bare-token");
+  });
   it("stores preferences separately and reads the parsing key through the credential command", async () => {
     saveLayoutConfig(DEFAULT_LAYOUT_CONFIG);
     vi.mocked(invoke).mockImplementation(async (command) =>

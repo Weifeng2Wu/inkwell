@@ -13,8 +13,6 @@ export const zh: TranslationDictionary = {
   },
   layoutParser: {
     title: "版面解析",
-    description:
-      "用于解析投稿要求 PDF，也为未声明原生图片支持的 Agent 将聊天图片和 @file 引用的 PDF 转换为文字；文本与 LaTeX 文件无需解析服务。",
     provider: "解析服务商",
     getKey: "获取 API Key",
     advanced: "高级设置",
@@ -24,19 +22,20 @@ export const zh: TranslationDictionary = {
     ocr: "强制 OCR",
     custom: "自定义服务商（OpenAI 兼容）",
     useCustom: "使用自定义服务商",
-    vision:
-      "需使用支持图片的 Chat Completions 模型，PDF 会按页转换为图片发送。文本连通测试不代表模型支持图片解析。",
     baseUrl: "Base URL",
     model: "模型",
     prompt: "解析提示词",
-    secure:
-      "API Key 以未加密形式保存在本机 SQLite 数据库，不写入 localStorage。填写后请点击保存或测试。",
     privacy: "PDF 将上传到所选解析服务商，解析后的文本再发送给当前 Agent。",
     save: "保存配置",
     test: "测试连通性",
+    testOk: "连接成功。",
     saved: "配置已保存。",
-    mineruTestOk: "MinerU 鉴权及上传授权成功。未上传或解析 PDF，仅创建了一个未使用的上传名额。",
-    customTestOk: "模型文本请求成功。本次测试未验证 PDF／图片解析能力。",
+    unauthorized: "API Key 无效或已过期，请确认复制的是当前解析服务商的完整 API Key，重新填写后再测试（401）。",
+    forbidden: "当前 API Key 没有访问权限，请检查解析服务的 API 权限或账号状态（403）。",
+    rateLimited: "请求过于频繁或额度已用尽，请检查服务商额度，稍后重试（429）。",
+    serviceUnavailable: "解析服务暂时异常，请稍后重试（5xx）。",
+    timedOut: "连接解析服务超时，请检查网络或稍后重试。",
+    networkError: "无法连接解析服务，请检查网络、代理和服务地址。",
     failed: "操作失败：",
     missing:
       "请先在通用设置中配置版面解析服务商与 API Key；自定义服务商还需填写 Base URL、模型和提示词。",

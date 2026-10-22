@@ -11,8 +11,6 @@ export const en = {
   },
   layoutParser: {
     title: "Document layout parsing",
-    description:
-      "Parse submission PDFs for Skills and read chat images or @file PDF references when the selected Agent does not declare native image support. Text and LaTeX files do not need a parser.",
     provider: "Parsing provider",
     getKey: "Get API Key",
     advanced: "Advanced settings",
@@ -22,22 +20,21 @@ export const en = {
     ocr: "Force OCR",
     custom: "Custom provider (OpenAI-compatible)",
     useCustom: "Use custom provider",
-    vision:
-      "Requires a vision-capable Chat Completions model. PDF pages are sent as images; a text-only connectivity test does not verify image support.",
     baseUrl: "Base URL",
     model: "Model",
     prompt: "Parsing prompt",
-    secure:
-      "API Keys are stored unencrypted in this device's SQLite database, not localStorage. Click Save or Test after entering a key.",
     privacy:
       "PDFs are uploaded to your selected parsing provider. Parsed text is then sent to your selected Agent.",
     save: "Save configuration",
     test: "Test connectivity",
+    testOk: "Connection successful.",
     saved: "Configuration saved.",
-    mineruTestOk:
-      "MinerU authentication and upload authorization succeeded. No PDF was uploaded or parsed; an unused upload slot was created.",
-    customTestOk:
-      "Model text request succeeded. PDF/image parsing capability is not verified by this test.",
+    unauthorized: "The API Key is invalid or expired. Copy the complete key for the selected parsing provider and try again (401).",
+    forbidden: "This API Key does not have access. Check API permissions and account status (403).",
+    rateLimited: "Too many requests or quota exhausted. Check your provider quota and retry later (429).",
+    serviceUnavailable: "The parsing service is temporarily unavailable. Retry later (5xx).",
+    timedOut: "The parsing service connection timed out. Check your network or retry later.",
+    networkError: "Cannot connect to the parsing service. Check your network, proxy and service URL.",
     failed: "Operation failed:",
     missing:
       "Configure document layout parsing in General settings first (provider and API Key; custom providers also need Base URL, model and prompt).",

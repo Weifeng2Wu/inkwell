@@ -1,4 +1,5 @@
 import path from "node:path";
+import { configureUpdateSigning } from "./update-signing.mjs";
 import {
   prepareRuntime,
   root,
@@ -10,6 +11,7 @@ import {
 
 const args = process.argv.slice(2).filter((argument) => argument !== "--");
 validateTarget(args, runtimeTarget(process.platform, process.arch));
+await configureUpdateSigning();
 await prepareRuntime();
 await withRuntimeBundleConfig((filename) =>
   run(

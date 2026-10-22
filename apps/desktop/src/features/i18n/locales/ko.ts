@@ -13,8 +13,6 @@ export const ko: TranslationDictionary = {
   },
   layoutParser: {
     title: "문서 레이아웃 분석",
-    description:
-      "Skill용 PDF를 분석하고 이미지 지원을 선언하지 않은 Agent의 채팅 이미지와 @file PDF 참조를 텍스트로 변환합니다. 텍스트와 LaTeX에는 필요하지 않습니다.",
     provider: "분석 제공업체",
     getKey: "API Key 발급",
     advanced: "고급 설정",
@@ -24,20 +22,20 @@ export const ko: TranslationDictionary = {
     ocr: "OCR 강제 적용",
     custom: "사용자 지정 (OpenAI 호환)",
     useCustom: "사용자 지정 제공업체 사용",
-    vision:
-      "이미지를 지원하는 Chat Completions 모델이 필요합니다. PDF를 페이지 이미지로 전송합니다. 텍스트 연결 테스트는 이미지 지원을 확인하지 않습니다.",
     baseUrl: "Base URL",
     model: "모델",
     prompt: "분석 프롬프트",
-    secure:
-      "API Key는 localStorage가 아닌 이 기기의 SQLite 데이터베이스에 암호화 없이 저장됩니다. 입력 후 저장 또는 테스트하세요.",
     privacy: "PDF를 선택한 분석 제공업체에 업로드하고, 추출 텍스트를 선택한 Agent에 보냅니다.",
     save: "설정 저장",
     test: "연결 테스트",
+    testOk: "연결에 성공했습니다.",
     saved: "설정을 저장했습니다.",
-    mineruTestOk:
-      "MinerU 인증 및 업로드 권한 확인 성공. PDF는 업로드하거나 분석하지 않았으며 미사용 업로드 슬롯만 생성했습니다.",
-    customTestOk: "모델 텍스트 요청 성공. PDF 및 이미지 분석 기능은 확인되지 않았습니다.",
+    unauthorized: "API Key가 유효하지 않거나 만료되었습니다. 선택한 분석 서비스의 전체 키를 복사하여 다시 시도하세요(401).",
+    forbidden: "이 API Key에 접근 권한이 없습니다. API 권한과 계정 상태를 확인하세요(403).",
+    rateLimited: "요청이 너무 많거나 할당량을 소진했습니다. 서비스 할당량을 확인하고 나중에 다시 시도하세요(429).",
+    serviceUnavailable: "분석 서비스에 일시적인 문제가 있습니다. 나중에 다시 시도하세요(5xx).",
+    timedOut: "분석 서비스 연결 시간이 초과되었습니다. 네트워크를 확인하거나 나중에 다시 시도하세요.",
+    networkError: "분석 서비스에 연결할 수 없습니다. 네트워크, 프록시 및 서비스 URL을 확인하세요.",
     failed: "작업 실패:",
     missing:
       "일반 설정에서 분석 제공업체와 API Key를 설정하세요. 사용자 지정 제공업체는 Base URL, 모델 및 프롬프트도 필요합니다.",

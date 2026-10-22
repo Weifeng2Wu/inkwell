@@ -32,6 +32,7 @@ apps/desktop/src-tauri/resources/agent/
 *.deb
 
 # environment
+/.inkwell-signing/
 .env
 .env.local
 .env.*.local

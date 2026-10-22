@@ -9,6 +9,8 @@ import {
   DEFAULT_LAYOUT_CONFIG,
   type LayoutConfig,
   layoutKeyScope,
+  layoutParserErrorKey,
+  normalizeLayoutKey,
   readLayoutConfig,
   saveLayoutConfig,
   saveLayoutKey,
@@ -67,28 +69,26 @@ export function LayoutParserSettings() {
     setStatus("");
     setError("");
     try {
+      const apiKey = normalizeLayoutKey(key);
       if (
-        !key.trim() ||
+        !apiKey ||
         (config.provider === "custom" &&
           (!config.baseUrl.trim() || !config.model.trim() || !config.prompt.trim()))
       )
         throw new Error(t("layoutParser.missing"));
       saveLayoutConfig(config);
-      await saveLayoutKey(config, key.trim());
+      await saveLayoutKey(config, apiKey);
+      setKey(apiKey);
       if (test) {
         await invoke("layout_parser_request", {
-          request: { type: "test", config, apiKey: key.trim() },
+          request: { type: "test", config, apiKey },
         });
-        setStatus(
-          t(
-            config.provider === "mineru"
-              ? "layoutParser.mineruTestOk"
-              : "layoutParser.customTestOk",
-          ),
-        );
+        setStatus(t("layoutParser.testOk"));
       } else setStatus(t("layoutParser.saved"));
     } catch (caught) {
-      setError(`${t("layoutParser.failed")} ${String(caught)}`);
+      const message = String(caught);
+      const errorKey = layoutParserErrorKey(message);
+      setError(`${t("layoutParser.failed")} ${errorKey ? t(errorKey) : message}`);
     } finally {
       setBusy(false);
     }
@@ -108,9 +108,9 @@ export function LayoutParserSettings() {
         onChange={(event) => {
           setKey(event.target.value);
           setStatus("");
+          setError("");
         }}
       />
-      <p className="text-xs text-muted">{t("layoutParser.secure")}</p>
     </div>
   );
   return (
@@ -118,8 +118,7 @@ export function LayoutParserSettings() {
       aria-label={t("layoutParser.title")}
       className="mb-5 rounded-lg border border-border bg-background p-5 shadow-sm"
     >
-      <h3 className="text-sm font-semibold">{t("layoutParser.title")}</h3>
-      <p className="mt-1 mb-4 text-xs text-muted">{t("layoutParser.description")}</p>
+      <h3 className="mb-4 text-sm font-semibold">{t("layoutParser.title")}</h3>
       <fieldset disabled={busy} className="space-y-4">
         <legend className="sr-only">{t("layoutParser.provider")}</legend>
         <div className="space-y-3 rounded-md border border-border p-3">
@@ -200,7 +199,6 @@ export function LayoutParserSettings() {
             </label>
             {config.provider === "custom" && (
               <>
-                <p className="text-xs text-muted">{t("layoutParser.vision")}</p>
                 {(["baseUrl", "model", "prompt"] as const).map((field) => (
                   <div key={field} className="space-y-2">
                     <label className="text-xs font-medium" htmlFor={`${id}-${field}`}>

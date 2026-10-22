@@ -20,7 +20,6 @@ function endpoint(value, remote = false) {
   return url.toString().replace(/\/$/, "");
 }
 async function bounded(response, limit) {
-  if (!response.ok) throw new Error(`Parser HTTP ${response.status}`);
   const reader = response.body?.getReader();
   if (!reader) throw new Error("Empty parser response.");
   const chunks = [];
@@ -53,6 +52,11 @@ export async function layoutParser(request, dependencies = {}) {
     !["test", "parse"].includes(request.type)
   )
     throw new Error("Invalid layout parser configuration.");
+  const apiKey = request.apiKey
+    .trim()
+    .replace(/^Bearer(?:\s+|$)/i, "")
+    .trim();
+  if (!apiKey || /\s/.test(apiKey)) throw new Error("Invalid parser API Key format.");
   const signal = AbortSignal.timeout(request.type === "test" ? 30000 : 540000);
   const call = async (
     url,
@@ -66,13 +70,36 @@ export async function layoutParser(request, dependencies = {}) {
       redirect: "error",
       signal,
       headers: {
-        ...(authorized ? { Authorization: `Bearer ${request.apiKey}` } : {}),
+        ...(authorized ? { Authorization: `Bearer ${apiKey}` } : {}),
         ...options.headers,
       },
     });
+    // Keep server response bodies out of errors: gateways may echo credentials.
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      if (authorized && response.status === 401)
+        throw new Error(
+          config.provider === "mineru"
+            ? "MinerU HTTP 401: API Token is invalid or expired. Get a new Token from https://mineru.net/apiManage/token. Use the MinerU API Token, not a model provider key or website login token."
+            : "Parser HTTP 401: API Key was rejected. Check the key and service endpoint.",
+        );
+      if (response.status === 403)
+        throw new Error("Parser HTTP 403: Access denied. Check API permissions.");
+      if (response.status === 429)
+        throw new Error(
+          "Parser HTTP 429: Rate limit or quota exceeded. Check quota and retry later.",
+        );
+      if (response.status >= 500)
+        throw new Error(`Parser HTTP ${response.status}: Service unavailable. Retry later.`);
+      throw new Error(`Parser HTTP ${response.status}`);
+    }
     const bytes = await bounded(response, limit);
     if (!json) return bytes;
     const result = JSON.parse(bytes.toString("utf8"));
+    if (config.provider === "mineru" && ["A0202", "A0211"].includes(String(result.code)))
+      throw new Error(
+        `MinerU authentication failed (${result.code}): API Token is invalid or expired. Get a new Token from https://mineru.net/apiManage/token.`,
+      );
     if (config.provider === "mineru" && result.code !== 0)
       throw new Error(
         `MinerU request failed (${String(result.code)}). Check API Key, quota and task status.`,

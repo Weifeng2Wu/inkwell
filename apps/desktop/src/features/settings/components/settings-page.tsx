@@ -53,7 +53,7 @@ import { LayoutParserSettings } from "./layout-parser-settings";
 import { TerminalFontSettings } from "./terminal-font-settings";
 import { ThemeGrid } from "./theme-grid";
 
-export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts";
+export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts" | "updates";
 
 export interface SettingsPageProps {
   quickStart?: {
@@ -296,6 +296,12 @@ export function SettingsPage({
         desc: t("settings.categories.generalDesc"),
       },
       {
+        id: "updates" as const,
+        icon: ArrowCounterClockwiseIcon,
+        label: updateLabels[locale].title,
+        desc: updateLabels[locale].description,
+      },
+      {
         id: "terminalGit" as const,
         icon: TerminalIcon,
         label: t("settings.categories.terminalGit"),
@@ -412,7 +418,7 @@ export function SettingsPage({
               {{ zh: "快速引导", en: "Quick start", ko: "빠른 시작" }[locale]}
             </button>
           )}
-          {currentTab !== "shortcuts" && (
+          {currentTab !== "shortcuts" && currentTab !== "updates" && (
             <button
               type="button"
               onClick={handleResetCurrent}
@@ -775,9 +781,9 @@ export function SettingsPage({
                   <AgentConnectionSettings agent={academicAgent} selection={agentSelection} />
                 )}
                 {/* ===== 1. GENERAL TAB ===== */}
+                {currentTab === "updates" && <AppUpdateSettings />}
                 {currentTab === "general" && (
                   <>
-                    {!quickStart && <AppUpdateSettings />}
                     {agentSelection && <AgentSelectionSettings selection={agentSelection} />}
                     <div className="mb-6">
                       <h2 className="text-xl font-bold tracking-tight text-foreground">

@@ -5,6 +5,21 @@ import { I18nProvider } from "@/features/i18n";
 import { SettingsPage } from "./settings-page";
 
 describe("settings navigation", () => {
+  it("keeps software updates in a separate category without editor reset controls", () => {
+    const general = renderToStaticMarkup(
+      createElement(I18nProvider, null, createElement(SettingsPage)),
+    );
+    const updates = renderToStaticMarkup(
+      createElement(I18nProvider, null, createElement(SettingsPage, { initialTab: "updates" })),
+    );
+    expect(general).toContain("Software updates");
+    expect(general).not.toContain('id="app-updates-title"');
+    expect(updates).toContain('id="app-updates-title"');
+    expect(updates).toContain("Check for updates");
+    expect(updates).not.toContain("Reset defaults");
+    expect(updates).not.toContain('id="automatic-updates" aria-describedby="automatic-updates-description"');
+    expect(updates).toContain("app-updates-unavailable");
+  });
   it.each([
     { step: 4, section: 'data-tour-step="ai"' },
     { step: 5, section: 'data-settings-section="layout"' },

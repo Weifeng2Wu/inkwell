@@ -28,7 +28,7 @@ jobs:
           - name: macOS-arm64
             os: macos-15
             target: aarch64-apple-darwin
-            bundles: dmg
+            bundles: app,dmg
           - name: Linux-x64
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
@@ -37,6 +37,7 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: "13.5"
       INKWELL_UPDATER_PUBLIC_KEY: ${{ github.event_name != 'pull_request' && vars.INKWELL_UPDATER_PUBLIC_KEY || '' }}
+      INKWELL_UNSIGNED_BUILD: ${{ github.event_name == 'pull_request' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -61,6 +62,12 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Configure updater public key
+        id: updates
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const config = JSON.parse(fs.readFileSync("apps/desktop/src-tauri/tauri.conf.json", "utf8")); const key = process.env.INKWELL_UPDATER_PUBLIC_KEY?.trim() || config.plugins.updater.pubkey.trim(); if (key) fs.appendFileSync(process.env.GITHUB_ENV, `INKWELL_UPDATER_PUBLIC_KEY=${key}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `enabled=${Boolean(key)}\n`);'
       - name: Packaging unit tests
         run: node --test scripts/test/*.test.mjs
       - name: Agent tests
@@ -106,7 +113,7 @@ jobs:
             ${{ runner.temp }}/Inkwell-${{ matrix.name }}.app.zip
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.sh
       - name: Include architecture in macOS update package name
-        if: runner.os == 'macOS' && env.INKWELL_UPDATER_PUBLIC_KEY != ''
+        if: runner.os == 'macOS' && steps.updates.outputs.enabled == 'true'
         shell: bash
         run: |
           bundle="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos"
@@ -152,7 +159,6 @@ jobs:
           path: installers
           merge-multiple: true
       - name: Generate signed update manifest
-        if: vars.INKWELL_UPDATER_PUBLIC_KEY != ''
         run: node scripts/generate-update-manifest.mjs installers installers/latest.json
       - name: Create or update the release and upload installers
         shell: bash

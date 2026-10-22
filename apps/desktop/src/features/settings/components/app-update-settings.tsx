@@ -25,6 +25,11 @@ export function AppUpdateSettings() {
     void initializeUpdates();
   }, []);
   const working = ["checking", "downloading", "installing"].includes(phase);
+  const unavailableReason = !ready
+    ? labels.loading
+    : !enabled
+      ? isTauri() ? labels.unavailable : labels.desktop
+      : undefined;
   return (
     <section
       className="border border-border rounded-lg bg-background p-5 mb-5 shadow-sm"
@@ -37,8 +42,10 @@ export function AppUpdateSettings() {
       <p className="text-xs mt-4">
         {version ? `${labels.current}: ${version}` : ready ? labels.desktop : labels.loading}
       </p>
-      {ready && !enabled && (
-        <p className="text-xs text-muted mt-2">{isTauri() ? labels.unavailable : labels.desktop}</p>
+      {unavailableReason && (
+        <p id="app-updates-unavailable" role="status" className="text-xs text-muted mt-2">
+          {unavailableReason}
+        </p>
       )}
       <div className="flex items-center justify-between gap-4 mt-4">
         <div>
@@ -51,7 +58,8 @@ export function AppUpdateSettings() {
         </div>
         <Switch
           id="automatic-updates"
-          aria-describedby="automatic-updates-description"
+          aria-describedby={`automatic-updates-description${unavailableReason ? " app-updates-unavailable" : ""}`}
+          title={unavailableReason}
           checked={automatic}
           disabled={!enabled}
           onCheckedChange={(value) => void setAutomaticUpdates(value)}
@@ -99,6 +107,8 @@ export function AppUpdateSettings() {
             type="button"
             className="btn btn-sm"
             disabled={!enabled || working}
+            aria-describedby={unavailableReason ? "app-updates-unavailable" : undefined}
+            title={unavailableReason}
             onClick={() => void checkForUpdates()}
           >
             {working
