@@ -15,6 +15,12 @@ export const DEFAULT_ACADEMIC_CONFIG: AcademicConfig = {
   permissionMode: "ask",
 };
 
+function headerConfig(value: object): { customHeaders?: string } {
+  return "customHeaders" in value && typeof value.customHeaders === "string"
+    ? { customHeaders: value.customHeaders }
+    : {};
+}
+
 export function readConfig(storageKey: string): AcademicConfig {
   try {
     const value: unknown = JSON.parse(
@@ -42,6 +48,7 @@ export function readConfig(storageKey: string): AcademicConfig {
             : "",
         baseUrl: "baseUrl" in value && typeof value.baseUrl === "string" ? value.baseUrl : "",
         model: value.model,
+        ...headerConfig(value),
         ...("modelCapabilities" in value
           ? { modelCapabilities: readCapabilityProfiles(value.modelCapabilities) }
           : {}),
@@ -56,6 +63,7 @@ export function readConfig(storageKey: string): AcademicConfig {
             ? {
                 baseUrl: value.imageGeneration.baseUrl,
                 model: value.imageGeneration.model,
+                ...headerConfig(value.imageGeneration),
               }
             : DEFAULT_ACADEMIC_CONFIG.imageGeneration,
         webSearch:
@@ -64,7 +72,7 @@ export function readConfig(storageKey: string): AcademicConfig {
           typeof value.webSearch === "object" &&
           "baseUrl" in value.webSearch &&
           typeof value.webSearch.baseUrl === "string"
-            ? { baseUrl: value.webSearch.baseUrl }
+            ? { baseUrl: value.webSearch.baseUrl, ...headerConfig(value.webSearch) }
             : DEFAULT_ACADEMIC_CONFIG.webSearch,
         personalPrompt:
           "personalPrompt" in value && typeof value.personalPrompt === "string"

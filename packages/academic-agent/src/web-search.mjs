@@ -1,3 +1,4 @@
+import { mergeCustomHeaders, parseCustomHeaders } from "./custom-headers.mjs";
 const DEFAULT_BASE_URL = "https://api.tavily.com";
 const MAX_QUERY_LENGTH = 1_000;
 const MAX_RESULTS = 10;
@@ -39,8 +40,9 @@ function result(value) {
   return { content: [{ type: "text", text: JSON.stringify(value) }], details: {} };
 }
 
-/** @param {{baseUrl?: string}} config @param {string} apiKey */
+/** @param {{baseUrl?: string, customHeaders?: string}} config @param {string} apiKey */
 export function createWebSearchTool(config = {}, apiKey) {
+  parseCustomHeaders(config.customHeaders);
   if (typeof apiKey !== "string" || !apiKey.trim()) return null;
   const endpoint = endpointFor(config.baseUrl);
   return {
@@ -64,7 +66,7 @@ export function createWebSearchTool(config = {}, apiKey) {
       const response = await fetch(endpoint, {
         method: "POST",
         redirect: "error",
-        headers: { "content-type": "application/json" },
+        headers: mergeCustomHeaders({ "content-type": "application/json" }, config.customHeaders),
         body: JSON.stringify({ api_key: apiKey, query, search_depth: "advanced", max_results: count, include_answer: false, include_raw_content: false }),
         signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
       });

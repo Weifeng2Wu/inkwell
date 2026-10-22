@@ -1,3 +1,4 @@
+import { mergeCustomHeaders, parseCustomHeaders } from "./custom-headers.mjs";
 import { constants } from "node:fs";
 import { lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -92,7 +93,7 @@ async function readBody(response, limit) {
   return Buffer.concat(chunks);
 }
 
-async function responseImage(response, signal) {
+async function responseImage(response, signal, apiUrl, customHeaders) {
   const body = await readBody(response, MAX_RESPONSE_BYTES);
   if (!response.ok) {
     const detail = body.toString("utf8").slice(0, 500);
@@ -130,7 +131,8 @@ async function responseImage(response, signal) {
   const imageResponse = await fetch(imageUrl, {
     signal,
     redirect: "error",
-    headers: { Accept: "image/png, image/jpeg, image/webp" },
+    headers: mergeCustomHeaders({ Accept: "image/png, image/jpeg, image/webp" },
+      imageUrl.origin === new URL(apiUrl).origin ? customHeaders : undefined),
   });
   if (!imageResponse.ok) throw new Error(`Could not download generated image (${imageResponse.status}).`);
   const mimeType = imageResponse.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
@@ -145,6 +147,7 @@ export function createImageGenerationTool(config, apiKey, projectDirectory, onGe
     return null;
   if (typeof config.model !== "string" || config.model.length > 200)
     throw new Error("Invalid image-generation model.");
+  parseCustomHeaders(config.customHeaders);
   const url = endpoint(config.baseUrl);
   return {
     name: "generate_image",
@@ -183,14 +186,14 @@ export function createImageGenerationTool(config, apiKey, projectDirectory, onGe
         method: "POST",
         signal: requestSignal,
         redirect: "error",
-        headers: {
+        headers: mergeCustomHeaders({
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
           Accept: "application/json",
-        },
+        }, config.customHeaders),
         body: JSON.stringify({ model: config.model.trim(), prompt: args.prompt, n: 1, size: "1024x1536" }),
       });
-      const image = await responseImage(response, requestSignal);
+      const image = await responseImage(response, requestSignal, url, config.customHeaders);
       if (purpose === "poster_reference") {
         return {
           content: [

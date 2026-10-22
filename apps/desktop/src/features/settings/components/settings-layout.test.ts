@@ -16,6 +16,7 @@ vi.mock("@phosphor-icons/react", () => ({
   ArrowSquareOutIcon: () => null,
   CircleNotchIcon: () => null,
   CaretDownIcon: () => null,
+  CaretRightIcon: () => null,
   CheckIcon: () => null,
   FileTextIcon: () => null,
   GearIcon: () => null,

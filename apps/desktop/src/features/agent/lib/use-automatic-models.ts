@@ -22,7 +22,7 @@ export function useAutomaticModels(options: {
 }) {
   const { config, apiKey, directory, enabled, apiKeyLoading, working } = options;
   const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
-  const endpoint = JSON.stringify([directory, config.protocol, baseUrl, apiKey]);
+  const endpoint = JSON.stringify([directory, config.protocol, baseUrl, apiKey, config.customHeaders]);
   let validEndpoint = false;
   let local = false;
   try {

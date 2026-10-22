@@ -1,3 +1,4 @@
+import { customHeaderSecrets } from "./custom-headers.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
@@ -375,6 +376,7 @@ async function main() {
   async function handle(command) {
     const id = command?.id;
     try {
+      for (const secret of customHeaderSecrets(command)) secrets.add(secret);
       if (typeof id !== "string" || id.length > 100 || typeof command.type !== "string")
         throw new Error("Invalid RPC command.");
       let result;

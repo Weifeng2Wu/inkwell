@@ -1,3 +1,4 @@
+import { parseCustomHeaders, mergeCustomHeaders } from "./custom-headers.mjs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { resolveModelCapabilities } from "./model-capabilities.mjs";
@@ -40,7 +41,7 @@ export async function listModels(command, signal, catalog = []) {
     const url = new URL(`${root}/models`);
     if (cursor) url.searchParams.set(protocol === "gemini" ? "pageToken" : "after_id", cursor);
     const response = await fetch(url, {
-      headers,
+      headers: mergeCustomHeaders(headers, command.customHeaders),
       signal,
       redirect: "error",
     });
@@ -103,6 +104,7 @@ export async function listModels(command, signal, catalog = []) {
 }
 
 export function validateModelConfig(command) {
+  parseCustomHeaders(command.customHeaders);
   if (typeof command.model !== "string" || !command.model.trim() || command.model.length > 200)
     throw new Error("Enter a model name in Agent settings.");
   if (
@@ -216,6 +218,7 @@ export async function resolveModel(sdk, command, dataDirectory, signal) {
         : {}),
     };
   }
+  model = { ...model, headers: mergeCustomHeaders(model.headers, command.customHeaders) };
   signal?.throwIfAborted();
   return {
     runtime,

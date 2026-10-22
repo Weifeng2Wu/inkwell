@@ -1,6 +1,6 @@
 {
   "name": "inkwell",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "AI-native LaTeX editor - Tauri desktop application",
   "author": "Inkwell",

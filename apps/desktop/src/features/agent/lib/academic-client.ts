@@ -49,9 +49,10 @@ export type AcademicConfig = {
   protocol: "" | "openai" | "anthropic" | "gemini";
   baseUrl: string;
   model: string;
+  customHeaders?: string;
   modelCapabilities?: Record<string, ModelCapabilities>;
-  imageGeneration: { baseUrl: string; model: string };
-  webSearch: { baseUrl: string };
+  imageGeneration: { baseUrl: string; model: string; customHeaders?: string };
+  webSearch: { baseUrl: string; customHeaders?: string };
   personalPrompt: string;
   answerLanguage: "zh" | "en" | "ko";
   skillIds: string[];

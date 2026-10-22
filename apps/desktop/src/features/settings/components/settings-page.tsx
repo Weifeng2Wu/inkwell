@@ -329,6 +329,12 @@ export function SettingsPage({
             },
           ]
         : []),
+      {
+        id: "updates" as const,
+        icon: ArrowCounterClockwiseIcon,
+        label: updateLabels[locale].title,
+        desc: updateLabels[locale].description,
+      },
     ],
     [t, locale, academicAgent],
   );

@@ -127,6 +127,10 @@ textarea.settings-control {
   @apply h-auto min-h-32 resize-y;
 }
 
+textarea.settings-control.resize-none {
+  resize: none;
+}
+
 .settings-number-stepper {
   @apply inline-flex items-center overflow-hidden;
 }

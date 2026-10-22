@@ -1,3 +1,4 @@
+import { mergeCustomHeaders, parseCustomHeaders, customHeaderSecrets } from "./custom-headers.mjs";
 import { readZipEntries } from "./zip-skills.mjs";
 
 const MAX_TEXT = 80000;
@@ -52,6 +53,7 @@ export async function layoutParser(request, dependencies = {}) {
     !["test", "parse"].includes(request.type)
   )
     throw new Error("Invalid layout parser configuration.");
+  parseCustomHeaders(config.customHeaders);
   const apiKey = request.apiKey
     .trim()
     .replace(/^Bearer(?:\s+|$)/i, "")
@@ -69,10 +71,10 @@ export async function layoutParser(request, dependencies = {}) {
       ...options,
       redirect: "error",
       signal,
-      headers: {
+      headers: mergeCustomHeaders({
         ...(authorized ? { Authorization: `Bearer ${apiKey}` } : {}),
         ...options.headers,
-      },
+      }, authorized ? config.customHeaders : undefined),
     });
     // Keep server response bodies out of errors: gateways may echo credentials.
     if (!response.ok) {
@@ -269,15 +271,20 @@ export async function layoutParser(request, dependencies = {}) {
   throw new Error("MinerU parsing timed out. Retry later.");
 }
 if (process.argv[1]?.endsWith("layout-parser.mjs")) {
+  let headerSecrets = [];
   try {
     let input = "";
     for await (const chunk of process.stdin) {
       input += chunk;
       if (Buffer.byteLength(input) > 18 * 1024 * 1024) throw new Error("Parser request too large.");
     }
-    process.stdout.write(JSON.stringify(await layoutParser(JSON.parse(input))));
+    const request = JSON.parse(input);
+    headerSecrets = customHeaderSecrets(request);
+    process.stdout.write(JSON.stringify(await layoutParser(request)));
   } catch (error) {
-    process.stderr.write(error instanceof Error ? error.message : "Layout parsing failed.");
+    let message = error instanceof Error ? error.message : "Layout parsing failed.";
+    for (const secret of headerSecrets) message = message.replaceAll(secret, "[redacted]");
+    process.stderr.write(message);
     process.exitCode = 1;
   }
 }

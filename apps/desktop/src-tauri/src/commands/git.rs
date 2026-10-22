@@ -1,4 +1,4 @@
-use super::util::command;
+use super::util::{command, cli_command, cli_environment_path};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -683,8 +683,12 @@ pub async fn git_add_remote(dir: String, name: String, url: String) -> Result<()
 
 // ── GitHub CLI helpers ──────────────────────────────────────────────
 
+fn gh_command() -> tokio::process::Command {
+    cli_command("gh")
+}
+
 async fn run_gh(args: &[&str]) -> Result<String, String> {
-    let output = command("gh")
+    let output = gh_command()
         .args(args)
         .output()
         .await
@@ -698,7 +702,7 @@ async fn run_gh(args: &[&str]) -> Result<String, String> {
 }
 
 async fn run_gh_in(cwd: &str, args: &[&str]) -> Result<String, String> {
-    let output = command("gh")
+    let output = gh_command()
         .args(args)
         .current_dir(cwd)
         .output()
@@ -785,7 +789,7 @@ pub async fn gh_check() -> Result<GhStatus, String> {
     // Only check the active account on github.com.
     // `gh auth status` without `--active` returns exit code 1 if *any* saved account is stale,
     // which can incorrectly look unauthenticated in apps.
-    let output = command("gh")
+    let output = gh_command()
         .args(["auth", "status", "--hostname", "github.com", "--active"])
         .output()
         .await
@@ -843,6 +847,7 @@ pub async fn gh_auth_login() -> Result<String, String> {
     {
         std::process::Command::new(plan.program)
             .args(plan.args)
+            .env("PATH", cli_environment_path())
             .spawn()
             .map_err(|e| e.to_string())?;
     }
@@ -894,6 +899,33 @@ pub async fn gh_create_repo(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gh_search_keeps_user_path_and_adds_missing_install_locations() {
+        use std::path::PathBuf;
+        let existing = PathBuf::from("user-bin");
+        let fallback = PathBuf::from("github-bin");
+        let original = std::env::join_paths([&existing, &fallback]).unwrap();
+        let result = crate::commands::util::merge_search_paths(Some(original), &[fallback.clone(), PathBuf::from("homebrew-bin")]);
+        assert_eq!(result, vec![existing, fallback, PathBuf::from("homebrew-bin")]);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn gh_runs_with_gui_path_and_a_fallback_install_directory() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("gh");
+        std::fs::write(&executable, "#!/bin/sh\nprintf 'github-cli-fixture'\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let paths = crate::commands::util::merge_search_paths(
+            Some(directory.path().join("gui-bin").into_os_string()),
+            &[directory.path().to_path_buf()],
+        );
+        let output = gh_command().env("PATH", std::env::join_paths(paths).unwrap()).arg("--version").output().await.unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, b"github-cli-fixture");
+    }
 
     #[test]
     fn gh_auth_login_windows_launch_plan_uses_visible_cmd() {

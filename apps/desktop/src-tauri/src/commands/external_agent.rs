@@ -1,4 +1,4 @@
-use super::{fs::ProjectState, util::command};
+use super::{fs::ProjectState, util::{cli_command as command, cli_search_paths}};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -561,26 +561,22 @@ async fn executable(app: &AppHandle, id: &str, name: &str) -> Result<Option<Path
     if name.is_empty() {
         return Ok(None);
     }
-    let mut directories = vec![
-        root(app)?.join(id).join("node_modules/.bin"),
-        root(app)?.join(id).join("bin"),
-    ];
-    if let Some(home) = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }) {
-        let home = PathBuf::from(home);
-        directories.extend([
-            home.join(".local/bin"),
-            home.join(".cargo/bin"),
-            home.join(".opencode/bin"),
-        ]);
-    }
-    if let Some(path) = std::env::var_os("PATH") {
-        directories.extend(std::env::split_paths(&path));
-    }
+    let directories = agent_search_directories(&root(app)?, id, cli_search_paths());
+    find_executable(name, &directories).await
+}
+
+fn agent_search_directories(root: &Path, id: &str, environment: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut directories = vec![root.join(id).join("node_modules/.bin"), root.join(id).join("bin")];
+    directories.extend(environment);
     if id == "antigravity" {
         if let Some(local) = std::env::var_os("LOCALAPPDATA") {
             directories.push(PathBuf::from(local).join("agy/bin"));
         }
     }
+    directories
+}
+
+async fn find_executable(name: &str, directories: &[PathBuf]) -> Result<Option<PathBuf>, String> {
     for directory in directories {
         for suffix in if cfg!(windows) {
             &[".exe", ".cmd", ".bat", ""][..]
@@ -879,18 +875,7 @@ pub async fn external_agent_start(
             return Err("ACP runtime already connected. Disconnect it before starting a replacement.".into());
         }
     }
-    let directory = root(&app)?.join(entry.id);
-    let mut paths = vec![directory.join("node_modules/.bin"), directory.join("bin")];
-    if entry.id == "antigravity" {
-        if let Some(cli) = executable(&app, entry.id, entry.binary).await? {
-            if let Some(parent) = cli.parent() {
-                paths.push(parent.to_path_buf());
-            }
-        }
-    }
-    if let Some(path) = std::env::var_os("PATH") {
-        paths.extend(std::env::split_paths(&path));
-    }
+    let paths = agent_search_directories(&root(&app)?, entry.id, cli_search_paths());
     let mut launcher = command(&program);
     if automatic && entry.id == "antigravity" {
         if let Some(harness) = antigravity_harness_path(Path::new(&program), std::env::consts::OS) {

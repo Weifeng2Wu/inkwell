@@ -1,3 +1,4 @@
+import { customHeaderSecrets } from "./custom-headers.mjs";
 import { pathToFileURL } from "node:url";
 import { createModelRuntime, listModels, resolveModel } from "./model.mjs";
 import { createWebSearchTool } from "./web-search.mjs";
@@ -7,6 +8,7 @@ console.info = (...values) => console.error(...values);
 
 // One process per request keeps connectivity checks independent of chat and
 // one another. Credentials arrive on stdin and are never command arguments.
+let headerSecrets = [];
 async function main() {
   let input = "";
   process.stdin.setEncoding("utf8");
@@ -15,6 +17,7 @@ async function main() {
     if (Buffer.byteLength(input) > 2 * 1024 * 1024) throw new Error("API check request is too large.");
   }
   const request = JSON.parse(input);
+  headerSecrets = customHeaderSecrets(request);
   const signal = AbortSignal.timeout(30_000);
   if (request.type === "test_web_search") {
     const tool = createWebSearchTool(request.webSearch, request.webSearchApiKey);
@@ -47,6 +50,8 @@ try {
   const result = await main();
   process.stdout.write(JSON.stringify({ ok: true, result }));
 } catch (error) {
-  process.stdout.write(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+  let message = error instanceof Error ? error.message : String(error);
+  for (const secret of headerSecrets) message = message.replaceAll(secret, "[redacted]");
+  process.stdout.write(JSON.stringify({ ok: false, error: message }));
   process.exitCode = 1;
 }

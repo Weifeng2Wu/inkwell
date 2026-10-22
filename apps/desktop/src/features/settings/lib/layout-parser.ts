@@ -8,6 +8,7 @@ export type LayoutConfig = {
   forceOcr: boolean;
   baseUrl: string;
   model: string;
+  customHeaders?: string;
   prompt: string;
 };
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
@@ -45,7 +46,7 @@ export function readLayoutConfig(): LayoutConfig {
       language: value.language === "en" ? "en" : "ch",
       forceOcr: value.forceOcr === true,
       ...Object.fromEntries(
-        ["baseUrl", "model", "prompt"]
+        ["baseUrl", "model", "prompt", "customHeaders"]
           .filter((key) => typeof value[key] === "string")
           .map((key) => [key, value[key]]),
       ),

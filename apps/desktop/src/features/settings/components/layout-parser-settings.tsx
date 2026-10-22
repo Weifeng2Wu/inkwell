@@ -3,6 +3,9 @@
 import { ArrowSquareOutIcon, CircleNotchIcon } from "@phosphor-icons/react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useEffect, useId, useRef, useState } from "react";
+import { CustomHeadersInput } from "@/features/agent/components/custom-headers-input";
+import { ServiceModelInput } from "@/features/agent/components/service-model-input";
+import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/features/i18n";
 import {
@@ -147,87 +150,93 @@ export function LayoutParserSettings() {
             <>
               <p className="text-xs text-muted">Base URL: https://mineru.net</p>
               {keyField}
-              <details>
-                <summary className="cursor-pointer text-xs text-muted">
-                  {t("layoutParser.advanced")}
-                </summary>
-                <div className="mt-3 space-y-3">
-                  <label
-                    className="flex items-center justify-between gap-3 text-xs"
-                    htmlFor={`${id}-language`}
+              <SettingsDisclosure title={t("layoutParser.advanced")}>
+                <label
+                  className="flex items-center justify-between gap-3 text-xs"
+                  htmlFor={`${id}-language`}
+                >
+                  {t("layoutParser.language")}
+                  <select
+                    id={`${id}-language`}
+                    className="settings-control"
+                    value={config.language}
+                    onChange={(event) =>
+                      update({ language: event.target.value === "en" ? "en" : "ch" })
+                    }
                   >
-                    {t("layoutParser.language")}
-                    <select
-                      id={`${id}-language`}
-                      className="settings-control"
-                      value={config.language}
-                      onChange={(event) =>
-                        update({ language: event.target.value === "en" ? "en" : "ch" })
-                      }
-                    >
-                      <option value="ch">{t("layoutParser.chineseEnglish")}</option>
-                      <option value="en">{t("layoutParser.english")}</option>
-                    </select>
-                  </label>
-                  <div className="flex items-center justify-between gap-3 text-xs">
-                    <label htmlFor={`${id}-ocr`}>{t("layoutParser.ocr")}</label>
-                    <Switch
-                      id={`${id}-ocr`}
-                      checked={config.forceOcr}
-                      onCheckedChange={(forceOcr) => update({ forceOcr })}
-                    />
-                  </div>
+                    <option value="ch">{t("layoutParser.chineseEnglish")}</option>
+                    <option value="en">{t("layoutParser.english")}</option>
+                  </select>
+                </label>
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <label htmlFor={`${id}-ocr`}>{t("layoutParser.ocr")}</label>
+                  <Switch
+                    id={`${id}-ocr`}
+                    checked={config.forceOcr}
+                    onCheckedChange={(forceOcr) => update({ forceOcr })}
+                  />
                 </div>
-              </details>
+              </SettingsDisclosure>
             </>
           )}
         </div>
-        <details
+        <SettingsDisclosure
+          title={t("layoutParser.custom")}
           open={config.provider === "custom" ? true : undefined}
-          className="rounded-md border border-border p-3"
         >
-          <summary className="cursor-pointer text-sm">{t("layoutParser.custom")}</summary>
-          <div className="mt-3 space-y-3">
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="radio"
-                name={`${id}-provider`}
-                checked={config.provider === "custom"}
-                onChange={() => update({ provider: "custom" })}
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="radio"
+              name={`${id}-provider`}
+              checked={config.provider === "custom"}
+              onChange={() => update({ provider: "custom" })}
+            />
+            {t("layoutParser.useCustom")}
+          </label>
+          {config.provider === "custom" && (
+            <>
+              {(["baseUrl", "model", "prompt"] as const).map((field) => (
+                <div key={field} className="space-y-2">
+                  <label className="text-xs font-medium" htmlFor={`${id}-${field}`}>
+                    {t(`layoutParser.${field}`)}
+                  </label>
+                  {field === "prompt" ? (
+                    <textarea
+                      id={`${id}-${field}`}
+                      className="settings-control min-h-28 w-full resize-none"
+                      value={config[field]}
+                      onChange={(event) => update({ [field]: event.target.value })}
+                      maxLength={16384}
+                    />
+                  ) : field === "model" ? (
+                    <ServiceModelInput
+                      id={`${id}-model`}
+                      baseUrl={config.baseUrl}
+                      customHeaders={config.customHeaders}
+                      apiKey={normalizeLayoutKey(key)}
+                      loading={loading}
+                      value={config.model}
+                      onChange={(model) => update({ model })}
+                    />
+                  ) : (
+                    <input
+                      id={`${id}-${field}`}
+                      className="settings-control w-full"
+                      value={config[field]}
+                      onChange={(event) => update({ [field]: event.target.value })}
+                      placeholder={field === "baseUrl" ? "https://api.example.com/v1" : ""}
+                    />
+                  )}
+                </div>
+              ))}
+              {keyField}
+              <CustomHeadersInput
+                value={config.customHeaders}
+                onChange={(customHeaders) => update({ customHeaders })}
               />
-              {t("layoutParser.useCustom")}
-            </label>
-            {config.provider === "custom" && (
-              <>
-                {(["baseUrl", "model", "prompt"] as const).map((field) => (
-                  <div key={field} className="space-y-2">
-                    <label className="text-xs font-medium" htmlFor={`${id}-${field}`}>
-                      {t(`layoutParser.${field}`)}
-                    </label>
-                    {field === "prompt" ? (
-                      <textarea
-                        id={`${id}-${field}`}
-                        className="settings-control min-h-28 w-full resize-none"
-                        value={config[field]}
-                        onChange={(event) => update({ [field]: event.target.value })}
-                        maxLength={16384}
-                      />
-                    ) : (
-                      <input
-                        id={`${id}-${field}`}
-                        className="settings-control w-full"
-                        value={config[field]}
-                        onChange={(event) => update({ [field]: event.target.value })}
-                        placeholder={field === "baseUrl" ? "https://api.example.com/v1" : ""}
-                      />
-                    )}
-                  </div>
-                ))}
-                {keyField}
-              </>
-            )}
-          </div>
-        </details>
+            </>
+          )}
+        </SettingsDisclosure>
       </fieldset>
       <div className="mt-4 flex flex-wrap gap-2">
         <button

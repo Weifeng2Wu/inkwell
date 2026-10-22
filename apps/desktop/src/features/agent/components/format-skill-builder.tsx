@@ -4,6 +4,7 @@ import { FilePlusIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useId, useRef, useState } from "react";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
 import { useI18n } from "@/features/i18n";
 import { EXTERNAL_AGENTS } from "../lib/external-agent-catalog";
 import {
@@ -293,10 +294,10 @@ export function FormatSkillBuilder({
           </button>
           <p className="text-xs text-muted">{t("formatSkill.formats")}</p>
           {skipped.length > 0 && (
-            <details className="rounded-md border border-border p-3 text-xs text-warning">
-              <summary className="cursor-pointer">
-                {t("formatSkill.skipped", { count: skipped.length })}
-              </summary>
+            <SettingsDisclosure
+              title={t("formatSkill.skipped", { count: skipped.length })}
+              className="text-xs text-warning"
+            >
               <p className="mt-2">{t("formatSkill.skippedHint")}</p>
               <ul className="mt-2 max-h-40 space-y-1 overflow-auto">
                 {Array.from(new Set(skipped)).map((name) => (
@@ -305,7 +306,7 @@ export function FormatSkillBuilder({
                   </li>
                 ))}
               </ul>
-            </details>
+            </SettingsDisclosure>
           )}
           {sources.length > 0 && (
             <ul className="space-y-1">
@@ -451,12 +452,11 @@ export function FormatSkillBuilder({
                   </article>
                 ))}
               </div>
-              <details>
-                <summary className="cursor-pointer text-xs text-muted">SKILL.md</summary>
+              <SettingsDisclosure title="SKILL.md">
                 <div className="mt-3 max-h-64 overflow-auto">
                   <MarkdownContent text={draft.instructions} />
                 </div>
-              </details>
+              </SettingsDisclosure>
               <button
                 type="button"
                 className="btn btn-primary btn-sm"

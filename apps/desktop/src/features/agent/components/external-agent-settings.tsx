@@ -10,6 +10,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useId, useRef, useState } from "react";
+import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
 import { useI18n } from "@/features/i18n";
 import {
   Select,
@@ -332,15 +333,14 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
         </p>
       )}
       {output.length > 0 && (
-        <details className="border-t border-border px-5 py-3">
-          <summary className="cursor-pointer text-xs text-muted">{labels.installDetails}</summary>
+        <SettingsDisclosure title={labels.installDetails} className="m-3">
           <pre
             className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface p-3 font-mono text-xs"
             aria-live="polite"
           >
             {output.join("\n")}
           </pre>
-        </details>
+        </SettingsDisclosure>
       )}
       <Dialog.Root
         open={confirmAgent !== null}

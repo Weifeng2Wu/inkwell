@@ -8,6 +8,8 @@ import { modelCapabilityLabels } from "../lib/model-capability-labels";
 import { formatModelDiscoveryError, withModelProtocol } from "../lib/model-discovery";
 import type { AcademicAgentController } from "../lib/use-academic-agent";
 import { useAutomaticModels } from "../lib/use-automatic-models";
+import { CustomHeadersInput } from "./custom-headers-input";
+import { ServiceModelInput } from "./service-model-input";
 import { AgentApiKeyInput } from "./agent-api-key-input";
 import { ModelPicker, selectModel } from "./model-picker";
 
@@ -127,18 +129,6 @@ export function AcademicAgentSettings({
                 />
               </label>
             )}
-            <label className="block text-xs" htmlFor={`${fieldId}-key`}>
-              {labels.key}
-              <AgentApiKeyInput
-                key={apiKeyScope(config)}
-                id={`${fieldId}-key`}
-                className={inputClass}
-                value={apiKey}
-                loading={apiKeyLoading}
-                placeholder={apiKeyLoading ? labels.keyLoading : ""}
-                onCommit={setApiKey}
-              />
-            </label>
             <ModelPicker
               inputId={`${fieldId}-model`}
               label={labels.model}
@@ -151,6 +141,23 @@ export function AcademicAgentSettings({
               discoveryFailed={!!models.error}
               webSearchAvailable={Boolean(agent.webSearchApiKey.trim())}
             />
+            <label className="block text-xs" htmlFor={`${fieldId}-key`}>
+              {labels.key}
+              <AgentApiKeyInput
+                key={apiKeyScope(config)}
+                id={`${fieldId}-key`}
+                className={inputClass}
+                value={apiKey}
+                loading={apiKeyLoading}
+                placeholder={apiKeyLoading ? labels.keyLoading : ""}
+                onCommit={setApiKey}
+              />
+            </label>
+            <CustomHeadersInput
+              value={config.customHeaders}
+              onChange={(customHeaders) => setConfig({ ...config, customHeaders })}
+            />
+
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -209,18 +216,18 @@ export function AcademicAgentSettings({
                   }
                 />
               </label>
+
               <label className="block text-xs" htmlFor={`${fieldId}-image-model`}>
                 {labels.imageGenerationModel}
-                <input
+                <ServiceModelInput
                   id={`${fieldId}-image-model`}
-                  className={inputClass}
+                  baseUrl={config.imageGeneration.baseUrl}
+                  customHeaders={config.imageGeneration.customHeaders}
+                  apiKey={agent.imageGenerationApiKey}
+                  loading={agent.imageGenerationApiKeyLoading}
                   value={config.imageGeneration.model}
-                  maxLength={200}
-                  onChange={(event) =>
-                    setConfig({
-                      ...config,
-                      imageGeneration: { ...config.imageGeneration, model: event.target.value },
-                    })
+                  onChange={(model) =>
+                    setConfig({ ...config, imageGeneration: { ...config.imageGeneration, model } })
                   }
                 />
               </label>
@@ -244,6 +251,15 @@ export function AcademicAgentSettings({
                   onCommit={agent.setImageGenerationApiKey}
                 />
               </label>
+              <CustomHeadersInput
+                value={config.imageGeneration.customHeaders}
+                onChange={(customHeaders) =>
+                  setConfig({
+                    ...config,
+                    imageGeneration: { ...config.imageGeneration, customHeaders },
+                  })
+                }
+              />
               <div className="space-y-2">
                 <button
                   type="button"
@@ -260,6 +276,7 @@ export function AcademicAgentSettings({
                       directory,
                       config.imageGeneration.baseUrl,
                       config.imageGeneration.model,
+                      config.imageGeneration.customHeaders,
                       agent.imageGenerationApiKey,
                     ]);
                     setTestingImageApi(true);
@@ -273,6 +290,7 @@ export function AcademicAgentSettings({
                           provider: "inkwell-imagegen",
                           baseUrl: config.imageGeneration.baseUrl,
                           model: config.imageGeneration.model,
+                          customHeaders: config.imageGeneration.customHeaders,
                         },
                         agent.imageGenerationApiKey,
                       );
@@ -298,6 +316,7 @@ export function AcademicAgentSettings({
                       directory,
                       config.imageGeneration.baseUrl,
                       config.imageGeneration.model,
+                      config.imageGeneration.customHeaders,
                       agent.imageGenerationApiKey,
                     ]) && (
                     <p role="status" className="text-xs text-success">
@@ -338,10 +357,14 @@ export function AcademicAgentSettings({
                   value={config.webSearch.baseUrl}
                   maxLength={2048}
                   onChange={(event) =>
-                    setConfig({ ...config, webSearch: { baseUrl: event.target.value } })
+                    setConfig({
+                      ...config,
+                      webSearch: { ...config.webSearch, baseUrl: event.target.value },
+                    })
                   }
                 />
               </label>
+
               <label className="block text-xs" htmlFor={`${fieldId}-search-key`}>
                 {labels.webSearchKey}
                 <AgentApiKeyInput
@@ -360,6 +383,12 @@ export function AcademicAgentSettings({
                   onCommit={agent.setWebSearchApiKey}
                 />
               </label>
+              <CustomHeadersInput
+                value={config.webSearch.customHeaders}
+                onChange={(customHeaders) =>
+                  setConfig({ ...config, webSearch: { ...config.webSearch, customHeaders } })
+                }
+              />
               <div className="space-y-2">
                 <button
                   type="button"

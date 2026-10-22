@@ -407,7 +407,7 @@ describe("Agent configuration location", () => {
     expect(markup).toContain(agent.labels.anthropicCompatible);
     expect(markup).toContain(agent.labels.geminiCompatible);
     expect(markup).not.toContain(`>${agent.labels.fetchModels}</button>`);
-    expect(markup.indexOf('-key"')).toBeLessThan(markup.indexOf('-model"'));
+    expect(markup.indexOf('-model"')).toBeLessThan(markup.indexOf('-key"'));
   });
   it("keeps connectivity testing below the model field without a discovery button", () => {
     const agent = createAgent({ connectionTest: { configuration: "test", milliseconds: 42 } });

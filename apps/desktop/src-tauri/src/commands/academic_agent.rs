@@ -32,6 +32,7 @@ const EMPTY_REGISTRY: &str =
 fn runtime_files() -> Vec<(&'static str, &'static str)> {
     vec![
         ("api-check.mjs", include_str!("../../../../../packages/academic-agent/src/api-check.mjs")),
+        ("custom-headers.mjs", include_str!("../../../../../packages/academic-agent/src/custom-headers.mjs")),
         ("storage.mjs", include_str!("../../../../../packages/academic-agent/src/storage.mjs")),
         ("bridge.mjs", BRIDGE),
         ("image-generation.mjs", IMAGE_GENERATION),

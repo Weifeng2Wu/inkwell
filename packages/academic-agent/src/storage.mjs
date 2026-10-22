@@ -45,6 +45,12 @@ function scopeKey(key, prefix) {
     throw new Error("Invalid conversation scope.");
   return scope;
 }
+function storedHeaders(config) {
+  if (config.customHeaders === undefined) return {};
+  if (typeof config.customHeaders !== "string" || config.customHeaders.length > 32768)
+    throw new Error("Invalid custom headers configuration.");
+  return { customHeaders: config.customHeaders };
+}
 function safeSetting(key, value) {
   if (
     value === null ||
@@ -56,10 +62,11 @@ function safeSetting(key, value) {
     throw new Error("Invalid provider configuration.");
   const allowed =
     key === "inkwell-layout-parser-v1"
-      ? ["provider", "language", "forceOcr", "baseUrl", "model", "prompt"]
+      ? ["provider", "language", "forceOcr", "baseUrl", "model", "prompt", "customHeaders"]
       : [
           "provider",
           "protocol",
+          "customHeaders",
           "baseUrl",
           "model",
           "imageGeneration",
@@ -75,6 +82,7 @@ function safeSetting(key, value) {
   const safe = Object.fromEntries(
     Object.entries(parsed).filter(([field]) => allowed.includes(field)),
   );
+  storedHeaders(safe);
   if (safe.imageGeneration !== undefined) {
     const image = safe.imageGeneration;
     if (
@@ -87,7 +95,7 @@ function safeSetting(key, value) {
       image.model.length > 200
     )
       throw new Error("Invalid image-generation configuration.");
-    safe.imageGeneration = { baseUrl: image.baseUrl, model: image.model };
+    safe.imageGeneration = { baseUrl: image.baseUrl, model: image.model, ...storedHeaders(image) };
   }
   if (safe.webSearch !== undefined) {
     if (
@@ -96,7 +104,7 @@ function safeSetting(key, value) {
       safe.webSearch.baseUrl.length > 2048
     )
       throw new Error("Invalid web-search configuration.");
-    safe.webSearch = { baseUrl: safe.webSearch.baseUrl };
+    safe.webSearch = { baseUrl: safe.webSearch.baseUrl, ...storedHeaders(safe.webSearch) };
   }
   if (safe.modelCapabilities !== undefined) {
     const profiles = safe.modelCapabilities;
