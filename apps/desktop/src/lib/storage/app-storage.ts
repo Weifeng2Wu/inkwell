@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 const keys = new Set([
+  "inkwell-auto-update-v1",
   "editor-settings",
   "latex-settings",
   "recent-projects",

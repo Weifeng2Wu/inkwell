@@ -60,6 +60,10 @@
     }
   },
   "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": ["https://github.com/EvolvingLMMs-Lab/inkwell/releases/latest/download/latest.json"]
+    },
     "shell": {
       "open": true
     }

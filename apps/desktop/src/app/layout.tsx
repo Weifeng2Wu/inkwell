@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { ExternalLinkHandler } from "@/components/external-link-handler";
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/features/i18n";
+import { AutomaticUpdates } from "@/features/settings/components/automatic-updates";
 import { DEFAULT_THEME, THEME_IDS } from "@/features/settings/lib/theme";
 import { StorageProvider, StorageThemeSync } from "@/lib/storage/storage-provider";
 import "./globals.css";
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <StorageThemeSync />
               <ToastProvider>
                 <ExternalLinkHandler />
+                <AutomaticUpdates />
                 {children}
               </ToastProvider>
             </I18nProvider>

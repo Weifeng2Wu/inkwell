@@ -11,6 +11,18 @@ use tauri::webview::WebviewWindowBuilder;
 use tauri::{Manager, WebviewUrl};
 use tauri_plugin_opener::OpenerExt;
 
+#[tauri::command]
+fn app_updates_enabled() -> bool {
+    option_env!("INKWELL_UPDATER_PUBLIC_KEY").is_some_and(|key| !key.trim().is_empty())
+        && !cfg!(debug_assertions)
+}
+
+#[tauri::command]
+async fn restart_after_update(app: tauri::AppHandle) {
+    app.state::<ExternalAgentState>().stop_all().await;
+    app.restart();
+}
+
 fn is_external_url(url: &url::Url, dev_port: u16) -> bool {
     let scheme = url.scheme();
     if scheme != "http" && scheme != "https" {
@@ -36,7 +48,12 @@ fn is_external_url(url: &url::Url, dev_port: u16) -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let mut updater = tauri_plugin_updater::Builder::new();
+    if let Some(key) = option_env!("INKWELL_UPDATER_PUBLIC_KEY").filter(|key| !key.trim().is_empty()) {
+        updater = updater.pubkey(key.trim());
+    }
     tauri::Builder::default()
+        .plugin(updater.build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -52,6 +69,8 @@ pub fn run() {
         .manage(Mutex::new(ProjectState::default()))
         .invoke_handler(tauri::generate_handler![
             commands::agent_review::agent_review_prepare,
+            app_updates_enabled,
+            restart_after_update,
             commands::agent_review::agent_review_changes,
             commands::agent_review::agent_review_resolve,
             commands::fonts::list_system_fonts,

@@ -37,6 +37,11 @@ export async function withRuntimeBundleConfig(
   const configuration = JSON.parse(
     await readFile(path.join(tauriDirectory, "tauri.bundle.conf.json"), "utf8"),
   );
+  if (environment.INKWELL_UPDATER_PUBLIC_KEY?.trim()) {
+    if (!environment.TAURI_SIGNING_PRIVATE_KEY?.trim())
+      throw new Error("Signed update builds require TAURI_SIGNING_PRIVATE_KEY.");
+    configuration.bundle.createUpdaterArtifacts = true;
+  }
   if (platform === "win32" && environment.INKWELL_RUNTIME_RESOURCES)
     configuration.bundle.resources = {
       [windowsResourcePattern(tauriDirectory, runtimeResources(environment, platform))]: "agent/",

@@ -44,7 +44,9 @@ import {
 } from "@/features/settings/lib/editor-settings";
 import { THEMES } from "@/features/settings/lib/theme";
 import { useEditorSettings } from "@/features/settings/lib/use-editor-settings";
+import { updateLabels } from "../lib/update-labels";
 import { AgentConnectionSettings } from "./agent-connection-settings";
+import { AppUpdateSettings } from "./app-update-settings";
 import { FontSettings } from "./font-settings";
 import { KeyboardShortcutSettings } from "./keyboard-shortcut-settings";
 import { LayoutParserSettings } from "./layout-parser-settings";
@@ -550,6 +552,7 @@ export function SettingsPage({
                 {/* Show all sections that match query */}
                 <KeyboardShortcutSettings query={searchQuery} />
                 {/* General items */}
+                {matchesSearch(`${updateLabels[locale].title} ${updateLabels[locale].automatic} Inkwell update version 更新 版本`) && <AppUpdateSettings />}
                 {matchesSearch(t("layoutParser.title")) && <LayoutParserSettings />}
                 {(matchesSearch(t("settings.general.language")) ||
                   matchesSearch(t("settings.general.theme"))) && (
@@ -774,6 +777,7 @@ export function SettingsPage({
                 {/* ===== 1. GENERAL TAB ===== */}
                 {currentTab === "general" && (
                   <>
+                    {!quickStart && <AppUpdateSettings />}
                     {agentSelection && <AgentSelectionSettings selection={agentSelection} />}
                     <div className="mb-6">
                       <h2 className="text-xl font-bold tracking-tight text-foreground">

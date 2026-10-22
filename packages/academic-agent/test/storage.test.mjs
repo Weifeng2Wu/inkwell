@@ -16,6 +16,16 @@ async function fixture(context) {
   return { database, filename };
 }
 const scope = JSON.stringify(["/project", "codex"]);
+test("automatic update preference survives a database restart", async (context) => {
+  const { database, filename } = await fixture(context);
+  database.request({ type: "settings_write", entries: [["inkwell-auto-update-v1", "true"]] });
+  const reopened = new AppDatabase(filename);
+  try {
+    assert.equal(reopened.request({ type: "bootstrap" }).settings["inkwell-auto-update-v1"], "true");
+  } finally {
+    reopened.close();
+  }
+});
 const record = (id = "one", modified = "2026-10-17T00:00:00Z") => ({
   id,
   title: "Paper discussion",

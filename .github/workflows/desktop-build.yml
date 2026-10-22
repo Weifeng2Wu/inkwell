@@ -36,6 +36,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       MACOSX_DEPLOYMENT_TARGET: "13.5"
+      INKWELL_UPDATER_PUBLIC_KEY: ${{ github.event_name != 'pull_request' && vars.INKWELL_UPDATER_PUBLIC_KEY || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -82,6 +83,9 @@ jobs:
           $drive = [System.IO.Path]::GetPathRoot($env:GITHUB_WORKSPACE)
           "INKWELL_RUNTIME_RESOURCES=$($drive)iw-agent" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build portable desktop installers
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri:build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
       - name: Preserve macOS application if DMG packaging fails
         if: failure() && runner.os == 'macOS'
@@ -101,6 +105,13 @@ jobs:
           path: |
             ${{ runner.temp }}/Inkwell-${{ matrix.name }}.app.zip
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.sh
+      - name: Include architecture in macOS update package name
+        if: runner.os == 'macOS' && env.INKWELL_UPDATER_PUBLIC_KEY != ''
+        shell: bash
+        run: |
+          bundle="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          mv "$bundle/Inkwell.app.tar.gz" "$bundle/Inkwell_aarch64.app.tar.gz"
+          mv "$bundle/Inkwell.app.tar.gz.sig" "$bundle/Inkwell_aarch64.app.tar.gz.sig"
       - name: Upload installers
         uses: actions/upload-artifact@v6
         with:
@@ -112,6 +123,10 @@ jobs:
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.sig
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.sig
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.sig
 
   release:
     name: Publish GitHub Release
@@ -124,13 +139,21 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ github.ref_name }}
+      INKWELL_UPDATER_PUBLIC_KEY: ${{ vars.INKWELL_UPDATER_PUBLIC_KEY }}
     steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.17.0"
       - name: Download installers from all platforms
         uses: actions/download-artifact@v6
         with:
           pattern: Inkwell-*
           path: installers
           merge-multiple: true
+      - name: Generate signed update manifest
+        if: vars.INKWELL_UPDATER_PUBLIC_KEY != ''
+        run: node scripts/generate-update-manifest.mjs installers installers/latest.json
       - name: Create or update the release and upload installers
         shell: bash
         run: |
@@ -138,7 +161,7 @@ jobs:
           assets=()
           while IFS= read -r -d '' asset; do
             assets+=("$asset")
-          done < <(find installers -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' \) -print0)
+          done < <(find installers -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.app.tar.gz' -o -name '*.sig' -o -name 'latest.json' \) -print0)
           for extension in exe dmg deb AppImage; do
             if ! find installers -type f -name "*.${extension}" -print -quit | grep -q .; then
               echo "Missing ${extension} installer; release will not be published." >&2
