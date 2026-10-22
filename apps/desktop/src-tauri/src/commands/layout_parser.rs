@@ -17,7 +17,7 @@ pub async fn layout_parser_request(app: AppHandle, request: Value) -> Result<Val
     }
     let bytes = serde_json::to_vec(&request).map_err(|_| "Invalid parser request.")?;
     if bytes.len() > 18 * 1024 * 1024 { return Err("Parser request too large.".into()); }
-    let node = std::env::var("INKWELL_NODE_BINARY").unwrap_or_else(|_| "node".into());
+    let node = super::agent_runtime::node_binary()?;
     let mut command = Command::new(node);
     #[cfg(target_os = "windows")]
     command.creation_flags(0x08000000);
