@@ -17,16 +17,58 @@ beforeEach(() => {
     checking: false,
     launching: false,
     installing: false,
+    switching: null,
     loginStarted: false,
     error: null,
     refresh: vi.fn(async () => {}),
     login: vi.fn(async () => {}),
     install: vi.fn(async () => {}),
+    switchAccount: vi.fn(async () => {}),
   });
 });
 
 describe("GitHub authentication settings", () => {
-  it("shows the active account and offers sign-in again", () => {
+  it("lists saved accounts with actions and no explanatory text", () => {
+    vi.mocked(useGitHubAuth).mockReturnValue({
+      ...useGitHubAuth(),
+      status: {
+        installed: true,
+        authenticated: true,
+        username: "researcher",
+        accounts: [
+          { username: "researcher", active: true, authenticated: true },
+          { username: "work-account", active: false, authenticated: true },
+          { username: "expired", active: false, authenticated: false },
+        ],
+      },
+    });
+    const markup = render();
+    expect(markup).toContain("Add account");
+    expect(markup).toContain('aria-label="Switch account @work-account"');
+    expect(markup).not.toContain('aria-label="Switch account @researcher"');
+    expect(markup).toMatch(/aria-label="Switch account @expired"[^>]*disabled=""/);
+    expect(markup).not.toContain("commit history");
+    expect(markup).not.toContain("SSH uses its own keys");
+  });
+
+  it("disables all authentication actions while switching", () => {
+    vi.mocked(useGitHubAuth).mockReturnValue({
+      ...useGitHubAuth(),
+      switching: "work-account",
+      status: {
+        installed: true,
+        authenticated: true,
+        username: "researcher",
+        accounts: [{ username: "work-account", active: false, authenticated: true }],
+      },
+    });
+    const markup = render();
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup.match(/disabled=""/g)).toHaveLength(3);
+    expect(markup).toContain("Switching");
+  });
+
+  it("shows the active account and offers adding an account", () => {
     vi.mocked(useGitHubAuth).mockReturnValue({
       ...useGitHubAuth(),
       status: { installed: true, authenticated: true, username: "researcher" },
@@ -34,7 +76,7 @@ describe("GitHub authentication settings", () => {
     const markup = render();
     expect(markup).toContain("@researcher");
     expect(markup).toContain("Signed in");
-    expect(markup).toContain("Sign in again");
+    expect(markup).toContain("Add account");
     expect(markup).not.toContain("disabled");
   });
 
@@ -66,7 +108,7 @@ describe("GitHub authentication settings", () => {
     expect(markup).not.toContain('disabled=""');
   });
 
-  it("disables actions during detection and shows login instructions after launching", () => {
+  it("shows only detection status without login instructions after launching", () => {
     vi.mocked(useGitHubAuth).mockReturnValue({
       ...useGitHubAuth(),
       checking: true,
@@ -75,7 +117,7 @@ describe("GitHub authentication settings", () => {
     const markup = render();
     expect(markup).toContain("Checking authentication");
     expect(markup).not.toContain("<button");
-    expect(markup).toContain("Complete sign-in in the terminal and browser");
+    expect(markup).not.toContain("Complete sign-in in the terminal and browser");
   });
 
   it("reports detection errors without claiming the CLI is missing", () => {

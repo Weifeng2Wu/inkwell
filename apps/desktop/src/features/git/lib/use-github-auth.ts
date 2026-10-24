@@ -10,12 +10,15 @@ export function useGitHubAuth() {
   const [checking, setChecking] = useState(true);
   const [launching, setLaunching] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [switching, setSwitching] = useState<string | null>(null);
   const [loginStarted, setLoginStarted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(false);
   const request = useRef(0);
+  const switchingRef = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (switchingRef.current) return;
     if (!isTauri()) {
       setChecking(false);
       return;
@@ -33,6 +36,27 @@ export function useGitHubAuth() {
       }
     } finally {
       if (mounted.current && currentRequest === request.current) setChecking(false);
+    }
+  }, []);
+
+  const switchAccount = useCallback(async (username: string) => {
+    if (!isTauri() || switchingRef.current) return;
+    switchingRef.current = true;
+    const currentRequest = ++request.current;
+    setChecking(false);
+    setSwitching(username);
+    setError(null);
+    try {
+      const detected = await invoke<GhStatus>("gh_auth_switch", { username });
+      if (mounted.current && currentRequest === request.current) {
+        setStatus(detected);
+        setLoginStarted(false);
+      }
+    } catch (caught) {
+      if (mounted.current && currentRequest === request.current) setError(String(caught));
+    } finally {
+      switchingRef.current = false;
+      if (mounted.current) setSwitching(null);
     }
   }, []);
 
@@ -75,5 +99,17 @@ export function useGitHubAuth() {
     };
   }, [refresh]);
 
-  return { status, checking, launching, installing, loginStarted, error, refresh, login, install };
+  return {
+    status,
+    checking,
+    launching,
+    installing,
+    switching,
+    loginStarted,
+    error,
+    refresh,
+    login,
+    install,
+    switchAccount,
+  };
 }

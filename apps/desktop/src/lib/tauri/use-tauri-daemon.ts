@@ -34,6 +34,7 @@ export interface GhStatus {
   installed: boolean;
   authenticated: boolean;
   username: string;
+  accounts?: { username: string; active: boolean; authenticated: boolean }[];
 }
 
 interface GhRepoResult {

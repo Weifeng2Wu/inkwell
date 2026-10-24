@@ -53,6 +53,58 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("GitHub authentication detection", () => {
+  it("switches saved accounts and updates the active account", async () => {
+    render();
+    hooks.effect?.();
+    await vi.waitFor(() => expect(render().checking).toBe(false));
+    const switched = { ...signedIn, username: "work-account" };
+    vi.mocked(invoke).mockResolvedValueOnce(switched);
+    await render().switchAccount("work-account");
+    expect(invoke).toHaveBeenCalledWith("gh_auth_switch", { username: "work-account" });
+    expect(render().status).toEqual(switched);
+    expect(render().switching).toBeNull();
+  });
+
+  it("preserves the active account and reports a failed switch", async () => {
+    render();
+    hooks.effect?.();
+    await vi.waitFor(() => expect(render().checking).toBe(false));
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("Switch failed"));
+    await render().switchAccount("work-account");
+    expect(render().status).toEqual(signedIn);
+    expect(render().error).toContain("Switch failed");
+    expect(render().switching).toBeNull();
+  });
+
+  it("ignores stale detection and blocks overlapping switches and focus refreshes", async () => {
+    let resolveStatus: ((value: unknown) => void) | undefined;
+    let resolveSwitch: ((value: unknown) => void) | undefined;
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
+    render();
+    hooks.effect?.();
+    vi.mocked(invoke).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSwitch = resolve;
+      }),
+    );
+    const switching = render().switchAccount("work-account");
+    expect(render().switching).toBe("work-account");
+    await render().switchAccount("other-account");
+    listeners.get("focus")?.();
+    expect(invoke).toHaveBeenCalledTimes(2);
+    const switched = { ...signedIn, username: "work-account" };
+    resolveSwitch?.(switched);
+    await switching;
+    resolveStatus?.(signedIn);
+    await Promise.resolve();
+    expect(render().status).toEqual(switched);
+    expect(render().checking).toBe(false);
+  });
+
   it("detects the active account and refreshes on returning to the app", async () => {
     render();
     hooks.effect?.();
@@ -110,6 +162,7 @@ describe("GitHub authentication detection", () => {
     hooks.effect?.();
     await render().login();
     await render().install();
+    await render().switchAccount("work-account");
     expect(invoke).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
     expect(render().checking).toBe(false);

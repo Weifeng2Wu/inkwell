@@ -670,6 +670,12 @@ export const en = {
       refreshAuth: "Refresh status",
       login: "Sign in to GitHub",
       loginAgain: "Sign in again",
+      addAccount: "Add account",
+      savedAccounts: "GitHub CLI accounts",
+      activeAccount: "Active",
+      accountExpired: "Credentials unavailable; sign in again",
+      switchAccount: "Switch account",
+      switchingAccount: "Switching…",
       install: "Install",
       installCli: "Install GitHub CLI",
       loginHint:

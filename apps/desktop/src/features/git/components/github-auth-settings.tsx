@@ -56,7 +56,7 @@ export function GitHubAuthSettings() {
             <button
               type="button"
               className="btn btn-sm"
-              disabled={auth.checking || auth.launching}
+              disabled={auth.checking || auth.launching || !!auth.switching}
               onClick={() => void auth.refresh()}
             >
               {t(`${prefix}.refreshAuth`)}
@@ -64,16 +64,47 @@ export function GitHubAuthSettings() {
             <button
               type="button"
               className="btn btn-sm"
-              disabled={auth.checking || auth.launching}
+              disabled={auth.checking || auth.launching || !!auth.switching}
               onClick={() => void auth.login()}
             >
-              {t(`${prefix}.${auth.status.authenticated ? "loginAgain" : "login"}`)}
+              {t(`${prefix}.${auth.status.authenticated ? "addAccount" : "login"}`)}
             </button>
           </div>
         )}
       </div>
-      {(auth.launching || auth.loginStarted) && (
-        <p className="text-xs text-muted-foreground">{t(`${prefix}.loginHint`)}</p>
+      {auth.status?.installed && (
+        <ul aria-label={t(`${prefix}.savedAccounts`)} className="space-y-2">
+          {auth.status.accounts?.map((account) => (
+            <li
+              key={account.username}
+              className="flex items-center justify-between gap-3 rounded-md border border-border/40 px-3 py-2"
+            >
+              <div className="min-w-0 text-xs">
+                <span className="break-words font-medium text-foreground">@{account.username}</span>
+                <span className="ml-2 text-muted-foreground">
+                  {account.active ? t(`${prefix}.activeAccount`) : ""}
+                  {!account.authenticated ? ` ${t(`${prefix}.accountExpired`)}` : ""}
+                </span>
+              </div>
+              {!account.active && (
+                <button
+                  type="button"
+                  className="btn btn-sm shrink-0"
+                  aria-label={`${t(`${prefix}.switchAccount`)} @${account.username}`}
+                  aria-busy={auth.switching === account.username}
+                  disabled={
+                    auth.checking || auth.launching || !!auth.switching || !account.authenticated
+                  }
+                  onClick={() => void auth.switchAccount(account.username)}
+                >
+                  {t(
+                    `${prefix}.${auth.switching === account.username ? "switchingAccount" : "switchAccount"}`,
+                  )}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
       {auth.error && (
         <p role="alert" className="break-words text-xs text-error">

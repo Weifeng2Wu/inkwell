@@ -6,6 +6,53 @@ pub struct GhStatus {
     pub installed: bool,
     pub authenticated: bool,
     pub username: String,
+    pub accounts: Vec<GhAccount>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GhAccount {
+    pub username: String,
+    pub active: bool,
+    pub authenticated: bool,
+}
+
+#[derive(Deserialize)]
+struct GhAuthEntry {
+    login: String,
+    active: bool,
+    state: String,
+}
+
+#[derive(Deserialize)]
+struct GhAuthStatus {
+    hosts: std::collections::HashMap<String, Vec<GhAuthEntry>>,
+}
+
+fn parse_gh_status(output: &str) -> Result<GhStatus, String> {
+    let mut parsed: GhAuthStatus = serde_json::from_str(output).map_err(|_| {
+        "Unable to read GitHub CLI account status. Update GitHub CLI and try again.".to_string()
+    })?;
+    let accounts: Vec<GhAccount> = parsed
+        .hosts
+        .remove("github.com")
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|entry| !entry.login.is_empty())
+        .map(|entry| GhAccount {
+            username: entry.login,
+            active: entry.active,
+            authenticated: entry.state == "success",
+        })
+        .collect();
+    let active = accounts.iter().find(|account| account.active);
+    Ok(GhStatus {
+        installed: true,
+        authenticated: active.is_some_and(|account| account.authenticated),
+        username: active
+            .map(|account| account.username.clone())
+            .unwrap_or_default(),
+        accounts,
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -783,41 +830,44 @@ pub async fn gh_check() -> Result<GhStatus, String> {
             installed: false,
             authenticated: false,
             username: String::new(),
+            accounts: Vec::new(),
         });
     }
 
-    // Only check the active account on github.com.
-    // `gh auth status` without `--active` returns exit code 1 if *any* saved account is stale,
-    // which can incorrectly look unauthenticated in apps.
-    let output = gh_command()
-        .args(["auth", "status", "--hostname", "github.com", "--active"])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
+    let output = run_gh(&[
+        "auth",
+        "status",
+        "--hostname",
+        "github.com",
+        "--json",
+        "hosts",
+    ])
+    .await?;
+    parse_gh_status(&output)
+}
 
-    let authenticated = output.status.success();
-    let combined_output = format!(
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let username = combined_output
-        .lines()
-        .find_map(|line| {
-            if let Some(pos) = line.find("account ") {
-                let rest = &line[pos + 8..];
-                Some(rest.split_whitespace().next().unwrap_or("").to_string())
-            } else {
-                None
-            }
-        })
-        .unwrap_or_default();
-
-    Ok(GhStatus {
-        installed: true,
-        authenticated,
-        username,
-    })
+#[tauri::command]
+pub async fn gh_auth_switch(username: String) -> Result<GhStatus, String> {
+    if username.is_empty()
+        || !username
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    {
+        return Err("Invalid GitHub username".to_string());
+    }
+    if std::env::var_os("GH_TOKEN").is_some() || std::env::var_os("GITHUB_TOKEN").is_some() {
+        return Err("GH_TOKEN or GITHUB_TOKEN overrides saved accounts. Remove the environment override and restart Inkwell before switching accounts.".to_string());
+    }
+    run_gh(&[
+        "auth",
+        "switch",
+        "--hostname",
+        "github.com",
+        "--user",
+        &username,
+    ])
+    .await?;
+    gh_check().await
 }
 
 #[tauri::command]
@@ -925,6 +975,32 @@ mod tests {
         let output = gh_command().env("PATH", std::env::join_paths(paths).unwrap()).arg("--version").output().await.unwrap();
         assert!(output.status.success());
         assert_eq!(output.stdout, b"github-cli-fixture");
+    }
+
+    #[test]
+    fn gh_status_uses_active_account_even_when_another_account_is_invalid() {
+        let status = parse_gh_status(r#"{"hosts":{"github.com":[{"login":"personal","active":true,"state":"success"},{"login":"work","active":false,"state":"error"}],"enterprise.example":[{"login":"enterprise","active":true,"state":"success"}]}}"#).unwrap();
+        assert!(status.authenticated);
+        assert_eq!(status.username, "personal");
+        assert_eq!(status.accounts.len(), 2);
+        assert!(!status.accounts[1].authenticated);
+    }
+
+    #[test]
+    fn gh_status_does_not_use_inactive_valid_accounts_as_active_authentication() {
+        let status = parse_gh_status(r#"{"hosts":{"github.com":[{"login":"personal","active":true,"state":"error"},{"login":"work","active":false,"state":"success"}]}}"#).unwrap();
+        assert!(!status.authenticated);
+        assert_eq!(status.username, "personal");
+        assert!(status.accounts[1].authenticated);
+    }
+
+    #[test]
+    fn gh_status_handles_signed_out_accounts_and_rejects_invalid_output() {
+        let status = parse_gh_status(r#"{"hosts":{}}"#).unwrap();
+        assert!(!status.authenticated);
+        assert!(status.accounts.is_empty());
+        assert!(status.username.is_empty());
+        assert!(parse_gh_status("not json").is_err());
     }
 
     #[test]

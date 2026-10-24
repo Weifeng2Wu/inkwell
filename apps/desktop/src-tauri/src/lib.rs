@@ -120,6 +120,7 @@ pub fn run() {
             commands::git::git_add_remote,
             commands::git::gh_check,
             commands::git::gh_auth_login,
+            commands::git::gh_auth_switch,
             commands::git::gh_create_repo,
             commands::terminal::spawn_pty,
             commands::terminal::write_pty,
