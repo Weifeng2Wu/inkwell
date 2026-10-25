@@ -165,6 +165,8 @@ type GitSidebarPanelProps = {
   isGeneratingCommitMessageAI: boolean;
   isPushing: boolean;
   isPulling: boolean;
+  isRefreshing?: boolean;
+  remoteError?: string | null;
   isAuthenticatingGh?: boolean;
 };
 
@@ -202,6 +204,8 @@ export function GitSidebarPanel({
   isGeneratingCommitMessageAI,
   isPushing,
   isPulling,
+  isRefreshing = false,
+  remoteError,
   isAuthenticatingGh = false,
 }: GitSidebarPanelProps) {
   const { t } = useI18n();
@@ -322,6 +326,15 @@ export function GitSidebarPanel({
           <GitBranchIcon className="w-6 h-6 opacity-30" />
         </div>
         <p className="text-xs uppercase tracking-wider mb-4">{t("git.notRepo")}</p>
+        {remoteError && <p role="alert" className="mb-3 text-xs text-error break-words">{remoteError}</p>}
+        <button
+          type="button"
+          onClick={onRefreshStatus}
+          disabled={isRefreshing}
+          className="btn btn-sm mb-2"
+        >
+          {t("interface.refreshGit")}
+        </button>
         <button
           type="button"
           onClick={onInitGit}
@@ -338,17 +351,12 @@ export function GitSidebarPanel({
   const showPushButton = Boolean(gitStatus.remote);
   const showPullButton = Boolean(gitStatus.remote);
   const canPush = gitStatus.hasUpstream ? gitStatus.ahead > 0 : gitStatus.hasCommits;
-  const canPull = gitStatus.hasUpstream ? gitStatus.behind > 0 : true;
   const pushTitle = !canPush
     ? t("git.noChanges")
     : gitStatus.hasUpstream
       ? t("git.pushTitle")
       : t("git.pushTitle");
-  const pullTitle = !canPull
-    ? t("git.noChanges")
-    : gitStatus.hasUpstream
-      ? t("git.pullTitle")
-      : t("git.pullTitle");
+  const pullTitle = t("git.pullTitle");
 
   return (
     <>
@@ -377,12 +385,16 @@ export function GitSidebarPanel({
           <button
             type="button"
             onClick={onRefreshStatus}
+            disabled={isRefreshing}
+            title={t("interface.refreshGit")}
             className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
             aria-label={t("interface.refreshGit")}
           >
-            <ArrowClockwiseIcon className="w-3.5 h-3.5" />
+            <ArrowClockwiseIcon className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
+
+        {remoteError && <p role="alert" className="mt-2 text-xs text-error break-words">{t("git.fetchFailed")}: {remoteError}</p>}
 
         {!gitStatus.remote && (
           <div className="mt-2 space-y-1.5">
@@ -498,7 +510,8 @@ export function GitSidebarPanel({
               onClick={() => {
                 void onPull();
               }}
-              disabled={isPulling || !canPull}
+              aria-label={t("git.pull")}
+              disabled={isPulling || isPushing || isRefreshing}
               className="text-xs font-medium px-2.5 py-1.5 border border-border hover:border-accent hover:bg-accent-hover disabled:opacity-50 transition-colors flex items-center gap-1"
               title={pullTitle}
             >

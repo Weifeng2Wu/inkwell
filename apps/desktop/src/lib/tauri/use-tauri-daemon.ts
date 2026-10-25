@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pathSync } from "@/lib/path";
 import type { FileNode } from "@/types/files";
 import type { GitInfo, GitLogEntry, GitStatus } from "@/types/git";
+import { fetchGitRemote } from "./git-remote";
 
 function debounce<T extends (...args: Parameters<T>) => void>(
   fn: T,
@@ -177,6 +178,9 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
     files: [],
   });
 
+  const projectPathRef = useRef(projectState.projectPath);
+  projectPathRef.current = projectState.projectPath;
+
   const [gitState, setGitState] = useState<GitState>({
     gitInfo: null,
     gitStatus: null,
@@ -205,16 +209,20 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
     setOperationState((s) => ({ ...s, lastError: null }));
   }, []);
 
+  const [isRefreshingGit, setIsRefreshingGit] = useState(false);
+  const [gitRemoteError, setGitRemoteError] = useState<string | null>(null);
+
   const refreshGitStatusInternal = useCallback(async (dir: string) => {
     try {
       const gitStatus = await invoke<GitStatus>("git_status", { dir });
 
       if (gitStatus.isRepo) {
         const [log, gitGraph, gitLogEntries] = await Promise.all([
-          invoke<GitLogEntry[]>("git_log", { dir, limit: 1 }),
+          invoke<GitLogEntry[]>("git_log", { dir, limit: 1 }).catch(() => []),
           invoke<string[]>("git_graph", { dir, limit: 40 }).catch(() => []),
           invoke<GitLogEntry[]>("git_log", { dir, limit: 20 }).catch(() => []),
         ]);
+        if (projectPathRef.current !== dir) return { success: false, error: "Project changed" };
         const lastCommit = log.length > 0 ? log[0] : undefined;
         const gitInfo: GitInfo = {
           branch: gitStatus.branch,
@@ -231,25 +239,15 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
         };
         setGitState((s) => ({ ...s, gitStatus, gitInfo, gitGraph, gitLogEntries }));
       } else {
+        if (projectPathRef.current !== dir) return { success: false, error: "Project changed" };
         setGitState((s) => ({ ...s, gitStatus, gitInfo: null, gitGraph: [], gitLogEntries: [] }));
       }
+      return { success: true };
     } catch (error) {
       console.error("Failed to get git status:", error);
-      setGitState((s) => ({
-        ...s,
-        gitStatus: {
-          branch: "",
-          ahead: 0,
-          behind: 0,
-          hasUpstream: false,
-          hasCommits: false,
-          changes: [],
-          isRepo: false,
-        },
-        gitInfo: null,
-        gitGraph: [],
-        gitLogEntries: [],
-      }));
+      if (projectPathRef.current === dir) setGitRemoteError(String(error));
+      // Keep the last known repository state available for retrying.
+      return { success: false, error: String(error) };
     }
   }, []);
 
@@ -263,6 +261,9 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
           convertFileNode(f as Parameters<typeof convertFileNode>[0]),
         );
         await invoke("set_project_path", { path });
+        projectPathRef.current = path;
+        setGitRemoteError(null);
+        setGitState((s) => ({ ...s, gitStatus: null, gitInfo: null, gitGraph: [], gitLogEntries: [] }));
         setProjectState({ projectPath: path, files, projectInfo: { path } });
         refreshGitStatusInternal(path);
       } catch (error) {
@@ -409,17 +410,25 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
 
   const refreshGitStatus = useCallback(
     async (syncRemote = false) => {
-      if (!projectState.projectPath) return;
-      if (syncRemote && gitState.gitStatus?.remote) {
-        try {
-          await invoke("git_fetch", { dir: projectState.projectPath });
-        } catch (error) {
-          console.error("Failed to fetch remote before refresh:", error);
+      const dir = projectState.projectPath;
+      if (!dir) return { success: false, error: "No project" };
+      if (syncRemote) setIsRefreshingGit(true);
+      try {
+        // Do not depend on a possibly stale or missing cached remote URL.
+        if (syncRemote) {
+          await fetchGitRemote(dir);
+          setGitRemoteError(null);
         }
+        return await refreshGitStatusInternal(dir);
+      } catch (error) {
+        setGitRemoteError(String(error));
+        await refreshGitStatusInternal(dir);
+        return { success: false, error: String(error) };
+      } finally {
+        if (syncRemote) setIsRefreshingGit(false);
       }
-      await refreshGitStatusInternal(projectState.projectPath);
     },
-    [projectState.projectPath, gitState.gitStatus?.remote, refreshGitStatusInternal],
+    [projectState.projectPath, refreshGitStatusInternal],
   );
 
   const gitDiscardAll = useCallback(async (): Promise<{
@@ -536,6 +545,7 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
     setGitState((s) => ({ ...s, isPulling: true }));
     try {
       await invoke("git_pull", { dir: projectState.projectPath });
+      setGitRemoteError(null);
       // Parallel refresh after pull
       await Promise.all([refreshGitStatus(), refreshFiles()]);
       return { success: true };
@@ -699,10 +709,6 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
 
   const [lastFileChange, setLastFileChange] = useState<FileChangeEvent | null>(null);
 
-  const projectPathRef = useRef(projectState.projectPath);
-  projectPathRef.current = projectState.projectPath;
-  const isAutoFetchingRemoteRef = useRef(false);
-
   useEffect(() => {
     if (!projectState.projectPath || !isTauri()) return;
 
@@ -826,28 +832,34 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
     const projectPath = projectState.projectPath;
 
     let isDisposed = false;
+    let isFetching = false;
 
     const runAutoFetch = async () => {
-      if (isDisposed || isAutoFetchingRemoteRef.current) return;
+      if (isDisposed || isFetching) return;
       if (typeof document !== "undefined" && document.visibilityState !== "visible") {
         return;
       }
 
-      isAutoFetchingRemoteRef.current = true;
+      isFetching = true;
       try {
-        await invoke("git_fetch", { dir: projectPath });
+        await fetchGitRemote(projectPath);
         if (!isDisposed) {
-          await refreshGitStatusInternal(projectPath);
+          const result = await refreshGitStatusInternal(projectPath);
+          if (!isDisposed && result.success) setGitRemoteError(null);
         }
       } catch (error) {
         if (!isDisposed) {
+          setGitRemoteError(String(error));
           console.error("Failed periodic git fetch:", error);
         }
       } finally {
-        isAutoFetchingRemoteRef.current = false;
+        isFetching = false;
       }
     };
 
+    void runAutoFetch();
+    window.addEventListener("focus", runAutoFetch);
+    document.addEventListener("visibilitychange", runAutoFetch);
     const intervalId = setInterval(() => {
       void runAutoFetch();
     }, gitAutoFetchIntervalMs);
@@ -855,6 +867,8 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
     return () => {
       isDisposed = true;
       clearInterval(intervalId);
+      window.removeEventListener("focus", runAutoFetch);
+      document.removeEventListener("visibilitychange", runAutoFetch);
     };
   }, [
     gitAutoFetchEnabled,
@@ -918,6 +932,8 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
       gitDiff,
       clearGitInitResult,
       refreshGitStatus,
+      isRefreshingGit,
+      gitRemoteError,
       clearError,
       ghCheck,
       ghAuthLogin,
@@ -948,6 +964,8 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
       gitDiff,
       clearGitInitResult,
       refreshGitStatus,
+      isRefreshingGit,
+      gitRemoteError,
       clearError,
       ghCheck,
       ghAuthLogin,

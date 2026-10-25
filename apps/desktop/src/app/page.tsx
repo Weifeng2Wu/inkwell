@@ -2049,9 +2049,10 @@ export default function EditorPage() {
     }
   }, [daemon, toast, t]);
 
-  const handleRefreshGitStatus = useCallback(() => {
-    void daemon.refreshGitStatus(true);
-  }, [daemon]);
+  const handleRefreshGitStatus = useCallback(async () => {
+    const result = await daemon.refreshGitStatus(true);
+    toast(result.success ? t("git.fetchSuccess") : result.error || t("git.fetchFailed"), result.success ? "success" : "error");
+  }, [daemon, toast, t]);
 
   const handleDiscardAll = useCallback(async () => {
     const result = await daemon.gitDiscardAll();
@@ -2746,6 +2747,8 @@ export default function EditorPage() {
                       onInitGit={daemon.gitInit}
                       isInitializingGit={daemon.isInitializingGit}
                       onRefreshStatus={handleRefreshGitStatus}
+                      isRefreshing={daemon.isRefreshingGit}
+                      remoteError={daemon.gitRemoteError}
                       onStageAll={handleStageAll}
                       onDiscardAll={handleDiscardAll}
                       onDiscardFile={handleDiscardFile}
@@ -2966,6 +2969,16 @@ export default function EditorPage() {
 
       {(showSettingsPage || (showQuickStart && quickStart.step >= 4)) && (
         <SettingsPage
+          gitSync={{
+            projectPath: daemon.projectPath,
+            status: daemon.gitStatus,
+            isRefreshing: daemon.isRefreshingGit,
+            error: daemon.gitRemoteError,
+            isPulling: daemon.isPulling,
+            isPushing: daemon.isPushing,
+            onRefresh: () => daemon.refreshGitStatus(true),
+            onPull: daemon.gitPull,
+          }}
           initialTab={settingsInitialTab}
           quickStart={
             showQuickStart && quickStart.step >= 4

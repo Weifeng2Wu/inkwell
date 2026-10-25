@@ -94,11 +94,16 @@ pub struct GitLogEntry {
 }
 
 async fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
-    let output = command("git")
-        .args(args)
+    // Git also needs the CLI PATH for credential helpers such as gh when the
+    // app was launched from Finder rather than a terminal.
+    let mut cmd = cli_command("git");
+    cmd.args(args)
         .current_dir(cwd)
-        .output()
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .kill_on_drop(true);
+    let output = tokio::time::timeout(std::time::Duration::from_secs(120), cmd.output())
         .await
+        .map_err(|_| "Git operation timed out. Check your network and credentials, then retry.".to_string())?
         .map_err(|e| e.to_string())?;
 
     if output.status.success() {
@@ -440,13 +445,6 @@ pub async fn git_fetch(dir: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn git_pull(dir: String) -> Result<(), String> {
-    if run_git(&dir, &["remote", "get-url", "origin"])
-        .await
-        .is_err()
-    {
-        return Err("No remote named 'origin'. Add or publish a remote first.".to_string());
-    }
-
     let branch = if run_git(&dir, &["rev-parse", "--verify", "HEAD"])
         .await
         .is_ok()
@@ -475,9 +473,9 @@ pub async fn git_pull(dir: String) -> Result<(), String> {
     .is_ok();
 
     if has_upstream {
-        run_git(&dir, &["pull"]).await?;
+        run_git(&dir, &["pull", "--ff-only", "--no-rebase"]).await?;
     } else {
-        run_git(&dir, &["pull", "-u", "origin", &branch]).await?;
+        run_git(&dir, &["pull", "--ff-only", "--no-rebase", "--set-upstream", "origin", &branch]).await?;
     }
 
     Ok(())
@@ -952,6 +950,51 @@ pub async fn gh_create_repo(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn git_sync_fetches_remote_updates_and_pulls_with_or_without_upstream() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source");
+        let local = directory.path().join("local");
+        std::fs::create_dir(&source).unwrap();
+        let source_dir = source.to_str().unwrap();
+        let local_dir = local.to_str().unwrap();
+        run_git(source_dir, &["init", "-b", "main"]).await.unwrap();
+        run_git(source_dir, &["config", "user.name", "Test"]).await.unwrap();
+        run_git(source_dir, &["config", "user.email", "test@example.com"]).await.unwrap();
+        std::fs::write(source.join("note.md"), "first").unwrap();
+        run_git(source_dir, &["add", "note.md"]).await.unwrap();
+        run_git(source_dir, &["commit", "-m", "initial"]).await.unwrap();
+        run_git(source_dir, &["clone", source_dir, local_dir]).await.unwrap();
+
+        std::fs::write(source.join("note.md"), "remote update").unwrap();
+        run_git(source_dir, &["commit", "-am", "remote update"]).await.unwrap();
+        assert_eq!(git_status(local_dir.into()).await.unwrap().behind, 0);
+        git_fetch(local_dir.into()).await.unwrap();
+        assert_eq!(git_status(local_dir.into()).await.unwrap().behind, 1);
+        // Fetch updates commit information, without modifying local files.
+        assert_eq!(std::fs::read_to_string(local.join("note.md")).unwrap(), "first");
+
+        run_git(local_dir, &["branch", "--unset-upstream"]).await.unwrap();
+        git_pull(local_dir.into()).await.unwrap();
+        let status = git_status(local_dir.into()).await.unwrap();
+        assert!(status.has_upstream);
+        assert_eq!(status.behind, 0);
+        assert_eq!(std::fs::read_to_string(local.join("note.md")).unwrap(), "remote update");
+
+        // An existing upstream can use a remote with any name.
+        run_git(local_dir, &["remote", "rename", "origin", "papers"]).await.unwrap();
+        run_git(source_dir, &["commit", "--allow-empty", "-m", "next"]).await.unwrap();
+        git_pull(local_dir.into()).await.unwrap();
+        assert_eq!(run_git(local_dir, &["rev-parse", "HEAD"]).await.unwrap(), run_git(source_dir, &["rev-parse", "HEAD"]).await.unwrap());
+
+        // Divergence must leave local commits and files intact.
+        run_git(local_dir, &["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "local only"]).await.unwrap();
+        run_git(source_dir, &["commit", "--allow-empty", "-m", "remote only"]).await.unwrap();
+        let before = run_git(local_dir, &["rev-parse", "HEAD"]).await.unwrap();
+        assert!(git_pull(local_dir.into()).await.is_err());
+        assert_eq!(run_git(local_dir, &["rev-parse", "HEAD"]).await.unwrap(), before);
+    }
 
     #[cfg(unix)]
     #[tokio::test]

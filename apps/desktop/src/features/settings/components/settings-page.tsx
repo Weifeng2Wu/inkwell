@@ -34,6 +34,7 @@ import {
   SkillsSettings,
 } from "@/features/agent";
 import { GitHubAuthSettings } from "@/features/git";
+import { GitSyncSettings, type GitSyncController } from "@/features/git/components/git-sync-settings";
 import { type Locale, useI18n } from "@/features/i18n";
 import { quickStartLabels } from "@/features/onboarding/lib/labels";
 import { QUICK_START_STEPS } from "@/features/onboarding/lib/quick-start-state";
@@ -56,6 +57,7 @@ import { ThemeGrid } from "./theme-grid";
 export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts" | "updates";
 
 export interface SettingsPageProps {
+  gitSync?: GitSyncController;
   quickStart?: {
     step: number;
     saveError: boolean;
@@ -207,6 +209,7 @@ function NumberStepper({
 }
 
 export function SettingsPage({
+  gitSync,
   quickStart,
   onOpenTerminal,
   onOpenQuickStart,
@@ -684,6 +687,11 @@ export function SettingsPage({
                 )}
 
                 {/* Git & Terminal items */}
+                {matchesSearch(`${t("settings.gitSection.syncProject")} ${t("settings.gitSection.fetchNow")} ${t("settings.gitSection.pullNow")}`) && (
+                  <SectionCard title={t("settings.gitSection.syncProject")}>
+                    <GitSyncSettings controller={gitSync} />
+                  </SectionCard>
+                )}
                 {matchesSearch(
                   `GitHub ${t("settings.gitSection.login")} ${t("settings.gitSection.installCli")}`,
                 ) && (
@@ -1183,6 +1191,7 @@ export function SettingsPage({
                       <div data-settings-section="github">
                         <GitHubAuthSettings />
                       </div>
+                      <GitSyncSettings controller={gitSync} />
                       <SettingRow
                         label={t("settings.gitSection.autoFetch")}
                         description={t("settings.gitSection.autoFetchDesc")}
