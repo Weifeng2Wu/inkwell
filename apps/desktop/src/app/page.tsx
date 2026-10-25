@@ -99,6 +99,7 @@ import { pathSync } from "@/lib/path";
 import { appStorage, storedPanelWidth } from "@/lib/storage/app-storage";
 import { useTauriDaemon } from "@/lib/tauri";
 import type { EditorSelection, SelectionAttachment } from "@/types/editor-selection";
+import type { GitStatus } from "@/types/git";
 
 type EditorViewMode = "file" | "git-diff";
 type GitDiffPreviewState = {
@@ -122,6 +123,61 @@ export default function EditorPage() {
   const { toast } = useToast();
   const { t, locale } = useI18n();
   const recentProjects = useRecentProjects();
+  const [exitPushPrompt, setExitPushPrompt] = useState<{
+    ahead: number;
+    resolve: () => void;
+    busy: boolean;
+    error?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const beforeClose = (event: Event) => {
+      const tasks = (event as CustomEvent<Promise<unknown>[]>).detail;
+      if (!Array.isArray(tasks) || !daemon.projectPath) return;
+      const projectPath = daemon.projectPath;
+      tasks.push(
+        (async () => {
+          try {
+            await invoke("git_fetch", { dir: projectPath });
+          } catch (error) {
+            console.warn("Could not fetch remote before closing:", error);
+          }
+          let status: GitStatus;
+          try {
+            status = await invoke<GitStatus>("git_status", { dir: projectPath });
+          } catch (error) {
+            console.warn("Could not check pending commits before closing:", error);
+            return;
+          }
+          if (!status.isRepo || !status.hasUpstream || status.ahead <= 0) return;
+          await new Promise<void>((resolve) => {
+            setExitPushPrompt({ ahead: status.ahead, resolve, busy: false });
+          });
+        })(),
+      );
+    };
+    window.addEventListener("inkwell-before-close", beforeClose);
+    return () => window.removeEventListener("inkwell-before-close", beforeClose);
+  }, [daemon.projectPath]);
+
+  const handleExitPush = useCallback(async () => {
+    if (!exitPushPrompt) return;
+    setExitPushPrompt((current) => (current ? { ...current, busy: true, error: undefined } : current));
+    const result = await daemon.gitPush();
+    if (result.success) {
+      exitPushPrompt.resolve();
+      setExitPushPrompt(null);
+    } else {
+      setExitPushPrompt((current) =>
+        current ? { ...current, busy: false, error: result.error || t("git.exitPushFailed") } : current,
+      );
+    }
+  }, [daemon, exitPushPrompt, t]);
+
+  const handleExitWithoutPush = useCallback(() => {
+    exitPushPrompt?.resolve();
+    setExitPushPrompt(null);
+  }, [exitPushPrompt]);
 
   const [selectedFile, setSelectedFile] = useState<string>();
   const [fileContent, setFileContent] = useState<string>("");
@@ -2427,6 +2483,27 @@ export default function EditorPage() {
 
   return (
     <div className="h-dvh flex flex-col">
+      {exitPushPrompt && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" aria-labelledby="exit-push-title">
+          <div className="w-full max-w-sm border border-border bg-background text-foreground shadow-2xl">
+            <div className="border-b border-border px-5 py-4">
+              <h2 id="exit-push-title" className="text-sm font-medium">{t("git.exitPushTitle")}</h2>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-muted">{t("git.exitPushMessage", { count: exitPushPrompt.ahead })}</p>
+              {exitPushPrompt.error && <p className="mt-3 text-sm text-destructive">{exitPushPrompt.error}</p>}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
+              <button type="button" className="btn btn-sm btn-secondary" onClick={handleExitWithoutPush} disabled={exitPushPrompt.busy}>
+                {t("git.closeWithoutUploading")}
+              </button>
+              <button type="button" className="btn btn-sm btn-primary" onClick={handleExitPush} disabled={exitPushPrompt.busy}>
+                {exitPushPrompt.busy ? t("git.uploading") : t("git.uploadBeforeClose")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {externalAgent.confirmationAgent !== "builtin" && (
         <AcpConnectionDialog
           selected={externalAgent.confirmationAgent}

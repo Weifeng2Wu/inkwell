@@ -110,8 +110,11 @@ async fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn git_status(dir: String) -> Result<GitStatus, String> {
-    let git_dir = std::path::Path::new(&dir).join(".git");
-    if !git_dir.exists() {
+    if run_git(&dir, &["rev-parse", "--is-inside-work-tree"])
+        .await
+        .map(|output| output.trim() != "true")
+        .unwrap_or(true)
+    {
         return Ok(GitStatus {
             branch: String::new(),
             remote: None,
@@ -949,6 +952,47 @@ pub async fn gh_create_repo(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn git_status_recognizes_worktrees_with_git_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let repo = directory.path().join("repo");
+        let worktree = directory.path().join("worktree");
+        std::fs::create_dir(&repo).unwrap();
+
+        run_git(repo.to_str().unwrap(), &["init", "-b", "main"])
+            .await
+            .unwrap();
+        run_git(
+            repo.to_str().unwrap(),
+            &[
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.com",
+                "commit",
+                "--allow-empty",
+                "-m",
+                "initial",
+            ],
+        )
+        .await
+        .unwrap();
+        run_git(
+            repo.to_str().unwrap(),
+            &["worktree", "add", "-b", "feature", worktree.to_str().unwrap()],
+        )
+        .await
+        .unwrap();
+
+        assert!(worktree.join(".git").is_file());
+        let status = git_status(worktree.to_str().unwrap().to_string())
+            .await
+            .unwrap();
+        assert!(status.is_repo);
+        assert_eq!(status.branch, "feature");
+    }
 
     #[test]
     fn gh_search_keeps_user_path_and_adds_missing_install_locations() {
