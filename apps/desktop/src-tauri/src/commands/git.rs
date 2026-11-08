@@ -1,4 +1,6 @@
-use super::util::{command, cli_command, cli_environment_path};
+use super::util::{command, cli_command};
+#[cfg(not(target_os = "windows"))]
+use super::util::cli_environment_path;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

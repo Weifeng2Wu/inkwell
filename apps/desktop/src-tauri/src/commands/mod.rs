@@ -9,6 +9,8 @@ pub mod git;
 pub mod latex;
 pub mod layout_parser;
 pub mod opencode;
+pub mod pdf_notes;
 pub mod storage;
 pub mod terminal;
 pub mod util;
+pub mod translation;

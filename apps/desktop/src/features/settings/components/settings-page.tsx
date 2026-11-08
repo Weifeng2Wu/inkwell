@@ -53,8 +53,9 @@ import { KeyboardShortcutSettings } from "./keyboard-shortcut-settings";
 import { LayoutParserSettings } from "./layout-parser-settings";
 import { TerminalFontSettings } from "./terminal-font-settings";
 import { ThemeGrid } from "./theme-grid";
+import { TranslationSettings } from "./translation-settings";
 
-export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts" | "updates";
+export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts" | "updates" | "translation";
 
 export interface SettingsPageProps {
   gitSync?: GitSyncController;
@@ -299,10 +300,10 @@ export function SettingsPage({
         desc: t("settings.categories.generalDesc"),
       },
       {
-        id: "updates" as const,
-        icon: ArrowCounterClockwiseIcon,
-        label: updateLabels[locale].title,
-        desc: updateLabels[locale].description,
+        id: "translation" as const,
+        icon: GearIcon,
+        label: t("translation.title"),
+        desc: "",
       },
       {
         id: "terminalGit" as const,
@@ -427,7 +428,7 @@ export function SettingsPage({
               {{ zh: "快速引导", en: "Quick start", ko: "빠른 시작" }[locale]}
             </button>
           )}
-          {currentTab !== "shortcuts" && currentTab !== "updates" && (
+          {currentTab !== "shortcuts" && currentTab !== "updates" && currentTab !== "translation" && (
             <button
               type="button"
               onClick={handleResetCurrent}
@@ -538,7 +539,7 @@ export function SettingsPage({
                     >
                       {item.label}
                     </div>
-                    <div className="text-[11px] text-muted line-clamp-1 mt-0.5">{item.desc}</div>
+                    {item.desc && <div className="text-[11px] text-muted line-clamp-1 mt-0.5">{item.desc}</div>}
                   </div>
                 </button>
               );
@@ -569,6 +570,7 @@ export function SettingsPage({
                 {/* General items */}
                 {matchesSearch(`${updateLabels[locale].title} ${updateLabels[locale].automatic} Inkwell update version 更新 版本`) && <AppUpdateSettings />}
                 {matchesSearch(t("layoutParser.title")) && <LayoutParserSettings />}
+                {matchesSearch(`${t("translation.title")} Google 腾讯 Tencent LLM DeepL DeepLX Azure Volcano 火山 翻译`) && <TranslationSettings />}
                 {(matchesSearch(t("settings.general.language")) ||
                   matchesSearch(t("settings.general.theme"))) && (
                   <SectionCard title={t("settings.categories.general")}>
@@ -796,6 +798,7 @@ export function SettingsPage({
                 )}
                 {/* ===== 1. GENERAL TAB ===== */}
                 {currentTab === "updates" && <AppUpdateSettings />}
+                {currentTab === "translation" && <TranslationSettings />}
                 {currentTab === "general" && (
                   <>
                     {agentSelection && <AgentSelectionSettings selection={agentSelection} />}

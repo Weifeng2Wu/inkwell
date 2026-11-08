@@ -21,6 +21,9 @@ const KEYS = new Set([
   "inkwell-agent-selection-v1",
   "inkwell-acp-consent-v1",
   "inkwell-layout-parser-v1",
+  "inkwell-translation-v1",
+  "inkwell-translation-profiles-v1",
+  "inkwell-pdf-color-v1",
   "inkwell-quick-start-v1",
   "inkwell-keyboard-shortcuts-v1",
   "inkwell-auto-update-v1",
@@ -51,7 +54,63 @@ function storedHeaders(config) {
     throw new Error("Invalid custom headers configuration.");
   return { customHeaders: config.customHeaders };
 }
+const TRANSLATION_PROVIDERS = new Set([
+  "google-free",
+  "transmart",
+  "volcano",
+  "deeplx",
+  "deepl-web",
+  "deepl",
+  "azure",
+  "llm",
+  "google",
+  "tencent",
+]);
+function safeTranslationConfig(config) {
+  if (!config || typeof config !== "object" || Array.isArray(config))
+    throw new Error("Invalid translation configuration.");
+  const fields = ["provider", "source", "target", "baseUrl", "model", "region"];
+  const safe = Object.fromEntries(
+    Object.entries(config).filter(([field]) => fields.includes(field)),
+  );
+  if (Object.values(safe).some((value) => typeof value !== "string"))
+    throw new Error("Invalid translation configuration.");
+  if (safe.baseUrl?.trim()) {
+    let url;
+    try {
+      url = new URL(safe.baseUrl);
+    } catch {
+      throw new Error("Invalid translation endpoint.");
+    }
+    if (
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      (url.protocol !== "https:" &&
+        !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
+    )
+      throw new Error("Invalid translation endpoint.");
+  }
+  return safe;
+}
 function safeSetting(key, value) {
+  if (
+    value !== null &&
+    (key === "inkwell-translation-v1" || key === "inkwell-translation-profiles-v1")
+  ) {
+    const parsed = JSON.parse(value);
+    if (key === "inkwell-translation-v1") return JSON.stringify(safeTranslationConfig(parsed));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      throw new Error("Invalid translation profiles.");
+    return JSON.stringify(
+      Object.fromEntries(
+        Object.entries(parsed)
+          .filter(([provider]) => TRANSLATION_PROVIDERS.has(provider))
+          .map(([provider, config]) => [provider, { ...safeTranslationConfig(config), provider }]),
+      ),
+    );
+  }
   if (
     value === null ||
     (!key.startsWith("inkwell-agent-config-v1:") && key !== "inkwell-layout-parser-v1")

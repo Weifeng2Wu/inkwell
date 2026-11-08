@@ -65,6 +65,7 @@ pub fn run() {
         .manage(ExternalAgentState::default())
         .manage(commands::storage::StorageState::default())
         .manage(LaTeXCompilationState::default())
+        .manage(commands::pdf_notes::PdfNotesState::default())
         .manage(Mutex::new(WatcherState::default()))
         .manage(Mutex::new(ProjectState::default()))
         .invoke_handler(tauri::generate_handler![
@@ -76,6 +77,7 @@ pub fn run() {
             commands::fonts::list_system_fonts,
             commands::storage::app_storage_request,
             commands::layout_parser::layout_parser_request,
+            commands::translation::translation_request,
             commands::external_agent::external_agent_detect,
             commands::external_agent::external_agent_install,
             commands::external_agent::external_agent_uninstall,
@@ -91,6 +93,8 @@ pub fn run() {
             commands::academic_agent::academic_agent_stop,
             commands::fs::set_project_path,
             commands::fs::read_file,
+            commands::pdf_notes::pdf_notes_load,
+            commands::pdf_notes::pdf_notes_save,
             commands::fs::read_chat_pdf,
             commands::fs::read_poster_image,
             commands::fs::save_generated_image,

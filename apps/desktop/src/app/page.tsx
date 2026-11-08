@@ -304,7 +304,15 @@ export default function EditorPage() {
   const restoredWorkspaceRef = useRef(false);
   const [isSwitchingProject, setIsSwitchingProject] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "agent">("general");
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"general" | "agent" | "translation">("general");
+  useEffect(() => {
+    const openTranslation = () => {
+      setSettingsInitialTab("translation");
+      setShowSettingsPage(true);
+    };
+    window.addEventListener("inkwell-open-translation-settings", openTranslation);
+    return () => window.removeEventListener("inkwell-open-translation-settings", openTranslation);
+  }, []);
   const workspaceReady = Boolean(
     daemon.projectInfo &&
       !daemon.isOpeningProject &&
@@ -1742,7 +1750,20 @@ export default function EditorPage() {
                   />
                 ) : splitFileType === "pdf" ? (
                   <PdfViewer
+                    key={`${daemon.projectPath}/${splitSelectedFile}`}
                     src={splitPane.binaryPreviewUrl}
+                    projectPath={daemon.projectPath ?? ""}
+                    pdfPath={splitSelectedFile}
+                    onOpenNotes={(path) => {
+                      void handleFileSelect(path);
+                    }}
+                    compiledPreview={
+                      latexCompiler.lastResult?.success === true &&
+                      latexCompiler.lastResult.pdf_path?.replace(/\\/g, "/") ===
+                        pathSync
+                          .join(daemon.projectPath ?? "", splitSelectedFile)
+                          .replace(/\\/g, "/")
+                    }
                     refreshKey={splitPane.pdfRefreshKey}
                     onSynctexClick={handleSplitSynctexClick}
                   />
@@ -1802,6 +1823,8 @@ export default function EditorPage() {
       handleSplitCloseTabsToRight,
       handleSplitSynctexClick,
       handleSplitContentChange,
+      handleFileSelect,
+      latexCompiler.lastResult,
       daemon.projectPath,
       getFileLanguage,
       editorSettings.settings,
@@ -2403,7 +2426,18 @@ export default function EditorPage() {
               </div>
             ) : getFileType(selectedFile) === "pdf" ? (
               <PdfViewer
+                key={`${daemon.projectPath}/${selectedFile}`}
                 src={binaryPreviewUrl}
+                projectPath={daemon.projectPath ?? ""}
+                pdfPath={selectedFile}
+                onOpenNotes={(path) => {
+                  void openFileInSplitPane(path, "right");
+                }}
+                compiledPreview={
+                  latexCompiler.lastResult?.success === true &&
+                  latexCompiler.lastResult.pdf_path?.replace(/\\/g, "/") ===
+                    pathSync.join(daemon.projectPath ?? "", selectedFile).replace(/\\/g, "/")
+                }
                 refreshKey={pdfRefreshKey}
                 onSynctexClick={handleSynctexClick}
               />

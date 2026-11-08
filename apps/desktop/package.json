@@ -16,6 +16,7 @@
     "tauri:build:nice": "nice -n 10 tauri build"
   },
   "dependencies": {
+    "@embedpdf/pdfium": "2.14.4",
     "@formkit/auto-animate": "^0.9.0",
     "@monaco-editor/react": "^4.7.0",
     "@phosphor-icons/react": "^2.1.10",
@@ -56,6 +57,7 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "jsdom": "^26.1.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^25.9.1",

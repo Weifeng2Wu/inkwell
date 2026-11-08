@@ -5,6 +5,22 @@ import { I18nProvider } from "@/features/i18n";
 import { SettingsPage } from "./settings-page";
 
 describe("settings navigation", () => {
+  it("offers Google as the default in a dedicated translation category, without resetting editor preferences", () => {
+    const markup = renderToStaticMarkup(
+      createElement(I18nProvider, null, createElement(SettingsPage, { initialTab: "translation" })),
+    );
+    expect(markup).toContain(">Google<");
+    expect(markup).not.toContain("Basic translation needs no API key");
+    expect(markup).not.toContain("keyless");
+    expect(markup).not.toContain("Only explicit Translate");
+    expect(markup).not.toContain("Channel lights reflect");
+    expect(markup).not.toContain("translation.description");
+    expect(markup).toContain("data-translation-provider");
+    expect(markup).toContain('data-translation-status="idle"');
+    expect(markup).not.toContain('type="password"');
+    expect(markup).not.toContain("Reset defaults");
+    expect(markup).not.toContain("Optional official Google Cloud");
+  });
   it("keeps software updates in a separate category without editor reset controls", () => {
     const general = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(SettingsPage)),
@@ -17,7 +33,9 @@ describe("settings navigation", () => {
     expect(updates).toContain('id="app-updates-title"');
     expect(updates).toContain("Check for updates");
     expect(updates).not.toContain("Reset defaults");
-    expect(updates).not.toContain('id="automatic-updates" aria-describedby="automatic-updates-description"');
+    expect(updates).not.toContain(
+      'id="automatic-updates" aria-describedby="automatic-updates-description"',
+    );
     expect(updates).toContain("app-updates-unavailable");
   });
   it.each([

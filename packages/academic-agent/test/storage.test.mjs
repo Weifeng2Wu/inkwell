@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { AppDatabase } from "../src/storage.mjs";
+import { fileURLToPath } from "node:url";
+import { AppDatabase, supportedStorageKey } from "../src/storage.mjs";
 
 async function fixture(context) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell-database-"));
@@ -16,12 +18,170 @@ async function fixture(context) {
   return { database, filename };
 }
 const scope = JSON.stringify(["/project", "codex"]);
+test("every frontend-owned preference is accepted by the database key allowlist", async () => {
+  const source = await readFile(
+    new URL("../../../apps/desktop/src/lib/storage/app-storage.ts", import.meta.url),
+    "utf8",
+  );
+  const list = /const keys = new Set\(\[([\s\S]*?)\]\);/.exec(source)?.[1];
+  assert(list, "Frontend preference key registry was not found");
+  const keys = [...list.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  for (const key of [
+    "inkwell-translation-v1",
+    "inkwell-translation-profiles-v1",
+    "inkwell-pdf-color-v1",
+  ])
+    assert(keys.includes(key));
+  for (const key of keys)
+    assert.equal(supportedStorageKey(key), true, `Database rejects frontend preference: ${key}`);
+  assert.equal(supportedStorageKey("unknown-secret"), false);
+});
+test("translation selection, provider profiles and annotation color save together and survive a restart", async (context) => {
+  const { database, filename } = await fixture(context);
+  const config = {
+    provider: "google-free",
+    source: "en",
+    target: "zh-CN",
+    baseUrl: "https://translate.googleapis.com/translate_a/single",
+    model: "",
+    region: "",
+  };
+  const profiles = {
+    "google-free": config,
+    llm: { ...config, provider: "llm", baseUrl: "https://models.example/v1", model: "translator" },
+  };
+  const entries = [
+    ["inkwell-translation-v1", JSON.stringify(config)],
+    ["inkwell-translation-profiles-v1", JSON.stringify(profiles)],
+    ["inkwell-pdf-color-v1", "success"],
+    ["theme", "nord"],
+  ];
+  assert.deepEqual(database.request({ type: "settings_write", entries }), { ok: true });
+  const reopened = new AppDatabase(filename);
+  try {
+    const settings = reopened.request({ type: "bootstrap" }).settings;
+    assert.deepEqual(JSON.parse(settings["inkwell-translation-v1"]), config);
+    assert.deepEqual(JSON.parse(settings["inkwell-translation-profiles-v1"]), profiles);
+    assert.equal(settings["inkwell-pdf-color-v1"], "success");
+    assert.equal(settings.theme, "nord");
+    const selected = profiles.llm;
+    reopened.request({
+      type: "settings_write",
+      entries: [["inkwell-translation-v1", JSON.stringify(selected)]],
+    });
+    assert.deepEqual(JSON.parse(database.settings()["inkwell-translation-v1"]), selected);
+    assert.deepEqual(JSON.parse(database.settings()["inkwell-translation-profiles-v1"]), profiles);
+  } finally {
+    reopened.close();
+  }
+});
+test("the standalone storage service accepts the desktop translation-save JSON protocol", async (context) => {
+  const { filename } = await fixture(context);
+  const config = {
+    provider: "transmart",
+    source: "en",
+    target: "zh-CN",
+    baseUrl: "https://transmart.qq.com/api/imt",
+    model: "",
+    region: "",
+  };
+  const script = fileURLToPath(new URL("../src/storage.mjs", import.meta.url));
+  const call = (request) =>
+    spawnSync(process.execPath, [script, filename], {
+      input: JSON.stringify(request),
+      encoding: "utf8",
+    });
+  const saving = call({
+    type: "settings_write",
+    entries: [
+      ["inkwell-translation-v1", JSON.stringify(config)],
+      ["inkwell-translation-profiles-v1", JSON.stringify({ transmart: config })],
+      ["inkwell-pdf-color-v1", "info"],
+    ],
+  });
+  assert.equal(saving.status, 0, saving.stderr);
+  assert.deepEqual(JSON.parse(saving.stdout), { ok: true });
+  const loading = call({ type: "bootstrap" });
+  assert.equal(loading.status, 0, loading.stderr);
+  const settings = JSON.parse(loading.stdout).settings;
+  assert.deepEqual(JSON.parse(settings["inkwell-translation-v1"]), config);
+  assert.deepEqual(JSON.parse(settings["inkwell-translation-profiles-v1"]), { transmart: config });
+  assert.equal(settings["inkwell-pdf-color-v1"], "info");
+});
+test("translation migration and preference writes strip keys without deleting saved credentials", async (context) => {
+  const { database } = await fixture(context);
+  const account = "a".repeat(64);
+  database.request({ type: "credential_write", account, apiKey: "test-only-saved-credential" });
+  const config = {
+    provider: "llm",
+    source: "en",
+    target: "zh-CN",
+    baseUrl: "https://models.example/v1",
+    model: "translator",
+    region: "",
+  };
+  const unsafe = {
+    ...config,
+    apiKey: "test-only-legacy-key",
+    secretId: "test-only-legacy-id",
+    secretKey: "test-only-legacy-secret",
+  };
+  const profiles = { llm: unsafe, apiKey: "test-only-root-secret" };
+  database.request({
+    type: "bootstrap",
+    entries: [
+      ["inkwell-translation-v1", JSON.stringify(unsafe)],
+      ["inkwell-translation-profiles-v1", JSON.stringify(profiles)],
+    ],
+  });
+  database.request({
+    type: "settings_write",
+    entries: [
+      ["inkwell-translation-v1", JSON.stringify(unsafe)],
+      ["inkwell-translation-profiles-v1", JSON.stringify(profiles)],
+    ],
+  });
+  assert.deepEqual(JSON.parse(database.settings()["inkwell-translation-v1"]), config);
+  assert.deepEqual(JSON.parse(database.settings()["inkwell-translation-profiles-v1"]), {
+    llm: config,
+  });
+  const backup = database.db.prepare("SELECT * FROM legacy_backup").all();
+  assert.doesNotMatch(JSON.stringify([database.settings(), backup]), /test-only-/);
+  assert.deepEqual(database.request({ type: "credential_read", account }), {
+    value: "test-only-saved-credential",
+  });
+});
+test("invalid translation preferences cannot partially overwrite a settings batch", async (context) => {
+  const { database } = await fixture(context);
+  database.set("theme", "nord");
+  for (const baseUrl of [
+    "https://user:secret@models.example/v1",
+    "https://models.example/v1?key=secret",
+    "http://remote.example/v1",
+  ]) {
+    assert.throws(
+      () =>
+        database.request({
+          type: "settings_write",
+          entries: [
+            ["theme", "light"],
+            ["inkwell-translation-v1", JSON.stringify({ provider: "llm", baseUrl })],
+          ],
+        }),
+      /Invalid translation endpoint/,
+    );
+    assert.equal(database.settings().theme, "nord");
+  }
+});
 test("automatic update preference survives a database restart", async (context) => {
   const { database, filename } = await fixture(context);
   database.request({ type: "settings_write", entries: [["inkwell-auto-update-v1", "true"]] });
   const reopened = new AppDatabase(filename);
   try {
-    assert.equal(reopened.request({ type: "bootstrap" }).settings["inkwell-auto-update-v1"], "true");
+    assert.equal(
+      reopened.request({ type: "bootstrap" }).settings["inkwell-auto-update-v1"],
+      "true",
+    );
   } finally {
     reopened.close();
   }
