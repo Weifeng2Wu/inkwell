@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+  <title>从研究问题到清晰表达</title>
+  <desc>功能演示：画板探索关系，导图整理层次，海报形成展示。文件之间不会自动同步。</desc>
+  <rect width="600" height="800" rx="28" fill="#ffffff"/>
+  <g font-family="Arial, 'Microsoft YaHei', 'Droid Sans Fallback', sans-serif">
+    <text x="300" y="37" text-anchor="middle" font-size="17" fill="#174a7e">INKWELL / LOCAL WORKSPACE</text>
+    <text x="300" y="81" text-anchor="middle" font-size="32" font-weight="bold" fill="#14253d">从一个研究问题出发</text>
+    <text x="300" y="116" text-anchor="middle" font-size="20" fill="#14253d">选择当前最适合的表达方式</text>
+    <path d="M300 129 V149 M291 139 L300 150 L309 139" fill="none" stroke="#174a7e" stroke-width="3"/>
+    <rect x="46" y="166" width="508" height="140" rx="20" fill="#eef3f8"/>
+    <circle cx="95" cy="208" r="22" fill="#174a7e"/>
+    <text x="95" y="215" text-anchor="middle" font-size="20" fill="#ffffff">1</text>
+    <text x="136" y="220" font-size="34" font-weight="bold" fill="#174a7e">画板 · 探索关系</text>
+    <text x="136" y="257" font-size="22" fill="#14253d">卡片、箭头、分组和便签</text>
+    <text x="136" y="287" font-size="18" fill="#14253d">.excalidraw</text>
+    <path d="M300 318 V340 M291 330 L300 341 L309 330" fill="none" stroke="#174a7e" stroke-width="3"/>
+    <rect x="46" y="356" width="508" height="140" rx="20" fill="#eef3f8"/>
+    <circle cx="95" cy="398" r="22" fill="#174a7e"/>
+    <text x="95" y="405" text-anchor="middle" font-size="20" fill="#ffffff">2</text>
+    <text x="136" y="410" font-size="34" font-weight="bold" fill="#174a7e">导图 · 整理层次</text>
+    <text x="136" y="447" font-size="22" fill="#14253d">问题、材料、表达和检查</text>
+    <text x="136" y="477" font-size="18" fill="#14253d">.mindmap.md</text>
+    <path d="M300 508 V530 M291 520 L300 531 L309 520" fill="none" stroke="#174a7e" stroke-width="3"/>
+    <rect x="46" y="546" width="508" height="140" rx="20" fill="#174a7e"/>
+    <circle cx="95" cy="588" r="22" fill="#ffffff"/>
+    <text x="95" y="595" text-anchor="middle" font-size="20" fill="#174a7e">3</text>
+    <text x="136" y="600" font-size="34" font-weight="bold" fill="#ffffff">海报 · 形成展示</text>
+    <text x="136" y="637" font-size="22" fill="#ffffff">图文内容、分栏和导出</text>
+    <text x="136" y="667" font-size="18" fill="#ffffff">.poster.json</text>
+    <text x="300" y="737" text-anchor="middle" font-size="23" font-weight="bold" fill="#14253d">保存在项目里，随时继续编辑</text>
+    <text x="300" y="774" text-anchor="middle" font-size="17" fill="#14253d">演示工作顺序 · 各文件独立保存</text>
+  </g>
+</svg>

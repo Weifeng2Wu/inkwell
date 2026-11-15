@@ -28,11 +28,31 @@ Inkwell inspects your project source and installed compilers to select a suitabl
 
 View compilation results, inspect errors, and navigate between PDF and source with SyncTeX in the same workspace. Multilingual documents can use XeLaTeX or LuaLaTeX; required fonts and packages depend on the project.
 
+### Read papers and manage references
+
+Import PDFs and Inkwell identifies each one by DOI, arXiv ID or title, fetches its metadata from Crossref and arXiv, and writes it to your project's `.bib` file. You can also paste a DOI, link, title or BibTeX entry.
+
+Highlight, underline, take Markdown notes and translate selections while reading; insert citations from the library with one click while writing. References, PDFs and notes are plain project files, so they sync with Git.
+
+### Mind maps, drawings and academic posters
+
+Create a mind map (`.mindmap.md`) or an Excalidraw drawing (`.excalidraw`) from the file-tree context menu or command palette, or press `Ctrl/Cmd+Alt+M` and `Ctrl/Cmd+Alt+D`. Both use project files, automatic saving, split panes and Git sync.
+
+Mind maps store one Markdown heading and nested bullet lists, with optional inline metadata for fonts, colors and branch directions. Add left or right branches, style a node and its descendants, hold Space and drag to pan, or fit the whole map. Tab adds a child, Enter adds a sibling and F2 edits its label. Undo/redo and SVG export retain the styles. Drawings use the official Excalidraw format with locally bundled fonts for offline editing. File-tree rows and tabs hide the long mind-map and poster suffixes and use distinct icons; full filenames remain available on hover and when renaming.
+
+All `.poster.json` files open in the freeform canvas, whether created manually or by an Agent. Move and resize text, shapes and figures, adjust the selected element's properties, and export PPTX, SVG, PDF or images. New documents and Agent proposals use version 1. Legacy structured version 2 files are laid out when opened and saved as version 1 on the first canvas edit; opening alone leaves the file untouched. Image generation is optional.
+
+Double-click a mind-map node to edit it, use its plus/minus controls to add or delete nodes, and right-click to change fonts, sizes, colors or branches. Hold Ctrl/Cmd and scroll to zoom around the pointer.
+
 ### Version and sync your paper with Git
 
 Inspect changed files, compare diffs, stage and commit edits, and sync with remote repositories through push and pull—all within the workspace.
 
-Keep a revision history, continue on another device, or share a project with collaborators through Git. You can also publish projects to GitHub, including private repositories.
+Keep a revision history, continue on another device, or share a project with collaborators through Git. You can also publish projects to GitHub, including private repositories. Turn on automatic backup in Settings to commit your changes on a schedule and when you close the app, so a draft is never lost because you forgot to commit; files over 50 MB are skipped.
+
+### Back up projects to R2 / S3
+
+Settings → Sync and backup supports your own Cloudflare R2 or S3-compatible bucket alongside GitHub. Save project snapshots manually or automatically every 30 minutes by default; unchanged content is reused. Browse snapshot history and restore into a new folder. Hidden files, caches, app settings and chat history are excluded. See [configuration and restore instructions](docs/CLOUD_BACKUP.md).
 
 ### Use the built-in Agent or connect a local Agent
 

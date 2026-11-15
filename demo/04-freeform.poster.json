@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "title": "自由画布：把每个元素放到想要的位置",
+  "width": 594,
+  "height": 841,
+  "background": "#ffffff",
+  "elements": [
+    {
+      "id": "header",
+      "type": "rect",
+      "x": 0,
+      "y": 0,
+      "width": 594,
+      "height": 142,
+      "fill": "#174a7e"
+    },
+    {
+      "id": "eyebrow",
+      "type": "text",
+      "x": 28,
+      "y": 22,
+      "width": 538,
+      "height": 15,
+      "text": "Inkwell Demo / 自由画布",
+      "fontSize": 8,
+      "color": "#ffffff"
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "x": 28,
+      "y": 49,
+      "width": 538,
+      "height": 58,
+      "text": "把每个元素\n放到想要的位置",
+      "fontSize": 20,
+      "bold": true,
+      "color": "#ffffff"
+    },
+    {
+      "id": "subtitle",
+      "type": "text",
+      "x": 28,
+      "y": 116,
+      "width": 538,
+      "height": 16,
+      "text": "A1 纵向 · 固定坐标 · 可编辑的文字、色块和图片",
+      "fontSize": 7,
+      "color": "#ffffff"
+    },
+    {
+      "id": "figure-panel",
+      "type": "rect",
+      "x": 28,
+      "y": 166,
+      "width": 246,
+      "height": 462,
+      "fill": "#eef3f8"
+    },
+    {
+      "id": "figure-title",
+      "type": "text",
+      "x": 40,
+      "y": 180,
+      "width": 222,
+      "height": 22,
+      "text": "一个主题，三个视图",
+      "fontSize": 11,
+      "bold": true,
+      "color": "#174a7e"
+    },
+    {
+      "id": "workflow-image",
+      "type": "image",
+      "x": 40,
+      "y": 217,
+      "width": 222,
+      "height": 296,
+      "src": "assets/workflow.png",
+      "alt": "研究问题、画板、导图和海报的手工工作顺序"
+    },
+    {
+      "id": "figure-caption",
+      "type": "text",
+      "x": 40,
+      "y": 536,
+      "width": 222,
+      "height": 28,
+      "text": "配图来自项目中的 assets/workflow.png。\n此图用于功能演示，不代表自动同步关系。",
+      "fontSize": 6,
+      "color": "#14253d"
+    },
+    {
+      "id": "edit-panel",
+      "type": "rect",
+      "x": 292,
+      "y": 166,
+      "width": 274,
+      "height": 226,
+      "fill": "#eef3f8"
+    },
+    {
+      "id": "edit-title",
+      "type": "text",
+      "x": 306,
+      "y": 180,
+      "width": 246,
+      "height": 22,
+      "text": "01 / 直接调整位置",
+      "fontSize": 11,
+      "bold": true,
+      "color": "#174a7e"
+    },
+    {
+      "id": "edit-body",
+      "type": "text",
+      "x": 306,
+      "y": 219.72,
+      "width": 246,
+      "height": 151,
+      "text": "每个元素都有固定位置与尺寸。\n\n选中文字、色块或图片后，可以拖动，也可以通过属性面板调整。\n\n先把这段文字向下移动一点，再调整色块的大小，观察哪些元素跟着变化、哪些保持原位。\n\n这里适合完成最后的手工微调。",
+      "fontSize": 8,
+      "color": "#14253d"
+    },
+    {
+      "id": "compare-panel",
+      "type": "rect",
+      "x": 292,
+      "y": 410,
+      "width": 274,
+      "height": 218,
+      "fill": "#eef3f8"
+    },
+    {
+      "id": "compare-title",
+      "type": "text",
+      "x": 306,
+      "y": 424,
+      "width": 246,
+      "height": 22,
+      "text": "02 / 同一画布，不同版式",
+      "fontSize": 11,
+      "bold": true,
+      "color": "#174a7e"
+    },
+    {
+      "id": "compare-body",
+      "type": "text",
+      "x": 306,
+      "y": 463,
+      "width": 246,
+      "height": 147,
+      "text": "A0 三栏海报\n先安排好正文和图片，再逐个微调。\n\nA1 自由画布海报\n用较少的元素尝试自己的布局。\n\n两份示例都使用相同的自由画布。点击文字、色块或图片，即可修改位置和样式；文件彼此独立，可同时打开比较。",
+      "fontSize": 8,
+      "color": "#14253d"
+    },
+    {
+      "id": "exercise-accent",
+      "type": "rect",
+      "x": 28,
+      "y": 650,
+      "width": 6,
+      "height": 123,
+      "fill": "#174a7e"
+    },
+    {
+      "id": "exercise-title",
+      "type": "text",
+      "x": 48,
+      "y": 654,
+      "width": 510,
+      "height": 24,
+      "text": "试着把它改成你自己的封面",
+      "fontSize": 13,
+      "bold": true,
+      "color": "#174a7e"
+    },
+    {
+      "id": "exercise-body",
+      "type": "text",
+      "x": 48,
+      "y": 695,
+      "width": 510,
+      "height": 72,
+      "text": "① 替换标题。  ② 移动一块文字。  ③ 调整图片大小。\n\n④ 保存并重新打开。  ⑤ 导出后检查文字和图像。\n\n所有内容均为演示材料，可以复制文件后自由修改。",
+      "fontSize": 8,
+      "color": "#14253d"
+    },
+    {
+      "id": "footer",
+      "type": "text",
+      "x": 28,
+      "y": 802,
+      "width": 538,
+      "height": 16,
+      "text": "Inkwell Demo · 自由画布海报示例 · 非真实研究结果",
+      "fontSize": 6,
+      "color": "#14253d"
+    }
+  ]
+}

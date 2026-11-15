@@ -3,7 +3,8 @@ node_modules/
 .cache/
 
 # Local-only project documentation
-/docs/
+/docs/*
+!/docs/CLOUD_BACKUP.md
 /ACADEMIC_POSTERS.md
 /AGENTS.md
 
@@ -12,6 +13,7 @@ node_modules/
 out/
 next-env.d.ts
 apps/desktop/public/pdfjs/
+apps/desktop/public/excalidraw/
 
 # build output
 dist/
