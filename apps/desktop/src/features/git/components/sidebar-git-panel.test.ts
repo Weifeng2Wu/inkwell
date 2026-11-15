@@ -1,6 +1,6 @@
 import { type ComponentProps, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/features/i18n";
 import type { GitFileChange, GitStatus } from "@/types/git";
 import { GitSidebarPanel } from "./sidebar-git-panel";
@@ -85,6 +85,7 @@ describe("Git sidebar remote actions", () => {
 });
 
 describe("Git sidebar layout", () => {
+  afterEach(() => vi.unstubAllGlobals());
   const change = (path: string, status: GitFileChange["status"], staged = false) => ({
     path,
     status,
@@ -97,7 +98,12 @@ describe("Git sidebar layout", () => {
     change("renamed.tex", "renamed"),
   ];
 
-  it("keeps the commit buttons on one line and labels in sentence case", () => {
+  it.each([
+    ["Win32", "Ctrl+Enter"],
+    ["Linux x86_64", "Ctrl+Enter"],
+    ["MacIntel", "⌘↩"],
+  ])("keeps commit buttons compact and shows the %s shortcut", (platform, shortcut) => {
+    vi.stubGlobal("navigator", { platform });
     const markup = render({ stagedChanges: [change("a.tex", "added", true)], commitMessage: "x" });
     for (const label of ["Commit", "AI draft"]) {
       const button = markup.match(new RegExp(`<button[^>]*>(?:(?!</button>).)*${label}`))?.[0];
@@ -105,7 +111,7 @@ describe("Git sidebar layout", () => {
     }
     expect(markup).not.toContain("uppercase");
     expect(markup).not.toContain("tracking-");
-    expect(markup).toContain("Ctrl+Enter to commit");
+    expect(markup).toContain(`${shortcut} to commit`);
   });
 
   it("shows a rounded, tinted status letter for each kind of change", () => {

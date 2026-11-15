@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { CloudBackup, DEFAULT_CLOUD_CONFIG, validateManifest } from "../src/cloud-backup.mjs";
 import { ObjectStore, sha256, validateCloudConfig } from "../src/object-store.mjs";
 import { AppDatabase } from "../src/storage.mjs";
@@ -178,7 +179,7 @@ test("the native service JSON protocol supports backup and returns sanitized sta
   const call = (request) =>
     new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [
-        new URL("../src/cloud-backup.mjs", import.meta.url).pathname,
+        fileURLToPath(new URL("../src/cloud-backup.mjs", import.meta.url)),
         path.join(directory, "db", "inkwell.sqlite"),
       ]);
       let stdout = "";

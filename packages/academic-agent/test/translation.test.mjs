@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   splitTranslationText,
   tencentHeaders,
@@ -424,7 +425,7 @@ test("rejects a service echoing the credential into translation output", async (
 test("CLI sanitizes arbitrary failures without exposing configuration or credentials", () => {
   const result = spawnSync(
     process.execPath,
-    [new URL("../src/translation.mjs", import.meta.url).pathname],
+    [fileURLToPath(new URL("../src/translation.mjs", import.meta.url))],
     {
       input: JSON.stringify(
         request({
