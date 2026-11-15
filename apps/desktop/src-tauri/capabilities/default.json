@@ -25,12 +25,6 @@
           "sidecar": false
         },
         {
-          "name": "opencode",
-          "cmd": "opencode",
-          "args": true,
-          "sidecar": false
-        },
-        {
           "name": "exec-sh",
           "cmd": "sh",
           "args": ["-c", { "validator": ".*" }],

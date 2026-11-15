@@ -4,9 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { parseCustomHeaders } from "../src/custom-headers.mjs";
-import { listModels, resolveModel } from "../src/model.mjs";
 import { createImageGenerationTool } from "../src/image-generation.mjs";
 import { layoutParser } from "../src/layout-parser.mjs";
+import { listModels, resolveModel } from "../src/model.mjs";
 import { createWebSearchTool } from "../src/web-search.mjs";
 
 const customHeaders = "CF-Access-Client-Id: client-id\nCF-Access-Client-Secret: client:secret";

@@ -1,4 +1,4 @@
-import { mergeCustomHeaders, parseCustomHeaders, customHeaderSecrets } from "./custom-headers.mjs";
+import { customHeaderSecrets, mergeCustomHeaders, parseCustomHeaders } from "./custom-headers.mjs";
 import { readZipEntries } from "./zip-skills.mjs";
 
 const MAX_TEXT = 80000;
@@ -71,10 +71,13 @@ export async function layoutParser(request, dependencies = {}) {
       ...options,
       redirect: "error",
       signal,
-      headers: mergeCustomHeaders({
-        ...(authorized ? { Authorization: `Bearer ${apiKey}` } : {}),
-        ...options.headers,
-      }, authorized ? config.customHeaders : undefined),
+      headers: mergeCustomHeaders(
+        {
+          ...(authorized ? { Authorization: `Bearer ${apiKey}` } : {}),
+          ...options.headers,
+        },
+        authorized ? config.customHeaders : undefined,
+      ),
     });
     // Keep server response bodies out of errors: gateways may echo credentials.
     if (!response.ok) {

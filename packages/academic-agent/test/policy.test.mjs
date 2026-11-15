@@ -66,6 +66,52 @@ test("poster tool creates nested proposals, reads them, and updates existing pos
   await assert.rejects(policy.read("config.json"));
 });
 
+test("poster proposals validate editor schema and layout before approval or writes", async () => {
+  const proposals = [];
+  const { directory, policy } = await fixture(async (change) => proposals.push(change));
+  const structured = {
+    version: 2,
+    title: "Evidence",
+    width: 841,
+    height: 1189,
+    background: "#ffffff",
+    columns: 3,
+    sections: [
+      { id: "result", title: "Result", blocks: [{ type: "text", text: "Verified evidence." }] },
+    ],
+  };
+  await policy.writePoster("posters/evidence.poster.json", JSON.stringify(structured));
+  const original = await readFile(path.join(directory, "posters/evidence.poster.json"), "utf8");
+  assert.equal(JSON.parse(original).version, 1);
+  assert.equal(JSON.parse(proposals[0].after).version, 1);
+  assert.ok(JSON.parse(original).elements.some((element) => element.text === "Verified evidence."));
+  structured.sections[0].blocks[0].text = "Updated evidence.";
+  await policy.edit("posters/evidence.poster.json", JSON.stringify(structured));
+  const updated = await readFile(path.join(directory, "posters/evidence.poster.json"), "utf8");
+  assert.equal(JSON.parse(updated).version, 1);
+  assert.ok(JSON.parse(updated).elements.some((element) => element.text === "Updated evidence."));
+  structured.height = 100;
+  structured.sections[0].blocks[0].text = "Long evidence. ".repeat(1200);
+  await assert.rejects(
+    policy.writePoster("posters/evidence.poster.json", JSON.stringify(structured)),
+    /does not fit/,
+  );
+  await assert.rejects(
+    policy.edit("posters/evidence.poster.json", '{"version":1,"elements":[]}'),
+    /Invalid poster/,
+  );
+  assert.equal(
+    await readFile(path.join(directory, "posters/evidence.poster.json"), "utf8"),
+    updated,
+  );
+  assert.equal(proposals.length, 2);
+  await writeFile(
+    path.join(directory, "diagram.excalidraw"),
+    '{"type":"excalidraw","version":2,"elements":[]}',
+  );
+  assert.match((await policy.read("diagram.excalidraw")).toString(), /excalidraw/);
+});
+
 test("poster creation preserves denied, cancelled, linked, outside and concurrently created files", async () => {
   const { directory } = await fixture();
   const denied = new ProjectPolicy(directory, async () => {

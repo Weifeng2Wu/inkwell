@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 import { type Configuration, NormalModuleReplacementPlugin } from "webpack";
+import { prepareDrawingAssets } from "../../scripts/prepare-drawing-assets.mjs";
 import { preparePdfAssets } from "../../scripts/prepare-pdf-assets.mjs";
 
 preparePdfAssets();
+prepareDrawingAssets();
 
 const isProd = process.env.NODE_ENV === "production";
 const internalHost = process.env.TAURI_DEV_HOST || "localhost";

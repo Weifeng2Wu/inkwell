@@ -344,11 +344,9 @@ pub async fn read_file(
 #[tauri::command]
 pub async fn write_file(
     state: tauri::State<'_, Mutex<ProjectState>>,
-    notes: tauri::State<'_, super::pdf_notes::PdfNotesState>,
     path: String,
     content: String,
     encoding: Option<String>,
-    expected_content: Option<String>,
 ) -> Result<(), String> {
     let project_path = {
         let state_guard = state.lock().map_err(|e| e.to_string())?;
@@ -362,9 +360,8 @@ pub async fn write_file(
 
     ensure_utf8_encoding(encoding.as_deref())?;
     if path.to_ascii_lowercase().ends_with(".pdf.notes.md") {
-        let expected = expected_content.ok_or("PDF_NOTES_CONFLICT: a notes baseline is required.")?;
-        let _guard = notes.access.lock().await;
-        return super::pdf_notes::replace_notes(Path::new(&path), &content, &expected).await;
+        // Sidecars have one writer, which checks the revision it replaces.
+        return Err("PDF_NOTES_CONFLICT: PDF notes are saved with pdf_notes_save.".into());
     }
     write_utf8_file(&path, &content).await
 }

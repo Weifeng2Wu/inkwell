@@ -47,9 +47,9 @@ Inkwell posters contain `text`, `rect`, and `image` elements. Objects are separa
 
 Use local relative paths for images. For `posters/result.poster.json`, a file at `figures/result.png` is referenced as `../figures/result.png`. Keep every image below 8 MiB, respect the review proposal limit, and verify the file exists. Avoid base64 images for Agent-generated posters.
 
-## Generate a visual reference first
+## Optional visual reference
 
-For every new poster or substantial redesign, generating and reviewing one visual reference from the verified brief before implementation is required, even when the user did not separately request a concept image. Use the Agent's available image-generation tool with `purpose: "poster_reference"` and this skill's reference prompt. In Inkwell, this keeps the bitmap in memory for the current generation instead of saving it as a project deliverable. The default reference direction is an A0 portrait, three columns in roughly 0.9:1.3:0.9 proportions, white or light-blue panels, and navy headers. Use another grid only for a concrete venue constraint or an essential source figure that cannot fit; record the reason. Use the result to set hierarchy, reading path, panel proportions, and spacing, then rebuild it as editable `.poster.json` elements. Never use the full-page reference image as the poster or treat its generated text, data, charts, logos, or marks as facts. Do not tell the user the internal reference was saved or delivered. If no image-generation tool is available, report that this required step is blocked and ask the user to switch to an image-capable Agent or explicitly waive it before continuing. The paper and its local assets remain the only sources of facts.
+Keep visual references optional. When useful and available, generate and review one reference with `purpose: "poster_reference"`. Use it to guide hierarchy and reading order, then rebuild it as editable `.poster.json` elements in version 1 freeform format. Continue from the verified brief when image generation is unavailable. The paper and local assets remain the only sources of facts; generated text, charts, logos and marks are placeholders.
 
 ## Check section content
 

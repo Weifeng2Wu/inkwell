@@ -1,4 +1,12 @@
-# Inkwell poster format v1
+# Inkwell poster formats
+
+## Unified freeform canvas
+
+Every final poster uses version 1. Agent-generated layouts and manual layouts open in the same canvas, with a compact inspector for the selected element. Keep text, shapes and original figures separate and editable.
+
+Legacy version 2 structured documents remain readable: the shared layout engine computes a version 1 canvas without changing the file on open. The first canvas edit saves version 1. The Agent write tool also converts legacy structured input before approval and validates the final proposal size. Do not deliver a new version 2 document or switch an existing freeform poster back to sections.
+
+## Version 1: freeform canvas
 
 Save UTF-8 JSON with a filename ending in `.poster.json`. For a new poster, use the project-root `posters/` directory and a filename of at most three lowercase English topic words plus a two-digit sequence, for example `posters/graph-neural-01.poster.json`. Never derive the filename from the paper title. Check existing files and increment the sequence to avoid overwriting. When editing an existing poster, preserve its current path and filename. No JavaScript, HTML, remote URLs or executable content is supported.
 

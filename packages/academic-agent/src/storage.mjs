@@ -24,12 +24,12 @@ const KEYS = new Set([
   "inkwell-translation-v1",
   "inkwell-translation-profiles-v1",
   "inkwell-pdf-color-v1",
+  "inkwell-pdf-position-v1",
+  "inkwell-library-sort-v1",
   "inkwell-quick-start-v1",
   "inkwell-keyboard-shortcuts-v1",
   "inkwell-auto-update-v1",
   "inkwell-locale",
-  "opencode-selected-agent",
-  "opencode-selected-model",
   "theme",
 ]);
 export function supportedStorageKey(key) {
@@ -408,7 +408,10 @@ export class AppDatabase {
       });
     }
     if (request.type === "record_read" || request.type === "record_write") {
-      if (!["agent-review", "skill-sync"].includes(request.namespace) || !validString(request.key))
+      if (
+        !["agent-review", "skill-sync", "cloud-backup"].includes(request.namespace) ||
+        !validString(request.key)
+      )
         throw new Error("Invalid record scope.");
       if (request.type === "record_read") {
         const record = this.db

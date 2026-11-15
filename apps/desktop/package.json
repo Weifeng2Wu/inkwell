@@ -16,6 +16,8 @@
     "tauri:build:nice": "nice -n 10 tauri build"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "@inkwell/academic-agent": "workspace:*",
     "@embedpdf/pdfium": "2.14.4",
     "@formkit/auto-animate": "^0.9.0",
     "@monaco-editor/react": "^4.7.0",
@@ -54,7 +56,9 @@
     "react-pdf": "^10.4.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
-    "remark-math": "^6.0.0"
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",

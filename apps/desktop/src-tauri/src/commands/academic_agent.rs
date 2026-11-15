@@ -51,8 +51,10 @@ fn runtime_files() -> Vec<(&'static str, &'static str)> {
         ("skills/venue-factory-bundle.json", include_str!("../../../../../packages/academic-agent/skills/venue-factory-bundle.json")),
         ("skills/nature-bundle.json", include_str!("../../../../../packages/academic-agent/skills/nature-bundle.json")),
         ("skills/poster-bundle.json", include_str!("../../../../../packages/academic-agent/skills/poster-bundle.json")),
+        ("skills/literature-bundle.json", include_str!("../../../../../packages/academic-agent/skills/literature-bundle.json")),
         ("history.mjs", HISTORY),
         ("policy.mjs", POLICY),
+        ("poster-document.mjs", include_str!("../../../../../packages/academic-agent/src/poster-document.mjs")),
         ("python.mjs", include_str!("../../../../../packages/academic-agent/src/python.mjs")),
         ("protocol.mjs", PROTOCOL),
     ]

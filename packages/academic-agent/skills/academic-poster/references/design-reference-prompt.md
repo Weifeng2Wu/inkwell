@@ -1,6 +1,6 @@
 # Design-reference prompt workflow
 
-Use this workflow before implementing every new poster or substantial redesign. A text-only model may prepare and refine the prompt, but an image-generation capability is required to produce the bitmap reference. In Inkwell, call the image tool with `purpose: "poster_reference"` so the reference is kept only in memory for the current generation and is not saved as a project image. Fill every bracketed field from the verified brief and project assets. The reference guides hierarchy, reading path, panel proportions, and spacing. It is never the factual poster or a replacement for the editable `.poster.json`.
+Use this optional workflow when a visual reference will help. A text-only model may prepare and refine the prompt; image generation is needed only to produce the optional bitmap. In Inkwell, use `purpose: "poster_reference"` to keep it in memory. Without an image tool, arrange version 1 freeform elements from the verified brief. The reference never replaces verified content or the editable `.poster.json`.
 
 Before prompting, collect:
 

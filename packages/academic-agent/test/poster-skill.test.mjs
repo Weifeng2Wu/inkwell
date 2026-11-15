@@ -48,16 +48,22 @@ test("poster skill installs offline, loads declared resources, avoids upstream s
   const selection = library.select(["academic-poster"]);
   assert.match((await selection.load("academic-poster")).instructions, /\.poster\.json/);
   assert.match((await selection.load("academic-poster")).instructions, /project-root `posters\//);
-  assert.match((await selection.load("academic-poster")).instructions, /Do not use the paper title as the filename/);
   assert.match(
     (await selection.load("academic-poster")).instructions,
-    /required workflow step, not dependent on the user separately requesting an image/i,
+    /Do not use the paper title as the filename/,
   );
   assert.match(
     (await selection.load("academic-poster")).instructions,
-    /do not describe it as optional/i,
+    /Use version 1 freeform posters for every deliverable/i,
   );
-  assert.doesNotMatch((await selection.load("academic-poster")).instructions, /style.*format enum/i);
+  assert.match(
+    (await selection.load("academic-poster")).instructions,
+    /If image generation is unavailable, continue from the verified brief/i,
+  );
+  assert.doesNotMatch(
+    (await selection.load("academic-poster")).instructions,
+    /style.*format enum/i,
+  );
   assert.match(
     (await selection.load("academic-poster")).instructions,
     /three body columns with a wider center.*required default/i,
@@ -71,17 +77,22 @@ test("poster skill installs offline, loads declared resources, avoids upstream s
     /at most three lowercase English topic words plus a two-digit sequence/,
   );
   const design = (await selection.resource("academic-poster", "references/design.md")).content;
-  assert.match(design, /generating and reviewing one visual reference.*is required/i);
-  assert.doesNotMatch(design, /Keep visual references optional/);
+  assert.match(design, /Keep visual references optional/);
+  assert.doesNotMatch(design, /ask the user.*waive/);
   assert.match(design, /rebuild it as editable `\.poster\.json` elements/);
   assert.match(design, /four metric cards with parallel title\/value\/comparison structure/);
   assert.match(design, /three body columns with a wider center/);
-  const imagePrompt = (await selection.resource("academic-poster", "references/design-reference-prompt.md")).content;
+  const imagePrompt = (
+    await selection.resource("academic-poster", "references/design-reference-prompt.md")
+  ).content;
   assert.match(imagePrompt, /visual reference/);
   assert.match(imagePrompt, /A text-only model may prepare and refine the prompt/);
   assert.match(imagePrompt, /Review and iterate/);
   assert.match(imagePrompt, /four genuinely distinct, source-verified metrics/);
-  assert.match(imagePrompt, /three columns with a wider center in roughly 0\.9:1\.3:0\.9 proportions/);
+  assert.match(
+    imagePrompt,
+    /three columns with a wider center in roughly 0\.9:1\.3:0\.9 proportions/,
+  );
   assert.match(imagePrompt, /one verified central-claim sentence/);
   assert.match(imagePrompt, /Avoid tiny unreadable paragraphs/);
   assert.match(
@@ -97,7 +108,8 @@ test("poster skill installs offline, loads declared resources, avoids upstream s
   assert.equal(acpContext.skills[0].resources.length, 4);
   assert.ok(
     acpContext.skills[0].resources.some(
-      (resource) => resource.path === "references/format.md" && /legacy `style` fields/i.test(resource.content),
+      (resource) =>
+        resource.path === "references/format.md" && /legacy `style` fields/i.test(resource.content),
     ),
   );
   const synced = await syncGitHubSkills(root, {

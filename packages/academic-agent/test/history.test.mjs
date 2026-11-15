@@ -49,7 +49,7 @@ async function fixture(context) {
   };
   await writeFile(
     filename,
-    [
+    `${[
       header,
       { type: "message", message: { role: "user", content: "Discuss the manuscript" } },
       {
@@ -58,7 +58,7 @@ async function fixture(context) {
       },
     ]
       .map((entry) => JSON.stringify(entry))
-      .join("\n") + "\n",
+      .join("\n")}\n`,
   );
   return {
     history: new SessionHistory(sdk, store, project),
@@ -89,14 +89,14 @@ test("history lists, previews, renames, and deletes a local conversation", async
 test("history rejects path traversal, other projects, symlinks, and corrupt files", async (context) => {
   const { history, store, key, filename, header } = await fixture(context);
   await assert.rejects(history.read("../../outside.jsonl"), /Invalid history key/);
-  await writeFile(filename, JSON.stringify({ ...header, cwd: "/other-project" }) + "\n");
+  await writeFile(filename, `${JSON.stringify({ ...header, cwd: "/other-project" })}\n`);
   assert.deepEqual(await history.list(), []);
   await assert.rejects(history.read(key), /project/);
   await writeFile(filename, "invalid JSON\n");
   assert.deepEqual(await history.list(), []);
   await rm(filename);
   const target = path.join(store, "outside.jsonl");
-  await writeFile(target, JSON.stringify(header) + "\n");
+  await writeFile(target, `${JSON.stringify(header)}\n`);
   await symlink(target, filename);
   await assert.rejects(history.read(key), /Invalid or oversized/);
   assert.deepEqual(await history.list(), []);

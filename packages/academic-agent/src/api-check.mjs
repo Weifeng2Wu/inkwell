@@ -1,5 +1,5 @@
-import { customHeaderSecrets } from "./custom-headers.mjs";
 import { pathToFileURL } from "node:url";
+import { customHeaderSecrets } from "./custom-headers.mjs";
 import { createModelRuntime, listModels, resolveModel } from "./model.mjs";
 import { createWebSearchTool } from "./web-search.mjs";
 
@@ -14,7 +14,8 @@ async function main() {
   process.stdin.setEncoding("utf8");
   for await (const chunk of process.stdin) {
     input += chunk.toString("utf8");
-    if (Buffer.byteLength(input) > 2 * 1024 * 1024) throw new Error("API check request is too large.");
+    if (Buffer.byteLength(input) > 2 * 1024 * 1024)
+      throw new Error("API check request is too large.");
   }
   const request = JSON.parse(input);
   headerSecrets = customHeaderSecrets(request);
@@ -33,10 +34,16 @@ async function main() {
   }
   if (request.type !== "test_connection") throw new Error("Unsupported API check.");
   const { runtime, model } = await resolveModel(sdk, request, directory, signal);
-  const response = await runtime.completeSimple(model, {
-    systemPrompt: "Reply only OK.",
-    messages: [{ role: "user", content: "Reply OK to confirm connectivity.", timestamp: Date.now() }],
-  }, { signal, maxTokens: 32 });
+  const response = await runtime.completeSimple(
+    model,
+    {
+      systemPrompt: "Reply only OK.",
+      messages: [
+        { role: "user", content: "Reply OK to confirm connectivity.", timestamp: Date.now() },
+      ],
+    },
+    { signal, maxTokens: 32 },
+  );
   if (["error", "aborted"].includes(response.stopReason))
     throw new Error(response.errorMessage || "Model connection test failed.");
   if (!response.content.some((part) => part.type === "text" && part.text.trim()))

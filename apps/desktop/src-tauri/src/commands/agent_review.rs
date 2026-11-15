@@ -56,7 +56,7 @@ fn document(path: &Path) -> bool {
                 .and_then(|value| value.to_str())
                 .map(str::to_ascii_lowercase)
                 .as_deref(),
-            Some("tex" | "bib" | "cls" | "sty" | "md" | "txt" | "csv")
+            Some("tex" | "bib" | "cls" | "sty" | "md" | "txt" | "csv" | "excalidraw")
         )
 }
 
@@ -643,6 +643,8 @@ mod tests {
         }
         assert!(relative_path("chapters/introduction.tex").is_ok());
         assert!(relative_path("posters/research.poster.json").is_ok());
+        assert!(relative_path("diagrams/research.excalidraw").is_ok());
+        assert!(relative_path("notes/research.mindmap.md").is_ok());
         assert!(relative_path("settings.json").is_err());
     }
 

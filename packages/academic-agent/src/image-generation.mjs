@@ -1,7 +1,7 @@
-import { mergeCustomHeaders, parseCustomHeaders } from "./custom-headers.mjs";
 import { constants } from "node:fs";
 import { lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
+import { mergeCustomHeaders, parseCustomHeaders } from "./custom-headers.mjs";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
@@ -72,12 +72,13 @@ function endpoint(value) {
     url.search ||
     url.hash
   )
-    throw new Error("Image-generation Base URL must be an HTTP(S) endpoint without credentials, query, or fragment.");
-  if (
-    url.protocol === "http:" &&
-    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-  )
-    throw new Error("Use HTTPS for remote image-generation endpoints. HTTP is allowed only for localhost.");
+    throw new Error(
+      "Image-generation Base URL must be an HTTP(S) endpoint without credentials, query, or fragment.",
+    );
+  if (url.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+    throw new Error(
+      "Use HTTPS for remote image-generation endpoints. HTTP is allowed only for localhost.",
+    );
   return `${url.toString().replace(/\/+$/, "")}/images/generations`;
 }
 
@@ -118,8 +119,7 @@ async function responseImage(response, signal, apiUrl, customHeaders) {
       throw new Error("Image-generation API returned an unsupported or oversized image.");
     return { type: "image", data: bytes.toString("base64"), mimeType };
   }
-  if (typeof item?.url !== "string")
-    throw new Error("Image-generation API returned no image.");
+  if (typeof item?.url !== "string") throw new Error("Image-generation API returned no image.");
   let imageUrl;
   try {
     imageUrl = new URL(item.url);
@@ -131,10 +131,13 @@ async function responseImage(response, signal, apiUrl, customHeaders) {
   const imageResponse = await fetch(imageUrl, {
     signal,
     redirect: "error",
-    headers: mergeCustomHeaders({ Accept: "image/png, image/jpeg, image/webp" },
-      imageUrl.origin === new URL(apiUrl).origin ? customHeaders : undefined),
+    headers: mergeCustomHeaders(
+      { Accept: "image/png, image/jpeg, image/webp" },
+      imageUrl.origin === new URL(apiUrl).origin ? customHeaders : undefined,
+    ),
   });
-  if (!imageResponse.ok) throw new Error(`Could not download generated image (${imageResponse.status}).`);
+  if (!imageResponse.ok)
+    throw new Error(`Could not download generated image (${imageResponse.status}).`);
   const mimeType = imageResponse.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
   if (!IMAGE_TYPES.has(mimeType)) throw new Error("Generated image has an unsupported format.");
   const bytes = await readBody(imageResponse, MAX_IMAGE_BYTES);
@@ -159,7 +162,8 @@ export function createImageGenerationTool(config, apiKey, projectDirectory, onGe
       properties: {
         prompt: {
           type: "string",
-          description: "A detailed visual prompt based on verified source material and the poster brief.",
+          description:
+            "A detailed visual prompt based on verified source material and the poster brief.",
           minLength: 1,
           maxLength: 16_000,
         },
@@ -186,18 +190,29 @@ export function createImageGenerationTool(config, apiKey, projectDirectory, onGe
         method: "POST",
         signal: requestSignal,
         redirect: "error",
-        headers: mergeCustomHeaders({
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        }, config.customHeaders),
-        body: JSON.stringify({ model: config.model.trim(), prompt: args.prompt, n: 1, size: "1024x1536" }),
+        headers: mergeCustomHeaders(
+          {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          config.customHeaders,
+        ),
+        body: JSON.stringify({
+          model: config.model.trim(),
+          prompt: args.prompt,
+          n: 1,
+          size: "1024x1536",
+        }),
       });
       const image = await responseImage(response, requestSignal, url, config.customHeaders);
       if (purpose === "poster_reference") {
         return {
           content: [
-            { type: "text", text: "Temporary visual reference generated for layout review; it was not saved as a project file." },
+            {
+              type: "text",
+              text: "Temporary visual reference generated for layout review; it was not saved as a project file.",
+            },
             image,
           ],
           details: {},

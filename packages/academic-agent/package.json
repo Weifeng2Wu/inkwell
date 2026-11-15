@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./poster-document": "./src/poster-document.mjs"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs"
   }

@@ -31,6 +31,7 @@ async function bundles(directory) {
   const legacy = await readJson(path.join(directory, "github-bundle.json"), null);
   const nature = await readJson(path.join(directory, "nature-bundle.json"), null);
   const poster = await readJson(path.join(directory, "poster-bundle.json"), null);
+  const literature = await readJson(path.join(directory, "literature-bundle.json"), null);
   return [
     legacy && {
       ...legacy,
@@ -41,6 +42,7 @@ async function bundles(directory) {
     },
     nature,
     poster,
+    literature,
   ].filter(Boolean);
 }
 

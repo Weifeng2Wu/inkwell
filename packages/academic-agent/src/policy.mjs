@@ -3,8 +3,29 @@ import { constants } from "node:fs";
 import { lstat, mkdir, open, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { isWithin } from "./library.mjs";
+import { layoutStructuredPoster, parsePosterDocument } from "./poster-document.mjs";
 
-const DOCUMENT_EXTENSIONS = new Set([".tex", ".bib", ".cls", ".sty", ".md", ".txt", ".csv"]);
+function preparePoster(content) {
+  const poster = parsePosterDocument(content);
+  const output =
+    poster.version === 2
+      ? `${JSON.stringify(layoutStructuredPoster(poster).poster, null, 2)}\n`
+      : content;
+  if (Buffer.byteLength(output) > MAX_DOCUMENT_BYTES)
+    throw new Error("Poster proposal exceeds the 1 MiB agent limit.");
+  return output;
+}
+
+const DOCUMENT_EXTENSIONS = new Set([
+  ".tex",
+  ".bib",
+  ".cls",
+  ".sty",
+  ".md",
+  ".txt",
+  ".csv",
+  ".excalidraw",
+]);
 export const MAX_DOCUMENT_BYTES = 1024 * 1024;
 
 export class ProjectPolicy {
@@ -78,6 +99,7 @@ export class ProjectPolicy {
       throw new Error("Editing is disabled in restricted permission mode.");
     if (Buffer.byteLength(content) > MAX_DOCUMENT_BYTES)
       throw new Error("Proposed edit is too large.");
+    if (/\.poster\.json$/i.test(filename)) content = preparePoster(content);
     const target = await this.resolve(filename);
     const before = await this.read(target);
     if (this.permissionMode === "ask")
@@ -123,9 +145,7 @@ export class ProjectPolicy {
       content.includes("\0")
     )
       throw new Error("Poster proposal exceeds the 1 MiB agent limit.");
-    const poster = JSON.parse(content);
-    if (poster?.version !== 1 || !Array.isArray(poster.elements) || poster.elements.length > 500)
-      throw new Error("Invalid poster document.");
+    content = preparePoster(content);
     try {
       await this.resolve(filename);
       return await this.edit(filename, content, signal);

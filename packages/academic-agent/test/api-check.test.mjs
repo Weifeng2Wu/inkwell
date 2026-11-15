@@ -10,7 +10,9 @@ test("standalone API checks return independent results and failures without a ch
   const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell-api-check-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const sdk = path.join(directory, "sdk.mjs");
-  await writeFile(sdk, `export const ModelRuntime = { async create() { return {
+  await writeFile(
+    sdk,
+    `export const ModelRuntime = { async create() { return {
     getModels: () => [], registerProvider() {}, async setRuntimeApiKey() {},
     getModel: (provider, id) => ({ provider, id }),
     async completeSimple(model) {
@@ -19,24 +21,43 @@ test("standalone API checks return independent results and failures without a ch
         ? { stopReason: "error", errorMessage: "Model HTTP 401" }
         : { stopReason: "stop", content: [{ type: "text", text: "OK" }] };
     }
-  }; } };`);
+  }; } };`,
+  );
   const preload = path.join(directory, "fetch.mjs");
-  await writeFile(preload, `globalThis.fetch = async (url) => new Response(JSON.stringify(
+  await writeFile(
+    preload,
+    `globalThis.fetch = async (url) => new Response(JSON.stringify(
     String(url).endsWith("/search") ? { results: [] } : { data: [{ id: "image-model" }] }
-  ));`);
+  ));`,
+  );
   function run(request) {
     return new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, ["--import", pathToFileURL(preload).href,
-        fileURLToPath(new URL("../src/api-check.mjs", import.meta.url)), sdk, directory],
-        { stdio: ["pipe", "pipe", "pipe"] });
+      const child = spawn(
+        process.execPath,
+        [
+          "--import",
+          pathToFileURL(preload).href,
+          fileURLToPath(new URL("../src/api-check.mjs", import.meta.url)),
+          sdk,
+          directory,
+        ],
+        { stdio: ["pipe", "pipe", "pipe"] },
+      );
       let stdout = "";
       let stderr = "";
-      child.stdout.on("data", (chunk) => { stdout += chunk; });
-      child.stderr.on("data", (chunk) => { stderr += chunk; });
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
       child.on("error", reject);
       child.on("close", (code) => {
-        try { resolve({ code, response: JSON.parse(stdout) }); }
-        catch { reject(new Error(`Invalid response: ${stdout}\n${stderr}`)); }
+        try {
+          resolve({ code, response: JSON.parse(stdout) });
+        } catch {
+          reject(new Error(`Invalid response: ${stdout}\n${stderr}`));
+        }
       });
       child.stdin.end(JSON.stringify(request));
     });

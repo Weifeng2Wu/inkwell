@@ -12,7 +12,8 @@ export function parseCustomHeaders(value) {
     if (
       colon < 1 ||
       !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) ||
-      /[\r\x00-\x1f\x7f]/.test(content)
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: header values must not carry control characters.
+      /[\x00-\x1f\x7f]/.test(content)
     )
       throw new Error("Invalid custom header. Use one Header-Name: value per line.");
     try {

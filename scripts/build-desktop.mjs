@@ -1,5 +1,4 @@
 import path from "node:path";
-import { configureUpdateSigning } from "./update-signing.mjs";
 import {
   prepareRuntime,
   root,
@@ -8,6 +7,7 @@ import {
   validateTarget,
   withRuntimeBundleConfig,
 } from "./desktop-runtime.mjs";
+import { configureUpdateSigning } from "./update-signing.mjs";
 
 const args = process.argv.slice(2).filter((argument) => argument !== "--");
 validateTarget(args, runtimeTarget(process.platform, process.arch));

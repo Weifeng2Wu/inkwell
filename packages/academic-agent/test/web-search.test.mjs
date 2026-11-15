@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import { createWebSearchTool } from "../src/web-search.mjs";
 
 test("web search sends a bounded Tavily request and preserves sources", async () => {
@@ -7,11 +7,27 @@ test("web search sends a bounded Tavily request and preserves sources", async ()
   let request;
   globalThis.fetch = async (url, options) => {
     request = { url, options };
-    return new Response(JSON.stringify({ results: [{ title: "Example", url: "https://example.com/a", content: "A summary", published_date: "2026-01-02" }] }), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        results: [
+          {
+            title: "Example",
+            url: "https://example.com/a",
+            content: "A summary",
+            published_date: "2026-01-02",
+          },
+        ],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
   };
   try {
     const tool = createWebSearchTool({}, "secret-key");
-    const output = await tool.execute("call", { query: "  current research  ", maxResults: 2 }, new AbortController().signal);
+    const output = await tool.execute(
+      "call",
+      { query: "  current research  ", maxResults: 2 },
+      new AbortController().signal,
+    );
     const body = JSON.parse(request.options.body);
     assert.equal(request.url, "https://api.tavily.com/search");
     assert.equal(body.api_key, "secret-key");
@@ -45,7 +61,10 @@ test("web search distinguishes an empty search from an invalid or oversized resp
   const tool = createWebSearchTool({}, "secret-key");
   try {
     globalThis.fetch = async () => new Response('{"results":[]}');
-    assert.deepEqual(JSON.parse((await tool.execute("test", { query: "test" })).content[0].text).results, []);
+    assert.deepEqual(
+      JSON.parse((await tool.execute("test", { query: "test" })).content[0].text).results,
+      [],
+    );
     globalThis.fetch = async () => new Response('{"error":"invalid key"}');
     await assert.rejects(tool.execute("test", { query: "test" }), /invalid search response/);
     globalThis.fetch = async () => new Response("x".repeat(1_000_001));
@@ -56,7 +75,9 @@ test("web search distinguishes an empty search from an invalid or oversized resp
       assert.equal(options.redirect, "error");
       options.signal.throwIfAborted();
     };
-    await assert.rejects(tool.execute("test", { query: "test" }, controller.signal), { name: "AbortError" });
+    await assert.rejects(tool.execute("test", { query: "test" }, controller.signal), {
+      name: "AbortError",
+    });
   } finally {
     globalThis.fetch = original;
   }

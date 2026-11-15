@@ -4,7 +4,6 @@ use commands::academic_agent::AcademicAgentState;
 use commands::external_agent::ExternalAgentState;
 use commands::fs::{ProjectState, WatcherState};
 use commands::latex::LaTeXCompilationState;
-use commands::opencode::OpenCodeState;
 use commands::terminal::PtyState;
 use std::sync::Mutex;
 use tauri::webview::WebviewWindowBuilder;
@@ -59,7 +58,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .manage(PtyState::default())
-        .manage(OpenCodeState::default())
         .manage(AcademicAgentState::default())
         .manage(commands::agent_review::AgentReviewState::default())
         .manage(ExternalAgentState::default())
@@ -68,6 +66,7 @@ pub fn run() {
         .manage(commands::pdf_notes::PdfNotesState::default())
         .manage(Mutex::new(WatcherState::default()))
         .manage(Mutex::new(ProjectState::default()))
+        .manage(commands::cloud_backup::CloudBackupState::default())
         .invoke_handler(tauri::generate_handler![
             commands::agent_review::agent_review_prepare,
             app_updates_enabled,
@@ -76,8 +75,11 @@ pub fn run() {
             commands::agent_review::agent_review_resolve,
             commands::fonts::list_system_fonts,
             commands::storage::app_storage_request,
+            commands::cloud_backup::cloud_backup_request,
             commands::layout_parser::layout_parser_request,
             commands::translation::translation_request,
+            commands::library::library_import_pdf,
+            commands::library::library_lookup,
             commands::external_agent::external_agent_detect,
             commands::external_agent::external_agent_install,
             commands::external_agent::external_agent_uninstall,
@@ -95,6 +97,7 @@ pub fn run() {
             commands::fs::read_file,
             commands::pdf_notes::pdf_notes_load,
             commands::pdf_notes::pdf_notes_save,
+            commands::pdf_notes::pdf_can_sync_source,
             commands::fs::read_chat_pdf,
             commands::fs::read_poster_image,
             commands::fs::save_generated_image,
@@ -119,6 +122,7 @@ pub fn run() {
             commands::git::git_fetch,
             commands::git::git_push,
             commands::git::git_pull,
+            commands::git::git_backup,
             commands::git::git_init,
             commands::git::git_clone,
             commands::git::git_add_remote,
@@ -130,11 +134,6 @@ pub fn run() {
             commands::terminal::write_pty,
             commands::terminal::resize_pty,
             commands::terminal::kill_pty,
-            commands::opencode::opencode_status,
-            commands::opencode::opencode_start,
-            commands::opencode::opencode_stop,
-            commands::opencode::opencode_restart,
-            commands::opencode::kill_port_process,
             commands::latex::latex_detect_compilers,
             commands::latex::latex_detect_main_file,
             commands::latex::latex_compile,

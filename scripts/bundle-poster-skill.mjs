@@ -21,7 +21,7 @@ const snapshot = {
   id: "academic-poster",
   name: "Academic Poster",
   description:
-    "Generate a visual poster reference from a paper, then rebuild it as an editable Inkwell .poster.json. Preserve verified claims and original figures, edit the native canvas, and export to PPTX, SVG, PDF or images.",
+    "Create a freeform Inkwell poster from verified paper content and original figures. Text, shapes and figures remain individually editable. Export to PPTX, SVG, PDF or images; visual references are optional.",
   source: "Inkwell built-in",
   local: true,
   revision: createHash("sha1").update(JSON.stringify(files)).digest("hex"),

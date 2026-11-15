@@ -29,10 +29,11 @@ Run these checks before presenting a poster proposal. Use the actual `.poster.js
 
 ## Inkwell document validity
 
-- The file ends in `.poster.json`, parses as JSON, and uses version `1`.
+- The delivered file ends in `.poster.json`, parses as JSON, and uses version `1` with independently editable elements.
+- Legacy version 2 input is laid out once and converted to version 1 before delivery. Keep existing freeform element IDs and unrelated geometry stable.
 - The page and element colors use valid `#RRGGBB` values; dimensions are within 100–1400 mm.
-- The poster has no more than 500 elements; IDs are unique and nonempty.
-- Each element uses supported `text`, `rect`, or `image` fields and remains entirely inside the page bounds.
+- A poster has no more than 500 elements; IDs are unique and nonempty.
+- Elements use supported `text`, `rect`, or `image` fields and remain entirely inside the page bounds.
 - Colors use `#RRGGBB`; font sizes and all geometry use millimetres; text remains plain text.
 - Every image path resolves inside the project, uses PNG/JPEG/WebP, and stays under 8 MiB. No remote or absolute paths are used.
 - Keep the complete Agent proposal below 1 MiB by referencing local figures rather than embedding them.
@@ -50,7 +51,7 @@ Run these checks before presenting a poster proposal. Use the actual `.poster.js
 
 ## Visual-reference QA
 
-- A generated reference follows the verified brief, exact section order, and intended reading path.
+- If a reference was generated, it follows the verified brief, exact section order, and intended reading path. A reference is optional; missing image-generation capability does not block freeform posters.
 - Essential source figures are represented as complete placeholders; generated charts, text, numbers, equations, logos, and QR codes are never treated as facts.
 - The layout has readable hierarchy, balanced panel sizes, intentional column bottoms, and no generic filler or duplicated result tables.
 - Any iteration targets a concrete defect. Stop once the reference gives a usable layout direction.
