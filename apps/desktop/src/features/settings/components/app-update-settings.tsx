@@ -15,24 +15,22 @@ import {
   setAutomaticUpdates,
   subscribeUpdates,
 } from "../lib/app-updater";
-import { updateLabels } from "../lib/update-labels";
+import { updateStatusText } from "../lib/update-status";
 
 export function AppUpdateSettings() {
-  const { locale } = useI18n();
-  const labels = updateLabels[locale];
+  const { t } = useI18n();
   const state = useSyncExternalStore(subscribeUpdates, getUpdateState, getServerUpdateState);
   const { version, enabled, ready, phase, release, progress, error, automatic } = state;
   useEffect(() => {
     void initializeUpdates();
   }, []);
-  const working = ["checking", "downloading", "installing"].includes(phase);
+  const working = phase === "checking" || phase === "downloading" || phase === "installing";
   const unavailableReason = !ready
-    ? labels.loading
+    ? t("settings.updates.loading")
     : !enabled
-      ? isTauri()
-        ? labels.unavailable
-        : labels.desktop
+      ? t(isTauri() ? "settings.updates.unavailable" : "settings.updates.desktopOnly")
       : undefined;
+  const status = updateStatusText(phase, release?.version, t);
   const action =
     phase === "installed" ? (
       <button
@@ -40,11 +38,11 @@ export function AppUpdateSettings() {
         className="btn btn-primary btn-sm"
         onClick={() => void restartAfterUpdate()}
       >
-        {labels.restart}
+        {t("settings.updates.restart")}
       </button>
     ) : phase === "available" || phase === "downloaded" ? (
       <button type="button" className="btn btn-primary btn-sm" onClick={() => void installUpdate()}>
-        {phase === "downloaded" ? labels.installNow : labels.install}
+        {t(phase === "downloaded" ? "settings.updates.installNow" : "settings.updates.install")}
       </button>
     ) : (
       <button
@@ -52,14 +50,9 @@ export function AppUpdateSettings() {
         className="btn btn-sm"
         disabled={!enabled || working}
         aria-describedby={unavailableReason ? "app-updates-unavailable" : undefined}
-        title={unavailableReason}
         onClick={() => void checkForUpdates()}
       >
-        {working
-          ? labels[phase as "checking" | "downloading" | "installing"]
-          : error
-            ? labels.retry
-            : labels.check}
+        {working ? status : t(error ? "common.retry" : "settings.updates.check")}
       </button>
     );
   return (
@@ -69,7 +62,7 @@ export function AppUpdateSettings() {
     >
       <div className="mb-4 border-b border-border pb-3">
         <h3 id="app-updates-title" className="text-sm font-semibold">
-          {labels.title}
+          {t("settings.updates.title")}
         </h3>
       </div>
       <div className="space-y-4">
@@ -77,66 +70,66 @@ export function AppUpdateSettings() {
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium text-foreground-secondary">Inkwell</p>
             <p className="text-xs text-muted-foreground">
-              {labels.current} <span className="font-mono tabular-nums">{version || "—"}</span>
+              {t("settings.updates.current")}{" "}
+              <span className="font-mono tabular-nums">{version || "—"}</span>
             </p>
           </div>
           {action}
         </div>
         <div className="flex items-center justify-between gap-3">
-          <label
-            htmlFor="automatic-updates"
-            className="text-sm font-medium text-foreground-secondary"
-          >
-            {labels.automatic}
-          </label>
+          <div className="min-w-0 pr-4">
+            <label
+              htmlFor="automatic-updates"
+              className="block text-sm font-medium text-foreground-secondary"
+            >
+              {t("settings.updates.automatic")}
+            </label>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">
+              {t("settings.updates.automaticDesc")}
+            </p>
+          </div>
           <Switch
             id="automatic-updates"
             checked={automatic}
             disabled={!enabled || !ready}
             aria-describedby={unavailableReason ? "app-updates-unavailable" : undefined}
-            title={unavailableReason}
             onCheckedChange={(value) => void setAutomaticUpdates(value)}
           />
         </div>
-        {(unavailableReason || phase !== "idle") && (
+        {(unavailableReason || status) && (
           <div role="status" aria-live="polite" className="space-y-2 text-xs text-muted-foreground">
             {unavailableReason ? (
               <p id="app-updates-unavailable">{unavailableReason}</p>
             ) : (
-              phase !== "idle" && (
-                <p
-                  className={
-                    phase === "latest" || phase === "installed" ? "text-success" : undefined
-                  }
-                >
-                  {labels[phase]}
-                  {phase === "available" && release ? ` · ${release.version}` : ""}
-                </p>
-              )
+              <p
+                className={phase === "latest" || phase === "installed" ? "text-success" : undefined}
+              >
+                {status}
+              </p>
             )}
             {phase === "downloading" && (
               <progress
                 className="h-1.5 w-full accent-accent"
                 max={100}
                 value={progress}
-                aria-label={labels.downloading}
+                aria-label={t("settings.updates.downloading")}
               />
             )}
           </div>
         )}
         {release?.body && (
-          <SettingsDisclosure title={labels.notes}>
+          <SettingsDisclosure title={t("settings.updates.notes")}>
             <p className="max-h-48 select-text overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
               {release.body}
             </p>
           </SettingsDisclosure>
         )}
-        {["available", "downloaded"].includes(phase) && (
-          <p className="text-xs text-muted-foreground">{labels.save}</p>
+        {(phase === "available" || phase === "downloaded") && (
+          <p className="text-xs text-muted-foreground">{t("settings.updates.saveFirst")}</p>
         )}
         {error && (
           <p role="alert" className="select-text break-words text-xs text-error">
-            {labels.failed} {error}
+            {t("settings.updates.failed", { error })}
           </p>
         )}
       </div>

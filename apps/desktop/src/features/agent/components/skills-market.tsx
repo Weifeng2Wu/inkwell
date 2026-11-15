@@ -1,19 +1,25 @@
 "use client";
 
-import { ArrowSquareOutIcon, CircleNotchIcon, GithubLogoIcon, StarIcon } from "@phosphor-icons/react";
+import {
+  ArrowSquareOutIcon,
+  CircleNotchIcon,
+  GithubLogoIcon,
+  StarIcon,
+} from "@phosphor-icons/react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useId, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "@/components/ui/context-menu";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { useI18n } from "@/features/i18n";
+import { Tooltip } from "@/components/ui/tooltip";
+import { errorMessage, useI18n } from "@/features/i18n";
 import { filterSkills, type SkillFilter } from "../lib/filter-skills";
 import { formatStars } from "../lib/format-stars";
 import { localizeSkill } from "../lib/skill-presentation";
 import type { AcademicAgentController } from "../lib/use-academic-agent";
 
 export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
-  const { t } = useI18n();
-  const { labels, market, working, changeSkill, uploadSkill, importGitHubSkill } = agent;
+  const { t, locale } = useI18n();
+  const { market, working, changeSkill, uploadSkill, importGitHubSkill } = agent;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<SkillFilter>("all");
   const [importMenu, setImportMenu] = useState<{ x: number; y: number } | null>(null);
@@ -41,9 +47,9 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
     }
   }
   return (
-    <section className="space-y-3" aria-label={labels.skills}>
+    <section className="space-y-3" aria-label={t("agent.skills.title")}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">{labels.skills}</h3>
+        <h3 className="text-sm font-semibold">{t("agent.skills.title")}</h3>
         <button
           type="button"
           className="btn btn-sm"
@@ -55,28 +61,28 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
           }}
           disabled={working}
         >
-          {labels.importSkills}
+          {t("agent.skills.import")}
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">{labels.skillScopeHint}</p>
+      <p className="text-xs text-muted-foreground">{t("agent.skills.scopeHint")}</p>
       {importMenu && (
         <ContextMenu
           x={importMenu.x}
           y={importMenu.y}
           items={[
-            { label: labels.uploadSkill, onClick: () => void uploadSkill(false) },
-            { label: labels.uploadFolder, onClick: () => void uploadSkill(true) },
-            { label: labels.uploadZip, onClick: () => void uploadSkill("zip") },
-            { label: labels.importGitHub, onClick: () => setGithubDialog(true) },
+            { label: t("agent.skills.importFile"), onClick: () => void uploadSkill(false) },
+            { label: t("agent.skills.importFolder"), onClick: () => void uploadSkill(true) },
+            { label: t("agent.skills.importZip"), onClick: () => void uploadSkill("zip") },
+            { label: t("agent.skills.importGitHub"), onClick: () => setGithubDialog(true) },
           ]}
           onClose={() => setImportMenu(null)}
         />
       )}
       {githubDialog && (
         <InputDialog
-          title={labels.importGitHub}
+          title={t("agent.skills.githubTitle")}
           placeholder="https://github.com/owner/repository"
-          confirmLabel={labels.importSkills}
+          confirmLabel={t("agent.skills.import")}
           validator={(value) => {
             try {
               const url = new URL(value.trim());
@@ -87,9 +93,9 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
                 !url.password &&
                 /^\/[^/]+\/[^/]+(?:\/tree\/[^/]+(?:\/.*)?)?\/?$/.test(url.pathname)
                 ? null
-                : labels.invalidGitHubLink;
+                : t("agent.skills.invalidGitHubLink");
             } catch {
-              return labels.invalidGitHubLink;
+              return t("agent.skills.invalidGitHubLink");
             }
           }}
           onConfirm={(value) => {
@@ -105,7 +111,7 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
         </p>
       )}
       <label className="sr-only" htmlFor={fieldId}>
-        {labels.marketSearch}
+        {t("agent.skills.search")}
       </label>
       <div className="flex flex-wrap gap-2">
         <input
@@ -113,21 +119,21 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={labels.marketSearch}
+          placeholder={t("agent.skills.search")}
           className="settings-control min-w-0 flex-1"
         />
         <select
-          aria-label={labels.skillFilter}
+          aria-label={t("agent.skills.filter")}
           value={filter}
           onChange={(event) => setFilter(event.target.value === "installed" ? "installed" : "all")}
           className="settings-control"
         >
-          <option value="all">{labels.allSkills}</option>
-          <option value="installed">{labels.installed}</option>
+          <option value="all">{t("agent.skills.all")}</option>
+          <option value="installed">{t("agent.skills.installed")}</option>
         </select>
       </div>
       {filtered.length === 0 && (
-        <p className="text-xs text-muted-foreground">{labels.marketEmpty}</p>
+        <p className="text-xs text-muted-foreground">{t("agent.skills.empty")}</p>
       )}
       <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((skill) => (
@@ -136,12 +142,10 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
             className="min-w-0 space-y-2 rounded-lg border border-border bg-surface p-2.5 transition-colors duration-200 motion-reduce:transition-none"
           >
             <div className="flex items-start justify-between gap-2">
-              <h4 className="min-w-0 break-words text-xs font-medium" title={skill.name}>
-                {skill.name}
-              </h4>
+              <h4 className="min-w-0 break-words text-xs font-medium">{skill.name}</h4>
               {skill.installed && (
-                <span className="shrink-0 rounded bg-success/15 px-1.5 py-0.5 text-[10px] text-success">
-                  {labels.installed}
+                <span className="shrink-0 rounded bg-success/15 px-1.5 py-0.5 text-[11px] text-success">
+                  {t("agent.skills.installed")}
                 </span>
               )}
             </div>
@@ -175,33 +179,44 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {skill.source.startsWith("https://github.com/") ? (
-                <a
-                  href={skill.source}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-surface px-2 py-1 font-medium text-foreground transition-colors hover:border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  title={skill.source}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    void open(skill.source).catch((error: unknown) =>
-                      setPreviewError(String(error)),
-                    );
-                  }}
-                >
-                  <GithubLogoIcon size={13} weight="fill" aria-hidden="true" />
-                  GitHub
-                  <ArrowSquareOutIcon size={11} aria-hidden="true" />
-                </a>
+                <Tooltip label={skill.source.replace("https://", "")} side="top">
+                  <a
+                    href={skill.source}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-surface px-2 py-1 font-medium text-foreground transition-colors hover:border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void open(skill.source).catch((error: unknown) =>
+                        setPreviewError(errorMessage(error, t)),
+                      );
+                    }}
+                  >
+                    <GithubLogoIcon size={13} weight="fill" aria-hidden="true" />
+                    GitHub
+                    <ArrowSquareOutIcon size={11} aria-hidden="true" />
+                  </a>
+                </Tooltip>
               ) : (
                 skill.source
               )}
               {skill.stars !== undefined && (
-                <span className="inline-flex items-center gap-1" title={t("interface.stars")}>
-                  <StarIcon size={12} aria-hidden="true" />
-                  <span className="sr-only">GitHub stars: </span>
-                  {formatStars(skill.stars)}
-                </span>
+                <Tooltip
+                  label={t("agent.skills.stars", { count: formatStars(skill.stars, locale) })}
+                  side="top"
+                >
+                  <span
+                    role="img"
+                    aria-label={t("agent.skills.stars", {
+                      count: formatStars(skill.stars, locale),
+                    })}
+                    className="inline-flex items-center gap-1"
+                  >
+                    <StarIcon size={12} aria-hidden="true" />
+                    <span aria-hidden="true">{formatStars(skill.stars, locale)}</span>
+                  </span>
+                </Tooltip>
               )}
             </div>
-            {!skill.managed && <p className="text-xs text-warning">{labels.marketConflict}</p>}
+            {!skill.managed && <p className="text-xs text-warning">{t("agent.skills.conflict")}</p>}
             <div className="flex items-center justify-end gap-2">
               <button
                 type="button"
@@ -213,12 +228,12 @@ export function SkillsMarket({ agent }: { agent: AcademicAgentController }) {
                 {pendingSkill === skill.id ? (
                   <>
                     <CircleNotchIcon className="animate-spin" size={12} aria-hidden="true" />
-                    {skill.installed ? labels.removing : labels.installing}
+                    {skill.installed ? t("agent.skills.removing") : t("agent.skills.installing")}
                   </>
                 ) : skill.installed ? (
-                  labels.remove
+                  t("agent.skills.remove")
                 ) : (
-                  labels.install
+                  t("agent.skills.install")
                 )}
               </button>
             </div>

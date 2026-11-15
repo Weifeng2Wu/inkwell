@@ -5,7 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useId, useRef, useState } from "react";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
-import { useI18n } from "@/features/i18n";
+import { Tooltip } from "@/components/ui/tooltip";
+import { errorMessage, useI18n } from "@/features/i18n";
 import { EXTERNAL_AGENTS } from "../lib/external-agent-catalog";
 import {
   type FormatRule,
@@ -61,7 +62,7 @@ export function FormatSkillBuilder({
   const runner = external ? externalAgent : agent;
   const agentName = external
     ? EXTERNAL_AGENTS.find((entry) => entry.id === selected)?.name
-    : "Inkwell Agent";
+    : t("agent.title");
   const activeScope = useRef("");
   activeScope.current = JSON.stringify([agent.directory, selected]);
   const disabled =
@@ -109,7 +110,7 @@ export function FormatSkillBuilder({
       setDraft(null);
       resetInterview();
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, t));
     } finally {
       pending.current = false;
       setBusy(false);
@@ -143,7 +144,7 @@ export function FormatSkillBuilder({
       if (userDecisions)
         inputs.push({
           id: `S${inputs.length + 1}`,
-          name: "User decisions",
+          name: t("formatSkill.answersSource"),
           text: userDecisions,
         });
       if (!name.trim() || !inputs.length) throw new Error(t("formatSkill.required"));
@@ -185,7 +186,7 @@ export function FormatSkillBuilder({
       if (activeScope.current === scope)
         setDraft({ ...request, instructions: preview.instructions });
     } catch (caught) {
-      if (activeScope.current === scope) setError(String(caught));
+      if (activeScope.current === scope) setError(errorMessage(caught, t));
     } finally {
       pending.current = false;
       setBusy(false);
@@ -212,7 +213,7 @@ export function FormatSkillBuilder({
       setDraft(null);
       setSuccess(true);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, t));
     } finally {
       pending.current = false;
       setBusy(false);
@@ -229,21 +230,22 @@ export function FormatSkillBuilder({
           <h3 className="text-sm font-semibold">{t("formatSkill.title")}</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted">{t("formatSkill.scope")}</p>
         </div>
-        <button
-          type="button"
-          className="toolbar-icon-button"
-          aria-label={open ? t("common.close") : t("formatSkill.create")}
-          title={t("formatSkill.create")}
-          aria-expanded={open}
-          disabled={busy}
-          onClick={() => setOpen(!open)}
-        >
-          {open ? (
-            <XIcon className="size-4" aria-hidden="true" />
-          ) : (
-            <FilePlusIcon className="size-4" aria-hidden="true" />
-          )}
-        </button>
+        <Tooltip label={open ? t("common.close") : t("formatSkill.title")}>
+          <button
+            type="button"
+            className="toolbar-icon-button"
+            aria-label={open ? t("common.close") : t("formatSkill.title")}
+            aria-expanded={open}
+            disabled={busy}
+            onClick={() => setOpen(!open)}
+          >
+            {open ? (
+              <XIcon className="size-4" aria-hidden="true" />
+            ) : (
+              <FilePlusIcon className="size-4" aria-hidden="true" />
+            )}
+          </button>
+        </Tooltip>
       </div>
       {open && (
         <div className="space-y-4">
@@ -316,19 +318,21 @@ export function FormatSkillBuilder({
                   className="flex items-center justify-between gap-2 rounded-md bg-surface-secondary px-3 py-1 text-xs"
                 >
                   <span className="truncate">{source.name}</span>
-                  <button
-                    type="button"
-                    className="toolbar-icon-button"
-                    disabled={busy}
-                    aria-label={t("formatSkill.remove", { name: source.name })}
-                    onClick={() => {
-                      setSources(sources.filter((entry) => entry !== source));
-                      resetInterview();
-                      setDraft(null);
-                    }}
-                  >
-                    <XIcon className="size-4" aria-hidden="true" />
-                  </button>
+                  <Tooltip label={t("common.remove")}>
+                    <button
+                      type="button"
+                      className="toolbar-icon-button"
+                      disabled={busy}
+                      aria-label={t("formatSkill.remove", { name: source.name })}
+                      onClick={() => {
+                        setSources(sources.filter((entry) => entry !== source));
+                        resetInterview();
+                        setDraft(null);
+                      }}
+                    >
+                      <XIcon className="size-4" aria-hidden="true" />
+                    </button>
+                  </Tooltip>
                 </li>
               ))}
             </ul>

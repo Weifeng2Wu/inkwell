@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentApiKeyInput } from "./agent-api-key-input";
 
 const state = vi.hoisted(() => ({ draft: null as string | null }));
-vi.mock("react", () => ({
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
   useState: () => [
     state.draft,
     (value: string | null) => {

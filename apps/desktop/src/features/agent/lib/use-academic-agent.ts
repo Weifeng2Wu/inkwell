@@ -2,9 +2,10 @@
 
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "@/features/i18n";
+import { errorMessage, useI18n } from "@/features/i18n";
 import { appStorage } from "@/lib/storage/app-storage";
 import type { SelectionAttachment } from "@/types/editor-selection";
+import type { Paper } from "@/types/papers";
 import {
   AcademicClient,
   type AcademicConfig,
@@ -19,9 +20,9 @@ import {
   type SkillMetadata,
 } from "./academic-client";
 import { readConfig } from "./academic-config";
-import { academicLabels } from "./academic-labels";
 import type { ChatImage } from "./chat-input";
 import { prepareChatVision } from "./chat-vision";
+import { withPaperContext } from "./paper-context";
 import { withSelectionContext } from "./selection-context";
 import { useAgentApiKey } from "./use-agent-api-key";
 
@@ -45,8 +46,10 @@ export function useAcademicAgent({
   beforeTurn?: () => Promise<void>;
   afterTurn?: () => Promise<void>;
 }) {
-  const { locale } = useI18n();
-  const labels = academicLabels[locale];
+  const { t } = useI18n();
+  // Long-lived listeners read the translator through a ref so they follow a language switch.
+  const translate = useRef(t);
+  translate.current = t;
   const storageKey = `inkwell-agent-config-v1:${directory ?? ""}`;
   const [config, setConfig] = useState(() => readConfig(storageKey));
   const [persistedConfig, setPersistedConfig] = useState<string | null>(null);
@@ -82,17 +85,17 @@ export function useAcademicAgent({
     (!enabled
       ? null
       : apiKeyError === "load"
-        ? labels.keyLoadFailed
+        ? t("agent.settings.keyLoadFailed")
         : apiKeyError === "save"
-          ? labels.keySaveFailed
+          ? t("agent.settings.keySaveFailed")
           : imageGenerationApiKeyError === "load"
-            ? labels.keyLoadFailed
+            ? t("agent.settings.keyLoadFailed")
             : imageGenerationApiKeyError === "save"
-              ? labels.keySaveFailed
+              ? t("agent.settings.keySaveFailed")
               : webSearchApiKeyError === "load"
-                ? labels.keyLoadFailed
+                ? t("agent.settings.keyLoadFailed")
                 : webSearchApiKeyError === "save"
-                  ? labels.keySaveFailed
+                  ? t("agent.settings.keySaveFailed")
                   : null);
   const [catalog, setCatalog] = useState<SkillMetadata[]>([]);
   const [market, setMarket] = useState<MarketSkill[]>([]);
@@ -198,7 +201,7 @@ export function useAcademicAgent({
       setPersistedConfig(serialized);
       setConfigSaveError(null);
     } catch (caught) {
-      setConfigSaveError(String(caught));
+      setConfigSaveError(errorMessage(caught, translate.current));
     }
   }, [config, directory, loadedDirectory, storageKey]);
 
@@ -227,7 +230,7 @@ export function useAcademicAgent({
         setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
         setConnected(true);
       } catch (caught) {
-        setError(String(caught));
+        setError(errorMessage(caught, translate.current));
       } finally {
         setWorking(false);
       }
@@ -253,7 +256,9 @@ export function useAcademicAgent({
       } else if (event.type === "permission_resolved") {
         setPermissions((current) => current.filter((permission) => permission.id !== event.id));
       } else if (event.type === "tool_start" || event.type === "tool_end") {
-        setActivity(`${event.tool}${event.isError ? " · error" : ""}`);
+        setActivity(
+          event.isError ? translate.current("agent.toolFailed", { tool: event.tool }) : event.tool,
+        );
       } else if (event.type === "image_generated" && streamingId.current) {
         const image = { ...event, src: convertFileSrc(event.path) };
         generatedImages.current.push(image);
@@ -271,7 +276,13 @@ export function useAcademicAgent({
         setSession(null);
         setPermissions([]);
         setWorking(false);
-        setError(event.type === "fatal" ? event.error : "Runtime disconnected.");
+        setError(
+          event.type === "exit"
+            ? translate.current("agent.errors.disconnected")
+            : event.key
+              ? translate.current(event.key)
+              : event.error,
+        );
       }
     });
     clientRef.current = client;
@@ -285,7 +296,7 @@ export function useAcademicAgent({
         return client;
       }
     } catch (caught) {
-      if (clientRef.current === client) setError(String(caught));
+      if (clientRef.current === client) setError(errorMessage(caught, translate.current));
     } finally {
       if (clientRef.current === client) setWorking(false);
     }
@@ -300,28 +311,28 @@ export function useAcademicAgent({
       return invoke<Result>("agent_shared_skills", {
         request: { ...payload, type: type === "market_change" ? "skill_install" : type },
       });
-    if (!directory) throw new Error(labels.openProject);
+    if (!directory) throw new Error(t("agent.openProject"));
     if (!enabledRef.current) {
-      throw new Error("The built-in Agent is disabled while an external Agent is selected.");
+      throw new Error(t("agent.errors.disabledWhileExternal"));
     }
     if (needsModel || type === "test_connection" || type === "list_models") {
-      if (apiKeyLoading) throw new Error(labels.keyLoading);
-      if (apiKeyError === "load") throw new Error(labels.keyLoadFailed);
+      if (apiKeyLoading) throw new Error(t("agent.settings.keyLoading"));
+      if (apiKeyError === "load") throw new Error(t("agent.settings.keyLoadFailed"));
     }
-    if (working || utilityOperation.current) throw new Error(labels.busy);
+    if (working || utilityOperation.current) throw new Error(t("agent.working"));
     if (needsModel && (!config.model.trim() || (!config.protocol && !config.provider.trim())))
-      throw new Error(labels.configureModel);
+      throw new Error(t("agent.settings.configureModel"));
     const operation = Symbol(type);
     utilityOperation.current = operation;
     let client: AcademicClient | null | undefined;
     try {
       client = clientRef.current ?? (await connect());
       if (!client || clientRef.current !== client || utilityOperation.current !== operation)
-        throw new Error(labels.connectionFailed);
+        throw new Error(t("agent.settings.connectionFailed"));
       setWorking(true);
       setError(null);
       const result = await client.request<Result>(type, payload);
-      if (clientRef.current !== client) throw new Error(labels.connectionFailed);
+      if (clientRef.current !== client) throw new Error(t("agent.settings.connectionFailed"));
       return result;
     } finally {
       if (utilityOperation.current === operation) {
@@ -367,7 +378,10 @@ export function useAcademicAgent({
         milliseconds: Date.now() - started,
       });
     } catch (caught) {
-      setConnectionTestError({ configuration: scope, message: String(caught) });
+      setConnectionTestError({
+        configuration: scope,
+        message: errorMessage(caught, translate.current),
+      });
     } finally {
       connectionCheck.current = null;
       setTestingConnection(false);
@@ -381,8 +395,8 @@ export function useAcademicAgent({
   }
 
   async function testWebSearch() {
-    if (webSearchApiKeyLoading) throw new Error(labels.keyLoading);
-    if (!webSearchApiKey.trim()) throw new Error(labels.webSearchKeyHint);
+    if (webSearchApiKeyLoading) throw new Error(t("agent.settings.keyLoading"));
+    if (!webSearchApiKey.trim()) throw new Error(t("agent.settings.webSearchKeyMissing"));
     await invoke("academic_api_request", {
       request: {
         type: "test_web_search",
@@ -405,7 +419,7 @@ export function useAcademicAgent({
       setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
       setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -419,7 +433,7 @@ export function useAcademicAgent({
       setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
       if (result.updateError) setError(result.updateError);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -441,7 +455,7 @@ export function useAcademicAgent({
       setMarket(result.market);
       setConfig((current) => ({ ...current, skillIds: result.skills.map((skill) => skill.id) }));
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -456,7 +470,7 @@ export function useAcademicAgent({
       setCatalog(result.skills);
       setMarket(result.market);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -478,7 +492,7 @@ export function useAcademicAgent({
       );
       setConversations(result.sessions);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -492,7 +506,7 @@ export function useAcademicAgent({
       );
       setHistoryPreview(result);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -509,7 +523,7 @@ export function useAcademicAgent({
       );
       return true;
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
       return false;
     }
   }
@@ -531,7 +545,7 @@ export function useAcademicAgent({
       }
       return true;
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
       return false;
     }
   }
@@ -543,9 +557,9 @@ export function useAcademicAgent({
   ) {
     const generation = lifecycle.current;
     try {
-      if (webSearchApiKeyLoading) throw new Error(labels.keyLoading);
+      if (webSearchApiKeyLoading) throw new Error(t("agent.settings.keyLoading"));
       if (config.imageGeneration.model.trim() && imageGenerationApiKeyLoading)
-        throw new Error(labels.keyLoading);
+        throw new Error(t("agent.settings.keyLoading"));
       const result = await requestOperation<SessionResult>("configure", {
         ...config,
         apiKey,
@@ -562,7 +576,7 @@ export function useAcademicAgent({
       if (!preserveInput) setInput("");
       return true;
     } catch (caught) {
-      if (generation === lifecycle.current) setError(String(caught));
+      if (generation === lifecycle.current) setError(errorMessage(caught, translate.current));
       return false;
     }
   }
@@ -571,6 +585,7 @@ export function useAcademicAgent({
     draft = input.trim(),
     images: ChatImage[] = [],
     selections: SelectionAttachment[] = [],
+    papers: readonly Paper[] = [],
   ) {
     const client = clientRef.current;
     if (
@@ -583,7 +598,7 @@ export function useAcademicAgent({
       !draft.trim()
     )
       return false;
-    const text = withSelectionContext(draft.trim(), selections);
+    const text = withSelectionContext(withPaperContext(draft.trim(), papers), selections);
     const assistantId = crypto.randomUUID();
     streamingId.current = assistantId;
     generatedImages.current = [];
@@ -602,12 +617,12 @@ export function useAcademicAgent({
         text,
         images,
         session.supportsImages === true,
-        labels.visionConfigMissing,
+        t("agent.settings.visionConfigMissing"),
         abort.signal,
         directory,
       );
       if (clientRef.current !== client || !enabledRef.current)
-        throw new Error("Agent session changed.");
+        throw new Error(t("agent.errors.sessionChanged"));
       abort.signal.throwIfAborted();
       await beforeTurn?.();
       abort.signal.throwIfAborted();
@@ -626,12 +641,14 @@ export function useAcademicAgent({
       }
       return true;
     } catch (caught) {
-      if (clientRef.current === client) setError(String(caught));
+      if (clientRef.current === client) setError(errorMessage(caught, translate.current));
       if (clientRef.current === client) setInput((current) => current || draft);
       return false;
     } finally {
       if (visionAbort.current === abort) visionAbort.current = null;
-      await afterTurn?.().catch((caught: unknown) => setError(String(caught)));
+      await afterTurn?.().catch((caught: unknown) =>
+        setError(errorMessage(caught, translate.current)),
+      );
       if (clientRef.current === client) {
         setWorking(false);
         setPermissions([]);
@@ -644,7 +661,7 @@ export function useAcademicAgent({
     try {
       await clientRef.current?.request("permission", { permissionId: id, allow });
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -653,7 +670,7 @@ export function useAcademicAgent({
     try {
       await clientRef.current?.request("abort");
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }
 
@@ -715,7 +732,6 @@ export function useAcademicAgent({
   ]);
 
   return {
-    labels,
     directory,
     config,
     configReady: loadedDirectory === directory,

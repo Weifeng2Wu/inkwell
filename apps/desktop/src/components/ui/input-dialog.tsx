@@ -1,9 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/features/i18n";
+import { useModalDialog } from "./use-modal-dialog";
 
 interface InputDialogProps {
   title: string;
@@ -33,114 +33,95 @@ export function InputDialog({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
+  const errorId = useId();
 
   const handleConfirm = useCallback(() => {
-    if (validator) {
-      const errorMsg = validator(value);
-      if (errorMsg) {
-        setError(errorMsg);
-        return;
-      }
+    const errorMsg = validator?.(value);
+    if (errorMsg) {
+      setError(errorMsg);
+      inputRef.current?.focus();
+      return;
     }
     onConfirm(value);
   }, [value, validator, onConfirm]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleConfirm();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      }
-    },
-    [handleConfirm, onCancel],
-  );
+  const panelRef = useModalDialog<HTMLDivElement>({
+    onCancel,
+    onConfirm: handleConfirm,
+    initialFocus: inputRef,
+  });
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setValue(e.target.value);
-      if (error) {
-        setError(null);
-      }
-    },
-    [error],
-  );
+  // Select the suggested value so typing replaces it. A file name keeps its extension.
+  const selectOnFocus = useRef(true);
+  const handleFocus = useCallback((event: React.FocusEvent<HTMLInputElement>) => {
+    if (!selectOnFocus.current) return;
+    selectOnFocus.current = false;
+    const input = event.currentTarget;
+    const isFileName = /^[^\s,/\\]+\.[A-Za-z0-9]{1,8}$/.test(input.value);
+    const compound = /\.(?:mindmap\.md|poster\.json)$/i.exec(input.value);
+    input.setSelectionRange(
+      0,
+      compound?.index ?? (isFileName ? input.value.lastIndexOf(".") : input.value.length),
+    );
+  }, []);
 
+  if (typeof document === "undefined") return null;
   return createPortal(
-    <AnimatePresence>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
+      <div className="motion-fade absolute inset-0 bg-black/45" onClick={onCancel} aria-hidden />
+
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
+        ref={panelRef}
+        className="motion-pop relative z-10 w-full max-w-sm rounded-lg border border-border bg-background text-foreground shadow-2xl"
       >
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/45"
-          onClick={onCancel}
-        />
+        <div className="px-5 pt-4">
+          <h3 id={titleId} className="font-medium text-sm">
+            {title}
+          </h3>
+        </div>
 
-        {/* Dialog */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.98, y: 6 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.98, y: 6 }}
-          transition={{ duration: 0.12 }}
-          className="relative z-10 w-full max-w-sm border border-border bg-background text-foreground rounded-lg shadow-2xl"
-        >
-          {/* Header */}
-          <div className="px-5 py-4 border-b border-border">
-            <h3 id={titleId} className="text-sm font-medium">
-              {title}
-            </h3>
-          </div>
+        <div className="px-5 pt-3 pb-4">
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(event) => {
+              setValue(event.target.value);
+              setError(null);
+            }}
+            onFocus={handleFocus}
+            placeholder={placeholder}
+            aria-labelledby={titleId}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
+            autoComplete="off"
+            spellCheck={false}
+            className={`w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none transition-colors ${
+              error ? "border-error focus:border-error" : "border-border focus:border-accent"
+            }`}
+          />
+          {error && (
+            <p id={errorId} role="alert" className="motion-fade mt-2 text-[12px] text-error">
+              {error}
+            </p>
+          )}
+        </div>
 
-          {/* Content */}
-          <div className="px-5 py-4">
-            <input
-              ref={inputRef}
-              type="text"
-              value={value}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              className={`w-full px-3 py-2 text-sm border outline-none transition-colors ${
-                error ? "border-error focus:border-error" : "border-border focus:border-accent"
-              }`}
-            />
-            {error && (
-              <motion.p
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-2 text-sm text-error"
-              >
-                {error}
-              </motion.p>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-            <button type="button" onClick={onCancel} className="btn btn-sm btn-secondary">
-              {resolvedCancelLabel}
-            </button>
-            <button type="button" onClick={handleConfirm} className="btn btn-sm btn-primary">
-              {resolvedConfirmLabel}
-            </button>
-          </div>
-        </motion.div>
+        <div className="flex items-center justify-end gap-2 border-border border-t px-5 py-3">
+          <button type="button" onClick={onCancel} className="btn btn-sm btn-secondary">
+            {resolvedCancelLabel}
+          </button>
+          <button type="button" onClick={handleConfirm} className="btn btn-sm btn-primary">
+            {resolvedConfirmLabel}
+          </button>
+        </div>
       </div>
-    </AnimatePresence>,
+    </div>,
     document.body,
   );
 }

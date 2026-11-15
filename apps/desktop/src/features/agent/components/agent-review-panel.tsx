@@ -7,36 +7,6 @@ import type { EditorSettings } from "@/features/settings";
 import { applyReviewedHunks, type ReviewHunk } from "../lib/review-changes";
 import type { useAgentReview } from "../lib/use-agent-review";
 
-const copy = {
-  zh: {
-    title: "Agent 修改建议",
-    accept: "接受",
-    reject: "拒绝",
-    acceptAll: "全部接受",
-    rejectAll: "全部拒绝",
-    close: "返回编辑",
-    file: "文件",
-  },
-  en: {
-    title: "Agent suggestions",
-    accept: "Accept",
-    reject: "Reject",
-    acceptAll: "Accept all",
-    rejectAll: "Reject all",
-    close: "Back to editing",
-    file: "File",
-  },
-  ko: {
-    title: "Agent 제안",
-    accept: "수락",
-    reject: "거절",
-    acceptAll: "모두 수락",
-    rejectAll: "모두 거절",
-    close: "편집으로 돌아가기",
-    file: "파일",
-  },
-};
-
 export function AgentReviewPanel({
   review,
   editorSettings,
@@ -48,8 +18,7 @@ export function AgentReviewPanel({
   filePath?: string;
   onFileSelect?: (path: string) => void;
 }) {
-  const { locale } = useI18n();
-  const labels = copy[locale];
+  const { t } = useI18n();
   const title = useId();
   const [path, setPath] = useState("");
   const change =
@@ -85,7 +54,7 @@ export function AgentReviewPanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <h2 id={title} className="text-sm font-semibold">
-          {labels.title} ({review.changes.length})
+          {t("agent.review.title", { count: review.changes.length })}
         </h2>
         <div className="flex flex-wrap gap-2">
           <button
@@ -94,7 +63,7 @@ export function AgentReviewPanel({
             disabled={review.busy}
             onClick={() => void review.decideAll(true)}
           >
-            {labels.acceptAll}
+            {t("agent.review.acceptAll")}
           </button>
           <button
             type="button"
@@ -102,7 +71,7 @@ export function AgentReviewPanel({
             disabled={review.busy}
             onClick={() => void review.decideAll(false)}
           >
-            {labels.rejectAll}
+            {t("agent.review.rejectAll")}
           </button>
           <button
             type="button"
@@ -110,13 +79,13 @@ export function AgentReviewPanel({
             disabled={review.busy}
             onClick={() => review.setOpen(false)}
           >
-            {labels.close}
+            {t("agent.review.close")}
           </button>
         </div>
       </div>
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <select
-          aria-label={labels.file}
+          aria-label={t("agent.review.file")}
           className="settings-control min-w-0 flex-1"
           value={change.path}
           onChange={(event) => {
@@ -136,7 +105,7 @@ export function AgentReviewPanel({
           disabled={review.busy}
           onClick={() => void review.decide(change, true)}
         >
-          {labels.accept}
+          {t("agent.review.accept")}
         </button>
         <button
           type="button"
@@ -144,7 +113,7 @@ export function AgentReviewPanel({
           disabled={review.busy}
           onClick={() => void review.decide(change, false)}
         >
-          {labels.reject}
+          {t("agent.review.reject")}
         </button>
       </div>
       {review.error && (
@@ -159,8 +128,8 @@ export function AgentReviewPanel({
         filePath={change.path}
         editorSettings={editorSettings}
         inlineReview={{
-          acceptLabel: labels.accept,
-          rejectLabel: labels.reject,
+          acceptLabel: t("agent.review.accept"),
+          rejectLabel: t("agent.review.reject"),
           disabled: review.busy,
           onDecide: decideHunk,
         }}

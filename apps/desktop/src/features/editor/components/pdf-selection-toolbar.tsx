@@ -4,6 +4,8 @@ import {
   CaretDownIcon,
   HighlighterIcon,
   NoteIcon,
+  QuotesIcon,
+  SparkleIcon,
   TextUnderlineIcon,
   TranslateIcon,
 } from "@phosphor-icons/react";
@@ -16,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 import type { PdfAnnotationColor } from "../lib/pdf-notes";
 import { type PdfToolbarAnchor, pdfToolbarPosition } from "../lib/pdf-toolbar-position";
@@ -32,6 +35,10 @@ type Props = {
   onUnderline: () => void;
   onNote: () => void;
   onTranslate: () => void;
+  /** Quote the selected passage in the manuscript; hidden when absent. */
+  onQuote?: () => void;
+  /** Attach the selected passage to the agent chat; hidden when absent. */
+  onAddToAgent?: () => void;
 };
 
 export function PdfSelectionToolbar({
@@ -45,6 +52,8 @@ export function PdfSelectionToolbar({
   onUnderline,
   onNote,
   onTranslate,
+  onQuote,
+  onAddToAgent,
 }: Props) {
   const { t } = useI18n();
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -55,7 +64,6 @@ export function PdfSelectionToolbar({
   const [focusedAction, setFocusedAction] = useState(0);
   const [position, setPosition] = useState({ left: 8, top: minimumTop });
   const [palettePosition, setPalettePosition] = useState({ left: 8, top: minimumTop });
-  const activeAction = !writable && focusedAction < 3 ? 3 : focusedAction;
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -152,22 +160,76 @@ export function PdfSelectionToolbar({
     buttons[next]?.focus();
   }
 
+  // Hairlines separate the marking, reading and hand-off groups.
   const actions = [
     {
       label: "pdfReading.highlight",
+      keys: "H",
       Icon: HighlighterIcon,
       onClick: onHighlight,
       disabled: !writable,
+      group: "mark",
     },
     {
       label: "pdfReading.underline",
+      keys: "U",
       Icon: TextUnderlineIcon,
       onClick: onUnderline,
       disabled: !writable,
+      group: "mark",
     },
-    { label: "pdfReading.addNote", Icon: NoteIcon, onClick: onNote, disabled: !writable },
-    { label: "translation.action", Icon: TranslateIcon, onClick: onTranslate, disabled: false },
+    {
+      label: "pdfReading.addNote",
+      keys: "N",
+      Icon: NoteIcon,
+      onClick: onNote,
+      disabled: !writable,
+      group: "read",
+    },
+    {
+      label: "translation.action",
+      keys: "T",
+      Icon: TranslateIcon,
+      onClick: onTranslate,
+      disabled: false,
+      group: "read",
+    },
+    ...(onQuote
+      ? [
+          {
+            label: "pdfReading.quote",
+            keys: "Q",
+            Icon: QuotesIcon,
+            onClick: onQuote,
+            disabled: false,
+            group: "send",
+          },
+        ]
+      : []),
+    ...(onAddToAgent
+      ? [
+          {
+            label: "pdfReading.addToAgent",
+            keys: "A",
+            Icon: SparkleIcon,
+            onClick: onAddToAgent,
+            disabled: false,
+            group: "send",
+          },
+        ]
+      : []),
   ];
+  // The color trigger follows the actions and shares their roving tab stop.
+  const colorAction = actions.length;
+  const firstEnabled = actions.findIndex((action) => !action.disabled);
+  const activeAction =
+    focusedAction >= colorAction
+      ? colorAction
+      : actions[focusedAction]?.disabled
+        ? firstEnabled < 0
+          ? colorAction
+          : firstEnabled
+        : focusedAction;
 
   return (
     <>
@@ -176,54 +238,62 @@ export function PdfSelectionToolbar({
         role="toolbar"
         aria-label={t("pdfReading.selectionActions")}
         aria-orientation="horizontal"
-        className="absolute z-20 flex max-w-[calc(100%-1rem)] select-none items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background p-1 text-foreground shadow-lg"
+        className="motion-pop absolute z-20 flex max-w-[calc(100%-1rem)] select-none items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background p-1 text-foreground shadow-lg"
         style={position}
         onKeyDown={handleToolbarKey}
         onPointerDown={(event) => {
           if (event.button === 0 && event.pointerType !== "touch") event.preventDefault();
         }}
       >
-        {actions.map(({ label, Icon, onClick, disabled }, index) => (
+        {actions.map(({ label, keys, Icon, onClick, disabled, group }, index) => (
           <span key={label} className="contents">
-            {index === 2 && (
+            {index > 0 && actions[index - 1]?.group !== group && (
               <span aria-hidden="true" className="mx-0.5 h-4 w-px shrink-0 bg-border" />
             )}
-            <button
-              type="button"
-              className="toolbar-icon-button shrink-0"
-              aria-label={t(label)}
-              title={t(label)}
-              disabled={disabled}
-              tabIndex={activeAction === index ? 0 : -1}
-              onFocus={() => setFocusedAction(index)}
-              onClick={onClick}
-            >
-              <Icon aria-hidden="true" className="size-4" />
-            </button>
+            <Tooltip label={t(label)} keys={keys} side="top" className="inline-flex shrink-0">
+              <button
+                type="button"
+                className="toolbar-icon-button shrink-0"
+                aria-label={t(label)}
+                aria-keyshortcuts={keys}
+                disabled={disabled}
+                tabIndex={activeAction === index ? 0 : -1}
+                onFocus={() => setFocusedAction(index)}
+                onClick={onClick}
+              >
+                <Icon aria-hidden="true" className="size-4" />
+              </button>
+            </Tooltip>
           </span>
         ))}
         <span aria-hidden="true" className="mx-0.5 h-4 w-px shrink-0 bg-border" />
-        <button
-          ref={colorButtonRef}
-          type="button"
-          className="toolbar-icon-button shrink-0 gap-1"
-          aria-label={t("pdfReading.color")}
-          title={`${t("pdfReading.color")}: ${t(`pdfReading.colors.${color}`)}`}
-          aria-haspopup="dialog"
-          aria-expanded={colorOpen}
-          aria-controls={colorOpen ? paletteId : undefined}
-          data-state={colorOpen ? "open" : "closed"}
-          tabIndex={activeAction === 4 ? 0 : -1}
-          onFocus={() => setFocusedAction(4)}
-          onClick={() => setColorOpen((open) => !open)}
+        <Tooltip
+          label={t("pdfReading.colorCurrent", { color: t(`pdfReading.colors.${color}`) })}
+          side="top"
+          className="inline-flex shrink-0"
         >
-          <span
-            aria-hidden="true"
-            className="size-3 shrink-0 rounded-full"
-            style={{ backgroundColor: `var(--${color})` }}
-          />
-          <CaretDownIcon aria-hidden="true" className="size-2.5 shrink-0" />
-        </button>
+          <button
+            ref={colorButtonRef}
+            type="button"
+            className="toolbar-icon-button shrink-0 gap-1"
+            aria-label={t("pdfReading.color")}
+            data-color={color}
+            aria-haspopup="dialog"
+            aria-expanded={colorOpen}
+            aria-controls={colorOpen ? paletteId : undefined}
+            data-state={colorOpen ? "open" : "closed"}
+            tabIndex={activeAction === colorAction ? 0 : -1}
+            onFocus={() => setFocusedAction(colorAction)}
+            onClick={() => setColorOpen((open) => !open)}
+          >
+            <span
+              aria-hidden="true"
+              className="size-3 shrink-0 rounded-full"
+              style={{ backgroundColor: `var(--${color})` }}
+            />
+            <CaretDownIcon aria-hidden="true" className="size-2.5 shrink-0" />
+          </button>
+        </Tooltip>
       </div>
       {colorOpen && (
         <div
@@ -231,7 +301,7 @@ export function PdfSelectionToolbar({
           id={paletteId}
           role="dialog"
           aria-label={t("pdfReading.color")}
-          className="absolute z-30 max-w-[calc(100%-1rem)] overflow-x-auto rounded-lg border border-border bg-background p-1 text-foreground shadow-lg"
+          className="motion-pop absolute z-30 max-w-[calc(100%-1rem)] overflow-x-auto rounded-lg border border-border bg-background p-1 text-foreground shadow-lg"
           style={palettePosition}
           onPointerDown={(event) => {
             if (event.button === 0 && event.pointerType !== "touch") event.preventDefault();

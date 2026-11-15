@@ -12,8 +12,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
-import type { TerminalShellMode } from "@/features/settings";
+import { shortcutLabel, type TerminalShellMode, useKeyboardShortcuts } from "@/features/settings";
 import { pathSync } from "@/lib/path";
 import { appStorage } from "@/lib/storage/app-storage";
 
@@ -33,13 +34,20 @@ const PANEL_SPRING = {
 
 const INSTANT_TRANSITION = { duration: 0 } as const;
 
+function TerminalLoading() {
+  const { t } = useI18n();
+  return (
+    <div className="motion-fade flex h-full items-center px-4 text-[13px] text-muted">
+      {t("terminal.loadingTerminal")}
+    </div>
+  );
+}
+
 const EditorTerminal = dynamic(
   () => import("@/features/terminal/components/terminal").then((mod) => mod.Terminal),
   {
     ssr: false,
-    loading: () => (
-      <div className="h-full flex items-center px-4 text-sm text-muted">Loading terminal...</div>
-    ),
+    loading: () => <TerminalLoading />,
   },
 );
 
@@ -82,10 +90,10 @@ function readStoredTerminalHeight(): number {
   return clampTerminalHeight(parsedHeight);
 }
 
-function getShellLabel(shellMode: TerminalShellMode, customShell: string): string {
+function getShellLabel(shellMode: TerminalShellMode, customShell: string): string | null {
   const trimmedShell = customShell.trim();
   if (shellMode !== "custom" || trimmedShell.length === 0) {
-    return "auto";
+    return null;
   }
 
   const shellParts = trimmedShell.replace(/\\/g, "/").split("/").filter(Boolean);
@@ -116,10 +124,7 @@ export function TerminalPanel({
     [projectPath],
   );
   const shellLabel = useMemo(() => getShellLabel(shellMode, customShell), [shellMode, customShell]);
-  const shellTitle =
-    shellMode === "custom" && customShell.trim().length > 0
-      ? customShell.trim()
-      : t("terminal.autoShell");
+  const { bindings } = useKeyboardShortcuts();
 
   const setPanelHeightVariable = useCallback((nextHeight: number) => {
     panelRef.current?.style.setProperty("--terminal-panel-height", `${nextHeight}px`);
@@ -291,32 +296,37 @@ export function TerminalPanel({
 
           <div className="h-8 flex-shrink-0 border-b border-border px-2 flex items-center justify-between gap-2 bg-background">
             <div className="min-w-0 flex items-center gap-2">
-              <TerminalIcon className="size-3.5 flex-shrink-0" weight="bold" />
-              <span className="font-mono text-[11px] uppercase text-foreground">
-                {t("terminal.title")}
+              <TerminalIcon className="size-3.5 flex-shrink-0 text-muted" aria-hidden />
+              <span className="section-label text-foreground">{t("terminal.title")}</span>
+              <span className="select-none text-border" aria-hidden>
+                /
               </span>
-              <span className="text-border select-none">/</span>
-              <span className="truncate text-xs text-muted" title={projectPath}>
+              <span className="truncate font-mono text-[11px] text-muted" title={projectPath}>
                 {projectName}
               </span>
             </div>
 
             <div className="flex items-center gap-1 flex-shrink-0">
               <span
-                className="hidden sm:block max-w-36 truncate border-l border-border pl-2 font-mono text-[11px] text-muted"
-                title={shellTitle}
+                className="hidden max-w-48 truncate pr-1 text-[11px] text-muted sm:block"
+                title={shellLabel ? customShell.trim() : undefined}
               >
-                {shellLabel}
+                {shellLabel ? t("terminal.shell", { name: shellLabel }) : t("terminal.autoShell")}
               </span>
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-6 w-6 border border-transparent text-muted hover:text-foreground hover:border-border hover:bg-accent/5 transition-colors flex items-center justify-center"
-                title={t("terminal.closeTerminal")}
-                aria-label={t("terminal.closeTerminal")}
+              <Tooltip
+                label={t("terminal.closeTerminal")}
+                keys={shortcutLabel(bindings.terminal) || undefined}
+                side="top"
               >
-                <XIcon className="size-3.5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex h-6 w-6 items-center justify-center rounded text-muted transition-colors hover:bg-accent/5 hover:text-foreground"
+                  aria-label={t("terminal.closeTerminal")}
+                >
+                  <XIcon className="size-3.5" aria-hidden />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

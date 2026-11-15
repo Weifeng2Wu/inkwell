@@ -27,20 +27,21 @@ describe("main file toolbar switcher", () => {
   it("provides an accessible main-file switch button with the current project path", () => {
     const { markup, onSelect } = renderSwitcher();
     expect(markup).toContain('aria-label="Switch main file"');
-    expect(markup).toContain('title="Main file: main.tex"');
+    expect(markup).toContain('aria-description="Main file: main.tex"');
+    expect(markup).not.toContain("title=");
     expect(markup).not.toContain('disabled=""');
     expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("shows the relative subdirectory path for the selected file", () => {
     const { markup } = renderSwitcher({ mainFile: "chapters/appendix.tex" });
-    expect(markup).toContain('title="Main file: chapters/appendix.tex"');
+    expect(markup).toContain('aria-description="Main file: chapters/appendix.tex"');
   });
 
   it("disables switching when the project has no TeX files", () => {
     const { markup } = renderSwitcher({ texFiles: [], mainFile: null });
     expect(markup).toContain('disabled=""');
-    expect(markup).toContain('title="No .tex files found in the project."');
+    expect(markup).toContain('aria-description="This project has no .tex files."');
   });
 
   it("can disable switching while compilation is running", () => {
@@ -50,7 +51,7 @@ describe("main file toolbar switcher", () => {
 
   it("does not present a stale main file as an available selection", () => {
     const { markup } = renderSwitcher({ mainFile: "deleted.tex" });
-    expect(markup).toContain('title="Switch main file"');
+    expect(markup).toContain('aria-description="Switch main file"');
     expect(markup).not.toContain("deleted.tex");
   });
 });

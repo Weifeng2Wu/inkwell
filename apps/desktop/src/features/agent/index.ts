@@ -20,7 +20,6 @@ export const ExternalAgentPanel = dynamic(
   { ssr: false },
 );
 export { DEFAULT_ACADEMIC_CONFIG } from "./lib/academic-config";
-export { academicLabels } from "./lib/academic-labels";
 export { type AcademicAgentController, useAcademicAgent } from "./lib/use-academic-agent";
 export { type AgentSelectionController, useAgentSelection } from "./lib/use-agent-selection";
 export type { ExternalAgentController } from "./lib/use-external-agent";

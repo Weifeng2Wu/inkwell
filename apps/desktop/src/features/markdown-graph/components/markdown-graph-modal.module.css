@@ -1,0 +1,110 @@
+.star {
+  opacity: 0.25;
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+.edge {
+  transition:
+    opacity 150ms ease,
+    stroke-width 150ms ease;
+}
+
+.flow {
+  opacity: 0.8;
+  stroke-dasharray: 4 96;
+  animation: flow 3s linear infinite;
+}
+
+.node {
+  animation: appear 180ms ease-out;
+  transition: opacity 150ms ease;
+}
+
+.halo,
+.core {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease,
+    fill 150ms ease,
+    stroke 150ms ease;
+}
+
+.node:hover .core,
+.node:focus-visible .core {
+  transform: scale(1.18);
+}
+
+.node:focus-visible .core {
+  stroke: var(--foreground);
+  stroke-width: 2.5;
+}
+
+.node:hover .halo {
+  opacity: 0.8;
+}
+
+.node[aria-pressed="true"] .halo {
+  animation: breathe 3.6s ease-in-out infinite;
+}
+
+.canvas[data-motion="paused"] :is(.star, .flow, .node, .halo) {
+  animation-play-state: paused;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas *,
+  .canvas .node[aria-pressed="true"] .halo {
+    animation: none;
+    transition: none;
+  }
+
+  .flow {
+    display: none;
+  }
+}
+.canvas {
+  cursor: grab;
+  background: radial-gradient(ellipse at 48% 44%, var(--surface-secondary), var(--background) 90%);
+}
+
+.canvas:active {
+  cursor: grabbing;
+}

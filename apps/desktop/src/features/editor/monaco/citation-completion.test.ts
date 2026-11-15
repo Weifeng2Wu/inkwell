@@ -26,12 +26,17 @@ function modelFor(text: string) {
 
 function setup() {
   const providers: languages.CompletionItemProvider[] = [];
+  const hovers: languages.HoverProvider[] = [];
   const register = vi.fn((_language: string, provider: languages.CompletionItemProvider) =>
     providers.push(provider),
   );
   const monaco = {
     languages: {
       registerCompletionItemProvider: register,
+      registerDocumentSymbolProvider: vi.fn(),
+      registerHoverProvider: (_language: string, provider: languages.HoverProvider) =>
+        hovers.push(provider),
+      registerDefinitionProvider: vi.fn(),
       register: vi.fn(),
       setLanguageConfiguration: vi.fn(),
       setMonarchTokensProvider: vi.fn(),
@@ -57,7 +62,7 @@ function setup() {
     );
     return result?.suggestions ?? [];
   }
-  return { monaco, providers, complete };
+  return { monaco, providers, hovers, complete, token };
 }
 
 describe("citation completions", () => {
@@ -104,11 +109,38 @@ describe("citation completions", () => {
     const { monaco, providers, complete } = setup();
     registerLaTeXLanguage(monaco);
     registerLaTeXLanguage(monaco);
-    expect(providers).toHaveLength(2);
-    const suggestions = await complete(providers[1], modelFor("\\ci"), 4);
+    expect(providers).toHaveLength(4);
+    const suggestions = await complete(providers[2], modelFor("\\ci"), 4);
     const cite = suggestions.find((item) => item.label === "cite");
     expect(cite?.insertText).toBe("cite{$1}$0");
     expect(cite?.command?.id).toBe("editor.action.triggerSuggest");
     expect(suggestions.some((item) => item.label === "citet")).toBe(true);
+  });
+
+  it("completes Pandoc citations in Markdown after an at sign", async () => {
+    const { monaco, providers, complete } = setup();
+    registerCitationCompletion(monaco);
+    const text = "As shown [@alpha2024; @another";
+    const model = modelFor(text);
+    bindBibliography(model, entries);
+    const suggestions = await complete(providers[1], model, text.length + 1);
+    expect(suggestions.map((item) => item.insertText)).toEqual(["beta2025"]);
+    expect(suggestions[0]?.range).toMatchObject({ startColumn: 24, endColumn: text.length + 1 });
+    expect(await complete(providers[1], modelFor("mail me at a@b"), 15)).toEqual([]);
+  });
+
+  it("describes the reference when hovering a citation key", async () => {
+    const { monaco, hovers, token } = setup();
+    registerCitationCompletion(monaco);
+    const text = "\\citep[see][p. 2]{beta2025, alpha2024}";
+    const model = modelFor(text);
+    bindBibliography(model, entries);
+    const at = (column: number) =>
+      hovers[0]?.provideHover(model, { lineNumber: 1, column } as Position, token);
+    const hover = await at(text.indexOf("alpha") + 3);
+    expect(hover?.contents[0]?.value).toBe("**Attention Is All You Need**");
+    expect(hover?.contents[1]?.value).toContain("Smith");
+    expect(hover?.range).toMatchObject({ startColumn: 29, endColumn: 38 });
+    expect(await at(3)).toBeNull();
   });
 });

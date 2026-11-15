@@ -1,0 +1,17 @@
+/* Loading placeholder: invisible at first, so a quick load never flashes it. */
+@keyframes editor-skeleton-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.editor-skeleton {
+  animation: editor-skeleton-in 160ms ease-out 180ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the delay; drop the fade. */
+  .editor-skeleton {
+    animation-duration: 1ms;
+  }
+}

@@ -1,8 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { englishMessage } from "@/features/i18n/localized-error";
 import { useAgentReview } from "./use-agent-review";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@/features/i18n", async () => {
+  const messages = await import("@/features/i18n/localized-error");
+  return { ...messages, useI18n: () => ({ locale: "en", t: messages.englishMessage }) };
+});
 const hooks = vi.hoisted(() => ({
   cursor: 0,
   slots: new Map<number, unknown>(),
@@ -168,7 +173,7 @@ describe("Agent review lifecycle", () => {
     await old.decide(change, true);
     expect(invoke).not.toHaveBeenCalled();
     expect(applied).not.toHaveBeenCalled();
-    expect(render().error).toContain("editor content changed");
+    expect(render().error).toBe(englishMessage("agent.errors.editorChanged"));
   });
 
   it("accepts a suggestion for a newly created file when its editor buffer is empty", async () => {

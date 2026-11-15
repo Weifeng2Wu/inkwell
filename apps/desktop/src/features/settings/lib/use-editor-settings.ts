@@ -4,6 +4,7 @@ import {
   DEFAULT_MINIMAP_SETTINGS,
   type EditorSettings,
   type EditorTheme,
+  GIT_AUTO_BACKUP_INTERVALS,
 } from "@/features/settings/lib/editor-settings";
 import { useThemeMode } from "@/features/settings/lib/theme";
 import { appStorage } from "@/lib/storage/app-storage";
@@ -52,6 +53,18 @@ export function migrateSettings(parsed: Record<string, unknown>): EditorSettings
       Math.max(15, Math.round(parsed.gitAutoFetchIntervalSeconds)),
     );
   }
+
+  settings.gitAutoBackupEnabled =
+    typeof parsed.gitAutoBackupEnabled === "boolean"
+      ? parsed.gitAutoBackupEnabled
+      : DEFAULT_EDITOR_SETTINGS.gitAutoBackupEnabled;
+  settings.gitAutoBackupPush =
+    typeof parsed.gitAutoBackupPush === "boolean"
+      ? parsed.gitAutoBackupPush
+      : DEFAULT_EDITOR_SETTINGS.gitAutoBackupPush;
+  settings.gitAutoBackupIntervalMinutes =
+    GIT_AUTO_BACKUP_INTERVALS.find((minutes) => minutes === parsed.gitAutoBackupIntervalMinutes) ??
+    DEFAULT_EDITOR_SETTINGS.gitAutoBackupIntervalMinutes;
 
   settings.fontFamily = sanitizeString(settings.fontFamily);
   settings.uiFontFamily =

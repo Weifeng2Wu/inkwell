@@ -1,0 +1,20 @@
+.inkwell-drawing .excalidraw {
+  --ui-font: var(--font-family-sans);
+  --island-bg-color: var(--surface);
+  --popup-bg-color: var(--surface);
+  --default-bg-color: var(--background);
+  --text-primary-color: var(--foreground);
+  --color-primary: var(--accent);
+  --color-primary-darker: var(--accent-dark);
+  --color-primary-darkest: var(--accent-dark);
+  --color-primary-light: var(--accent-hover);
+  --color-on-primary-container: var(--foreground);
+  --color-surface-low: var(--surface-secondary);
+  --color-surface-mid: var(--surface-tertiary);
+  --color-surface-high: var(--surface-secondary);
+  --color-border-outline: var(--border);
+}
+
+.inkwell-drawing .excalidraw .default-sidebar-trigger {
+  display: none;
+}

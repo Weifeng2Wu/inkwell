@@ -189,7 +189,7 @@ describe("translation settings UI", () => {
     expect(provider().querySelector('[data-translation-status="testing"]')).not.toBeNull();
     await act(async () => reject?.(new Error("TRANSLATION_HTTP 429")));
     expect(provider().querySelector('[data-translation-status="failed"]')).not.toBeNull();
-    expect(provider().querySelector('[role="img"]')?.getAttribute("title")).toContain(
+    expect(provider().querySelector('[role="img"]')?.getAttribute("aria-label")).toContain(
       "translation.quotaError",
     );
     expect(host.querySelector('[role="status"]')).toBeNull();

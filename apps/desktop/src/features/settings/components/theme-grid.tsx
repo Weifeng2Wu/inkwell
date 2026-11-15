@@ -1,7 +1,8 @@
 "use client";
 
 import { CheckIcon } from "@phosphor-icons/react";
-import { THEMES } from "../lib/theme";
+import { useI18n } from "@/features/i18n";
+import { THEMES, themeLabel } from "../lib/theme";
 
 export function ThemeGrid({
   theme,
@@ -12,6 +13,7 @@ export function ThemeGrid({
   onSelect: (identifier: string) => void;
   label: string;
 }) {
+  const { t } = useI18n();
   return (
     <fieldset
       aria-label={label}
@@ -19,13 +21,14 @@ export function ThemeGrid({
     >
       {THEMES.map((option) => {
         const selected = theme === option.id;
+        const name = themeLabel(option, t);
         return (
           <button
             type="button"
             key={option.id}
-            aria-label={option.label}
+            aria-label={name}
             aria-pressed={selected}
-            title={option.label}
+            title={name}
             onClick={() => onSelect(option.id)}
             className={`relative flex min-w-0 flex-col gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
               selected
@@ -53,7 +56,7 @@ export function ThemeGrid({
               />
             </span>
             <span className="block w-full truncate text-xs font-semibold text-foreground">
-              {option.label}
+              {name}
             </span>
           </button>
         );

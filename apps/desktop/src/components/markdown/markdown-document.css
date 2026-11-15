@@ -1,0 +1,90 @@
+/*
+ * A Markdown note rendered as a page of reading: serif text, a measure of about 72
+ * characters, and structure carried by spacing rather than rules. Colours are tokens only.
+ */
+.markdown-document {
+  max-width: 72ch;
+  margin-inline: auto;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--foreground);
+  text-rendering: optimizeLegibility;
+  hanging-punctuation: first;
+}
+
+.markdown-document p {
+  margin-block: 0.9em;
+}
+
+.markdown-document :is(h1, h2, h3, h4, h5, h6) {
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.markdown-document h1 {
+  margin-block: 0 0.7em;
+  letter-spacing: -0.01em;
+}
+
+.markdown-document h2 {
+  margin-block: 1.8em 0.6em;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.markdown-document h3 {
+  margin-block: 1.5em 0.4em;
+}
+
+.markdown-document :is(ul, ol) {
+  margin-block: 0.9em;
+  padding-inline-start: 1.5em;
+}
+
+.markdown-document li + li {
+  margin-top: 0.3em;
+}
+
+.markdown-document li::marker {
+  color: var(--muted);
+}
+
+.markdown-document blockquote {
+  margin-block: 1.2em;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  padding: 0.1em 0 0.1em 1.1em;
+  color: var(--foreground-secondary);
+  font-style: italic;
+}
+
+.markdown-document blockquote p {
+  margin-block: 0.4em;
+}
+
+.markdown-document pre {
+  margin-block: 1.2em;
+  border-color: var(--border);
+  background-color: var(--surface);
+  padding: 0.9em 1.1em;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* Inline code: machine text set a little smaller than the serif around it. */
+.markdown-document :not(pre) > code {
+  font-size: 0.85em;
+}
+
+.markdown-document hr {
+  margin-block: 2em;
+  border-color: var(--border);
+}
+
+.markdown-document img {
+  margin-inline: auto;
+}
+
+/* Tables and formulas stay in the interface face: they are data, not prose. */
+.markdown-document table {
+  font-family: var(--font-family-body);
+}

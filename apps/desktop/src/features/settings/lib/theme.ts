@@ -109,6 +109,13 @@ export const THEMES: readonly ThemeDefinition[] = [
 
 export const THEME_IDS: string[] = THEMES.map((theme) => theme.id);
 
+/** The two plain themes are named in the reader's language; named palettes keep their names. */
+export function themeLabel(theme: ThemeDefinition, t: (key: string) => string): string {
+  if (theme.id === "light") return t("settings.general.themeLight");
+  if (theme.id === "dark") return t("settings.general.themeDark");
+  return theme.label;
+}
+
 export const DEFAULT_THEME = "light";
 
 const DARK_THEME_IDS = new Set(

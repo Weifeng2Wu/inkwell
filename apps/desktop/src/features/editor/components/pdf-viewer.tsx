@@ -2,11 +2,20 @@
 
 import {
   ArrowSquareOutIcon,
+  ArrowsHorizontalIcon,
   HighlighterIcon,
+  ListIcon,
+  MagnifyingGlassIcon,
+  MinusIcon,
   NoteIcon,
+  PlusIcon,
+  QuotesIcon,
+  SparkleIcon,
   TextUnderlineIcon,
+  TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { motion, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
@@ -20,9 +29,12 @@ import {
   useState,
 } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
+import { shortcutLabel } from "@/features/settings";
 import { readTranslationConfig, type TranslationConfig } from "@/features/translation";
 import { appStorage } from "@/lib/storage/app-storage";
+import type { PdfExcerpt } from "@/types/editor-selection";
 import { PdfGeometryClient, type PdfPaintAnnotation } from "../lib/pdf-geometry";
 import { pdfNavigationPoint } from "../lib/pdf-navigation";
 import {
@@ -30,16 +42,30 @@ import {
   type PdfAnnotation,
   type PdfAnnotationColor,
   type PdfAnnotationKind,
-  type PdfReadingMode,
   pdfNotesPath,
 } from "../lib/pdf-notes";
 import { PDF_DOCUMENT_OPTIONS } from "../lib/pdf-options";
+import { clampPdfPage, createPdfPageStore, pdfExcerpt } from "../lib/pdf-page";
+import {
+  loadPdfPosition,
+  type PdfReadingMode,
+  pdfPositionKey,
+  savePdfMode,
+} from "../lib/pdf-position";
 import { collectPdfSelection, isCurrentPdfSelection } from "../lib/pdf-selection";
 import type { PdfToolbarAnchor } from "../lib/pdf-toolbar-position";
 import { usePdfAnnotationGeometry } from "../lib/use-pdf-annotation-geometry";
 import { usePdfNotes } from "../lib/use-pdf-notes";
+import { scrollToPdfPage, usePdfPageTracking } from "../lib/use-pdf-page";
+import { usePdfPosition } from "../lib/use-pdf-position";
+import { usePdfSearch } from "../lib/use-pdf-search";
+import { usePdfSource } from "../lib/use-pdf-source";
 import { PdfAnnotationLayer } from "./pdf-annotation-layer";
 import { PdfColorPicker } from "./pdf-color-picker";
+import { PdfFindBar } from "./pdf-find-bar";
+import { PdfOutlinePanel, usePdfOutline } from "./pdf-outline";
+import { PdfPageNavigation } from "./pdf-page-navigation";
+import { PdfSearchLayer } from "./pdf-search-layer";
 import { PdfSelectionPreview } from "./pdf-selection-preview";
 import { PdfSelectionToolbar } from "./pdf-selection-toolbar";
 import { PdfTranslationPanel } from "./pdf-translation-panel";
@@ -64,6 +90,10 @@ type Props = {
   compiledPreview?: boolean;
   onSynctexClick?: (page: number, x: number, y: number) => void;
   refreshKey?: number;
+  /** Quote the selected passage in the manuscript. The action is hidden when absent. */
+  onQuote?: (excerpt: PdfExcerpt) => void;
+  /** Attach the selected passage to the agent chat. The action is hidden when absent. */
+  onAddToAgent?: (excerpt: PdfExcerpt) => void;
 };
 type Selection = { annotations: PdfAnnotation[]; anchor: PdfToolbarAnchor };
 type NotePopup = {
@@ -83,16 +113,26 @@ export function PdfViewer({
   compiledPreview = false,
   onSynctexClick,
   refreshKey = 0,
+  onQuote,
+  onAddToAgent,
 }: Props) {
   const { t } = useI18n();
   const notes = usePdfNotes(projectPath, pdfPath);
+  const source = usePdfSource(projectPath, pdfPath);
   const [numPages, setNumPages] = useState(0);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
+  const [pageStore] = useState(() => createPdfPageStore());
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [fingerprint, setFingerprint] = useState("");
   const [geometry, setGeometry] = useState<PdfGeometryClient | null>(null);
   const geometryRef = useRef<PdfGeometryClient | null>(null);
   const selectionGeneration = useRef(0);
-  const [scale, setScale] = useState(1);
-  const [fitWidth, setFitWidth] = useState(true);
+  // The viewer is keyed per PDF, so the saved position is read once per mount.
+  const positionKey = pdfPositionKey(projectPath, pdfPath);
+  const [savedPosition] = useState(() => loadPdfPosition(positionKey));
+  const [chosenMode, setChosenMode] = useState<PdfReadingMode | undefined>(savedPosition?.mode);
+  const [scale, setScale] = useState(savedPosition?.scale ?? 1);
+  const [fitWidth, setFitWidth] = useState(savedPosition?.fitWidth ?? true);
   const [pageWidth, setPageWidth] = useState(612);
   const [color, setColor] = useState<PdfAnnotationColor>("warning");
   const [translation, setTranslation] = useState<{
@@ -102,7 +142,6 @@ export function PdfViewer({
   const [selected, setSelected] = useState<Selection | null>(null);
   const [popup, setPopup] = useState<NotePopup | null>(null);
   const [continuous, setContinuous] = useState<PdfAnnotationKind | null>(null);
-  const [modeOverride, setModeOverride] = useState<PdfReadingMode | undefined>(undefined);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -113,6 +152,56 @@ export function PdfViewer({
   }, []);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const noteInputId = useId();
+  const modeIndicatorId = `pdf-mode-${useId()}`;
+  const reducedMotion = useReducedMotion();
+  const position = usePdfPosition({
+    storageKey: positionKey,
+    initial: savedPosition,
+    restorePage: !compiledPreview,
+    containerRef,
+    store: pageStore,
+    numPages,
+    scale,
+    fitWidth,
+  });
+  usePdfPageTracking(containerRef, pageStore, position.restoring);
+  const search = usePdfSearch(pdfDocument, pageStore.get);
+  const outline = usePdfOutline(pdfDocument);
+  const closeOutline = useCallback(() => setOutlineOpen(false), []);
+  const { settle: settlePosition } = position;
+  const goToPage = useCallback(
+    (page: number) => {
+      settlePosition();
+      scrollToPdfPage(containerRef.current, clampPdfPage(page, numPages), pageStore);
+    },
+    [settlePosition, numPages, pageStore],
+  );
+  const { show: showFind, close: hideFind } = search;
+  const openFind = useCallback(() => {
+    settlePosition();
+    showFind();
+  }, [settlePosition, showFind]);
+  const closeFind = useCallback(() => {
+    hideFind();
+    rootRef.current?.focus();
+  }, [hideFind]);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const handleFind = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "f" ||
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.shiftKey
+      )
+        return;
+      event.preventDefault();
+      openFind();
+    };
+    root.addEventListener("keydown", handleFind);
+    return () => root.removeEventListener("keydown", handleFind);
+  }, [openFind]);
   useEffect(() => {
     try {
       const saved = appStorage.getItem("inkwell-pdf-color-v1");
@@ -129,7 +218,7 @@ export function PdfViewer({
       /* Annotations still persist their own color. */
     }
   }
-  const documentKey = `${src}.${pdfPath}.${refreshKey}.${notes.pdfRevision}`;
+  const documentKey = `${src}.${pdfPath}.${refreshKey}.${source.pdfRevision}`;
   useEffect(() => {
     const toolbar = toolbarRef.current;
     if (!toolbar) return;
@@ -142,8 +231,8 @@ export function PdfViewer({
   }, []);
   const documentGeneration = useRef({ key: documentKey, value: 0 });
   const pressed = useRef<{ page: number; x: number; y: number } | null>(null);
-  const canSync = Boolean(onSynctexClick && (notes.canSyncSource || compiledPreview));
-  const preferredMode = modeOverride ?? notes.mode ?? (canSync ? "write" : "read");
+  const canSync = Boolean(onSynctexClick && (source.canSyncSource || compiledPreview));
+  const preferredMode = chosenMode ?? (canSync ? "write" : "read");
   const mode = canSync ? preferredMode : "read";
   const writable =
     notes.content !== undefined && !notes.error && !notes.busy && Boolean(fingerprint);
@@ -177,6 +266,7 @@ export function PdfViewer({
     geometryRef.current = null;
     setGeometry(null);
     setNumPages(pdf.numPages);
+    setPdfDocument(pdf);
     setSelected(null);
     let hashed = false;
     try {
@@ -209,6 +299,8 @@ export function PdfViewer({
     geometryRef.current = null;
     setGeometry(null);
     setFingerprint("");
+    setPdfDocument(null);
+    setOutlineOpen(false);
     setSelected(null);
     setTranslation(null);
     return () => {
@@ -268,6 +360,7 @@ export function PdfViewer({
         setSelected(null);
         closePopup();
         setTranslation(null);
+        setOutlineOpen(false);
       }
     };
     window.addEventListener("keydown", handleEscape);
@@ -279,6 +372,20 @@ export function PdfViewer({
       page: annotation.page,
       kind: t(`pdfReading.${annotation.kind}`),
     });
+
+  function sendExcerpt(
+    handler: (excerpt: PdfExcerpt) => void,
+    annotations: PdfAnnotation[],
+    clearSelection: boolean,
+  ) {
+    const excerpt = pdfExcerpt(annotations);
+    if (!excerpt) return;
+    handler(excerpt);
+    if (!clearSelection) return;
+    selectionGeneration.current++;
+    setSelected(null);
+    window.getSelection()?.removeAllRanges();
+  }
 
   async function saveSelection(selection: Selection, kind: PdfAnnotationKind) {
     setActionError(undefined);
@@ -473,6 +580,79 @@ export function PdfViewer({
     await notes.session.addMany(annotations, annotations.map(heading));
   }
 
+  function zoomBy(delta: number) {
+    setFitWidth(false);
+    setScale((current) => Math.max(0.25, Math.min(current + delta, 4)));
+  }
+  function resetZoom() {
+    setFitWidth(false);
+    setScale(1);
+  }
+  function startNote(selection: Selection) {
+    setPopup({
+      annotations: selection.annotations.map((item) => ({ ...item, color })),
+      existing: false,
+      editing: true,
+      text: "",
+    });
+    setSelected(null);
+  }
+  function startTranslation(selection: Selection) {
+    setTranslation({
+      annotations: selection.annotations.map((item) => ({ ...item, color })),
+      config: readTranslationConfig(),
+    });
+    setSelected(null);
+  }
+
+  // Single-key reading shortcuts. They act only while focus is inside this pane and
+  // outside any text field, so they never compete with the editor or global bindings.
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.isContentEditable || target.closest("input, textarea, select")) return;
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const selection = !popup && !translation ? selected : null;
+    const run = (action: () => void) => {
+      event.preventDefault();
+      action();
+    };
+    if (key === "Escape") {
+      if (selected) window.getSelection()?.removeAllRanges();
+    } else if (key === "/") {
+      if (pdfDocument) run(openFind);
+    } else if (key === "+" || key === "=") run(() => zoomBy(0.25));
+    else if (key === "-") run(() => zoomBy(-0.25));
+    else if (key === "0") run(resetZoom);
+    else if (key === "j" || key === "k" || key === "ArrowRight" || key === "ArrowLeft") {
+      // Arrow keys keep their meaning inside toolbars, menus and popovers.
+      if (key.startsWith("Arrow") && target.closest('[role="toolbar"], [role="dialog"], nav'))
+        return;
+      if (numPages < 1) return;
+      const step = key === "j" || key === "ArrowRight" ? 1 : -1;
+      run(() => goToPage(pageStore.get() + step));
+    } else if (selection) {
+      if (key === "h" && writable) run(() => void saveSelection(selection, "highlight"));
+      else if (key === "u" && writable) run(() => void saveSelection(selection, "underline"));
+      else if (key === "n" && writable) run(() => startNote(selection));
+      else if (key === "t") run(() => startTranslation(selection));
+      else if (key === "q" && onQuote) run(() => sendExcerpt(onQuote, selection.annotations, true));
+      else if (key === "a" && onAddToAgent)
+        run(() => sendExcerpt(onAddToAgent, selection.annotations, true));
+    }
+  }
+
+  const keyHandler = useRef(handleKeyDown);
+  keyHandler.current = handleKeyDown;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const listener = (event: KeyboardEvent) => keyHandler.current(event);
+    root.addEventListener("keydown", listener);
+    return () => root.removeEventListener("keydown", listener);
+  }, []);
+
   const error = actionError ?? notes.error;
   const errorMessage = (value: string) =>
     t(
@@ -488,137 +668,189 @@ export function PdfViewer({
     );
 
   return (
-    <div ref={rootRef} className="relative flex h-full flex-col overflow-hidden">
+    <div
+      ref={rootRef}
+      tabIndex={-1}
+      className="relative flex h-full flex-col overflow-hidden focus:outline-none"
+    >
       <div
         ref={toolbarRef}
-        className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background px-3 py-2"
+        className="flex min-h-11 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-background px-3 py-1.5"
       >
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-auto flex-wrap items-center gap-x-2 gap-y-1">
           <fieldset
             aria-label={t("pdfReading.mode")}
-            className="flex gap-1 rounded-md bg-surface-secondary p-0.5"
+            className="flex shrink-0 rounded-md bg-surface-secondary p-0.5"
           >
-            {(["read", "write"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={mode === value}
-                disabled={value === "write" && !canSync}
-                title={
-                  value === "write" && !canSync
-                    ? t("pdfReading.noSource")
-                    : t(`pdfReading.${value}`)
-                }
-                className={`rounded px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${mode === value ? "bg-accent-hover text-accent" : "text-muted hover:bg-surface-tertiary hover:text-foreground"}`}
-                onClick={() => {
-                  selectionGeneration.current++;
-                  setModeOverride(value);
-                  setSelected(null);
-                  setContinuous(null);
-                  void notes.session
-                    .setMode(value)
-                    .then(() => setModeOverride(undefined))
-                    .catch((failure: unknown) => setActionError(String(failure)));
-                }}
-              >
-                {t(`pdfReading.${value}`)}
-              </button>
-            ))}
+            {(["read", "write"] as const).map((value) => {
+              const unavailable = value === "write" && !canSync;
+              return (
+                <Tooltip
+                  key={value}
+                  label={t(unavailable ? "pdfReading.noSource" : `pdfReading.${value}Hint`)}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={mode === value}
+                    disabled={unavailable}
+                    className={`relative h-6 whitespace-nowrap rounded px-2.5 text-xs transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 ${mode === value ? "text-foreground" : "text-muted hover:text-foreground"}`}
+                    onClick={() => {
+                      selectionGeneration.current++;
+                      setChosenMode(value);
+                      savePdfMode(positionKey, value);
+                      setSelected(null);
+                      setContinuous(null);
+                    }}
+                  >
+                    {mode === value && (
+                      <motion.span
+                        layoutId={modeIndicatorId}
+                        transition={
+                          reducedMotion
+                            ? { duration: 0 }
+                            : { type: "spring", stiffness: 520, damping: 42 }
+                        }
+                        className="absolute inset-0 rounded border border-border bg-background shadow-sm"
+                      />
+                    )}
+                    <span className="relative">{t(`pdfReading.${value}`)}</span>
+                  </button>
+                </Tooltip>
+              );
+            })}
           </fieldset>
           <button
             type="button"
-            className="btn btn-sm"
+            className="flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-xs text-foreground-secondary transition-colors duration-100 hover:bg-surface-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
             disabled={notes.content === undefined}
             onClick={() => onOpenNotes(pdfNotesPath(pdfPath))}
           >
             <NoteIcon aria-hidden="true" className="size-4" />
             {t("pdfReading.openNotes")}
           </button>
-          {mode === "read" && (
-            <div className="flex flex-wrap items-center gap-2">
-              <fieldset
-                className="flex gap-1 border-l border-border pl-2"
-                aria-label={t("pdfReading.continuous")}
-              >
-                {(
-                  [
-                    { kind: "highlight", Icon: HighlighterIcon },
-                    { kind: "underline", Icon: TextUnderlineIcon },
-                  ] as const
-                ).map(({ kind, Icon }) => (
+        </div>
+        {mode === "read" && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <fieldset className="flex gap-0.5" aria-label={t("pdfReading.continuous")}>
+              {(
+                [
+                  { kind: "highlight", Icon: HighlighterIcon, label: "continuousHighlight" },
+                  { kind: "underline", Icon: TextUnderlineIcon, label: "continuousUnderline" },
+                ] as const
+              ).map(({ kind, Icon, label }) => (
+                <Tooltip key={kind} label={t(`pdfReading.${label}Hint`)}>
                   <button
-                    key={kind}
                     type="button"
                     className="toolbar-icon-button"
                     aria-pressed={continuous === kind}
                     disabled={!writable}
-                    title={t(
-                      `pdfReading.continuous${kind === "highlight" ? "Highlight" : "Underline"}`,
-                    )}
-                    aria-label={t(
-                      `pdfReading.continuous${kind === "highlight" ? "Highlight" : "Underline"}`,
-                    )}
+                    aria-label={t(`pdfReading.${label}`)}
                     onClick={() => setContinuous((current) => (current === kind ? null : kind))}
                   >
                     <Icon className="size-4" aria-hidden="true" />
                   </button>
-                ))}
-              </fieldset>
-              <PdfColorPicker value={color} onChange={chooseColor} />
-            </div>
+                </Tooltip>
+              ))}
+            </fieldset>
+            <span aria-hidden="true" className="h-4 w-px shrink-0 bg-border" />
+            <PdfColorPicker value={color} onChange={chooseColor} />
+          </div>
+        )}
+        <div className="flex flex-auto flex-wrap items-center justify-end gap-x-1 gap-y-1 text-xs text-muted">
+          <Tooltip label={t("pdfReading.find")} keys={`/ · ${shortcutLabel("Mod+F")}`}>
+            <button
+              type="button"
+              className="toolbar-icon-button"
+              aria-pressed={search.open}
+              aria-label={t("pdfReading.find")}
+              disabled={!pdfDocument}
+              onClick={() => (search.open ? closeFind() : openFind())}
+            >
+              <MagnifyingGlassIcon aria-hidden="true" className="size-4" />
+            </button>
+          </Tooltip>
+          {outline.length > 0 && (
+            <Tooltip label={t("pdfReading.outline")}>
+              <button
+                type="button"
+                data-pdf-outline-trigger
+                className="toolbar-icon-button"
+                aria-expanded={outlineOpen}
+                data-state={outlineOpen ? "open" : "closed"}
+                aria-label={t("pdfReading.outline")}
+                onClick={() => setOutlineOpen((open) => !open)}
+              >
+                <ListIcon aria-hidden="true" className="size-4" />
+              </button>
+            </Tooltip>
           )}
-        </div>
-        <div className="flex items-center gap-1 text-xs text-muted">
-          <span>
-            {numPages > 0
-              ? t("editor.pdfPages", { count: numPages, s: numPages !== 1 ? "s" : "" })
-              : t("common.loading")}
-          </span>
-          <button
-            type="button"
-            title={t("editor.zoomOut")}
-            className="rounded px-1.5 py-0.5 hover:bg-surface-tertiary hover:text-foreground"
-            onClick={() => {
-              setFitWidth(false);
-              setScale((current) => Math.max(current - 0.25, 0.25));
-            }}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            title={t("editor.resetZoom")}
-            className="min-w-14 rounded px-1.5 py-0.5 hover:bg-surface-tertiary hover:text-foreground"
-            onClick={() => {
-              setFitWidth(false);
-              setScale(1);
-            }}
-          >
-            {Math.round(scale * 100)}%
-          </button>
-          <button
-            type="button"
-            title={t("editor.zoomIn")}
-            className="rounded px-1.5 py-0.5 hover:bg-surface-tertiary hover:text-foreground"
-            onClick={() => {
-              setFitWidth(false);
-              setScale((current) => Math.min(current + 0.25, 4));
-            }}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            className="toolbar-icon-button"
-            aria-pressed={fitWidth}
-            aria-label={t("pdfReading.fitWidth")}
-            title={t("pdfReading.fitWidth")}
-            onClick={() => setFitWidth(true)}
-          >
-            ↔
-          </button>
+          {numPages > 0 ? (
+            <PdfPageNavigation store={pageStore} numPages={numPages} onGo={goToPage} />
+          ) : (
+            <span className="whitespace-nowrap px-1">{t("common.loading")}</span>
+          )}
+          <span aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
+          <fieldset aria-label={t("pdfReading.zoom")} className="flex shrink-0 items-center">
+            <Tooltip label={t("editor.zoomOut")} keys="-">
+              <button
+                type="button"
+                className="toolbar-icon-button"
+                aria-label={t("editor.zoomOut")}
+                disabled={scale <= 0.25}
+                onClick={() => zoomBy(-0.25)}
+              >
+                <MinusIcon aria-hidden="true" className="size-4" />
+              </button>
+            </Tooltip>
+            <Tooltip label={t("editor.resetZoom")} keys="0">
+              <button
+                type="button"
+                aria-label={t("editor.resetZoom")}
+                className="h-7 min-w-12 rounded-md px-1 text-center text-xs tabular-nums text-foreground-secondary transition-colors duration-100 hover:bg-surface-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
+                onClick={resetZoom}
+              >
+                {Math.round(scale * 100)}%
+              </button>
+            </Tooltip>
+            <Tooltip label={t("editor.zoomIn")} keys="+">
+              <button
+                type="button"
+                className="toolbar-icon-button"
+                aria-label={t("editor.zoomIn")}
+                disabled={scale >= 4}
+                onClick={() => zoomBy(0.25)}
+              >
+                <PlusIcon aria-hidden="true" className="size-4" />
+              </button>
+            </Tooltip>
+          </fieldset>
+          <Tooltip label={t("pdfReading.fitWidth")}>
+            <button
+              type="button"
+              className="toolbar-icon-button"
+              aria-pressed={fitWidth}
+              aria-label={t("pdfReading.fitWidth")}
+              onClick={() => setFitWidth(true)}
+            >
+              <ArrowsHorizontalIcon aria-hidden="true" className="size-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
+      {search.open && (
+        <PdfFindBar
+          focusToken={search.focusToken}
+          query={search.query}
+          hasQuery={Boolean(search.needle)}
+          searching={search.searching}
+          current={search.current}
+          total={search.matches.length}
+          capped={search.capped}
+          onQuery={search.setQuery}
+          onStep={search.step}
+          onClose={closeFind}
+        />
+      )}
       {staleCount > 0 && (
         <div
           role="status"
@@ -647,6 +879,7 @@ export function PdfViewer({
       )}
       <div
         ref={containerRef}
+        data-pdf-scroll
         onScroll={() => {
           selectionGeneration.current++;
           setSelected(null);
@@ -657,8 +890,8 @@ export function PdfViewer({
           options={PDF_DOCUMENT_OPTIONS}
           key={documentKey}
           file={
-            refreshKey > 0 || notes.pdfRevision > 0
-              ? `${src}${src.includes("?") ? "&" : "?"}v=${refreshKey}.${notes.pdfRevision}`
+            refreshKey > 0 || source.pdfRevision > 0
+              ? `${src}${src.includes("?") ? "&" : "?"}v=${refreshKey}.${source.pdfRevision}`
               : src
           }
           onLoadSuccess={onDocumentLoadSuccess}
@@ -701,12 +934,20 @@ export function PdfViewer({
                 renderTextLayer
                 renderAnnotationLayer
                 onRenderTextLayerSuccess={onTextLayerRendered}
-                onLoadSuccess={
-                  pageNumber === 1
-                    ? (page) => setPageWidth(page.getViewport({ scale: 1 }).width)
-                    : undefined
-                }
+                onLoadSuccess={(page) => {
+                  if (pageNumber === 1) setPageWidth(page.getViewport({ scale: 1 }).width);
+                  position.onPageLoaded(pageNumber);
+                }}
               />
+              {search.pages.has(pageNumber) && (
+                <PdfSearchLayer
+                  needle={search.needle}
+                  current={
+                    search.currentMatch?.page === pageNumber ? search.currentMatch.index : -1
+                  }
+                  jump={search.jump}
+                />
+              )}
               <PdfAnnotationLayer
                 annotations={annotationsByPage.get(pageNumber) ?? EMPTY_ANNOTATIONS}
               />
@@ -722,7 +963,6 @@ export function PdfViewer({
                         top: `${first.y * 100}%`,
                         color: `var(--${annotation.color ?? "accent"})`,
                       }}
-                      title={annotation.note || annotation.quote}
                       aria-label={t("pdfReading.viewAnnotation", {
                         page: pageNumber,
                         quote: annotation.quote,
@@ -747,7 +987,6 @@ export function PdfViewer({
                   type="button"
                   className="absolute right-1 top-1 z-[5] rounded bg-surface-secondary p-1 text-muted hover:text-accent"
                   aria-label={t("editor.syncPdfPage", { page: pageNumber })}
-                  title={t("editor.syncPdfPage", { page: pageNumber })}
                   onClick={(event) => {
                     const rect = event.currentTarget.parentElement?.getBoundingClientRect();
                     if (rect)
@@ -777,29 +1016,28 @@ export function PdfViewer({
           onColorChange={chooseColor}
           onHighlight={() => void saveSelection(selected, "highlight")}
           onUnderline={() => void saveSelection(selected, "underline")}
-          onNote={() => {
-            setPopup({
-              annotations: selected.annotations.map((item) => ({ ...item, color })),
-              existing: false,
-              editing: true,
-              text: "",
-            });
-            setSelected(null);
-          }}
-          onTranslate={() => {
-            setTranslation({
-              annotations: selected.annotations.map((item) => ({ ...item, color })),
-              config: readTranslationConfig(),
-            });
-            setSelected(null);
-          }}
+          onNote={() => startNote(selected)}
+          onTranslate={() => startTranslation(selected)}
+          onQuote={onQuote ? () => sendExcerpt(onQuote, selected.annotations, true) : undefined}
+          onAddToAgent={
+            onAddToAgent ? () => sendExcerpt(onAddToAgent, selected.annotations, true) : undefined
+          }
+        />
+      )}
+      {outlineOpen && pdfDocument && outline.length > 0 && (
+        <PdfOutlinePanel
+          pdf={pdfDocument}
+          items={outline}
+          top={toolbarHeight + 8}
+          onNavigate={goToPage}
+          onClose={closeOutline}
         />
       )}
       {popup && (
         <section
           role="dialog"
           aria-label={t("pdfReading.note")}
-          className="absolute right-3 z-30 flex w-96 max-w-[calc(100%-1.5rem)] flex-col rounded-lg border border-border bg-background text-foreground shadow-lg"
+          className="motion-pop absolute right-3 z-30 flex w-96 max-w-[calc(100%-1.5rem)] flex-col rounded-lg border border-border bg-background text-foreground shadow-lg"
           style={{ top: toolbarHeight + 8, maxHeight: `calc(100% - ${toolbarHeight + 20}px)` }}
         >
           <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
@@ -809,17 +1047,45 @@ export function PdfViewer({
                 {t("pdfReading.page", { page: popup.annotations[0]?.page ?? 1 })}
               </p>
             </div>
-            <button
-              type="button"
-              className="toolbar-icon-button"
-              aria-label={t("common.close")}
-              onClick={closePopup}
-            >
-              <XIcon className="size-4" aria-hidden="true" />
-            </button>
+            <div className="flex items-center gap-1">
+              {onQuote && (
+                <Tooltip label={t("pdfReading.quote")}>
+                  <button
+                    type="button"
+                    className="toolbar-icon-button"
+                    aria-label={t("pdfReading.quote")}
+                    onClick={() => sendExcerpt(onQuote, popup.annotations, false)}
+                  >
+                    <QuotesIcon className="size-4" aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              )}
+              {onAddToAgent && (
+                <Tooltip label={t("pdfReading.addToAgent")}>
+                  <button
+                    type="button"
+                    className="toolbar-icon-button"
+                    aria-label={t("pdfReading.addToAgent")}
+                    onClick={() => sendExcerpt(onAddToAgent, popup.annotations, false)}
+                  >
+                    <SparkleIcon className="size-4" aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip label={t("common.close")} keys="Esc">
+                <button
+                  type="button"
+                  className="toolbar-icon-button"
+                  aria-label={t("common.close")}
+                  onClick={closePopup}
+                >
+                  <XIcon className="size-4" aria-hidden="true" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
           <div className="min-h-0 overflow-auto p-3">
-            <blockquote className="mb-3 max-h-32 overflow-auto border-l-2 border-accent pl-3 text-xs text-muted">
+            <blockquote className="font-reading mb-3 max-h-32 overflow-auto border-l-2 border-border pl-3 text-[13px] leading-relaxed text-foreground-secondary">
               {popup.annotations.map((item) => item.quote).join("\n")}
             </blockquote>
             <div className="mb-3 flex items-center justify-between">
@@ -844,6 +1110,11 @@ export function PdfViewer({
                   onChange={(event) =>
                     setPopup({ ...popup, text: event.target.value, error: undefined })
                   }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
+                    event.preventDefault();
+                    if (!notes.busy) void savePopup();
+                  }}
                 />
               </>
             ) : popup.text ? (
@@ -859,16 +1130,18 @@ export function PdfViewer({
               </p>
             )}
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2 border-t border-border px-3 py-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 py-2">
             {popup.editing ? (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={notes.busy}
-                onClick={() => void savePopup()}
-              >
-                {t("pdfReading.saveNote")}
-              </button>
+              <Tooltip label={t("pdfReading.saveNote")} keys={shortcutLabel("Mod+Enter")}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={notes.busy}
+                  onClick={() => void savePopup()}
+                >
+                  {t("pdfReading.saveNote")}
+                </button>
+              </Tooltip>
             ) : (
               <button
                 type="button"
@@ -886,21 +1159,24 @@ export function PdfViewer({
               {t("pdfReading.openNotes")}
             </button>
             {popup.existing && (
-              <button
-                type="button"
-                className="btn btn-sm"
-                disabled={notes.busy}
-                onClick={() => {
-                  const first = popup.annotations[0];
-                  if (!first || !window.confirm(t("pdfReading.deleteConfirm"))) return;
-                  void notes.session
-                    .remove(first.id, first.note)
-                    .then(() => setPopup(null))
-                    .catch((failure: unknown) => setPopup({ ...popup, error: String(failure) }));
-                }}
-              >
-                {t("pdfReading.deleteAnnotation")}
-              </button>
+              <Tooltip label={t("pdfReading.deleteAnnotation")} className="ml-auto inline-flex">
+                <button
+                  type="button"
+                  className="toolbar-icon-button hover:text-error"
+                  aria-label={t("pdfReading.deleteAnnotation")}
+                  disabled={notes.busy}
+                  onClick={() => {
+                    const first = popup.annotations[0];
+                    if (!first || !window.confirm(t("pdfReading.deleteConfirm"))) return;
+                    void notes.session
+                      .remove(first.id, first.note)
+                      .then(() => setPopup(null))
+                      .catch((failure: unknown) => setPopup({ ...popup, error: String(failure) }));
+                  }}
+                >
+                  <TrashIcon className="size-4" aria-hidden="true" />
+                </button>
+              </Tooltip>
             )}
           </div>
         </section>

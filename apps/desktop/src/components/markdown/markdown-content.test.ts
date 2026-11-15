@@ -43,4 +43,45 @@ describe("draft Markdown preview", () => {
     expect(markup).toContain("language-html");
     expect(markup).toContain("&lt;script&gt;");
   });
+  it("renders wiki aliases and local Markdown links as document navigation controls", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MarkdownContent, {
+        text: "[[notes/实验 (一).md|实验结果]] [details](note%2Emd#results) [web](https://example.com) `[[literal]]`",
+        variant: "document",
+        onWikiLinkClick: () => {},
+      }),
+    );
+    expect(markup.match(/<button /g)).toHaveLength(2);
+    expect(markup).toContain("实验结果</button>");
+    expect(markup).toContain("details</button>");
+    expect(markup).toContain('href="https://example.com"');
+    expect(markup).toContain("[[literal]]");
+  });
+  it("keeps wiki syntax literal in chat and escapes document aliases", () => {
+    expect(renderToStaticMarkup(createElement(MarkdownContent, { text: "[[note]]" }))).toContain(
+      "[[note]]",
+    );
+    const markup = renderToStaticMarkup(
+      createElement(MarkdownContent, {
+        text: "[[note|<script>alert(1)</script>]]",
+        variant: "document",
+        onWikiLinkClick: () => {},
+      }),
+    );
+    expect(markup).not.toContain("<script");
+    expect(markup).toContain("&lt;script&gt;");
+  });
+  it("routes PDF links through document navigation while keeping external PDFs as URLs", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MarkdownContent, {
+        text: "[论文](papers/研究%20结果.pdf) [[papers/研究 结果.pdf|PDF]] [remote](https://example.com/paper.pdf)",
+        variant: "document",
+        onWikiLinkClick: () => {},
+      }),
+    );
+    expect(markup.match(/<button /g)).toHaveLength(2);
+    expect(markup).toContain("论文</button>");
+    expect(markup).toContain("PDF</button>");
+    expect(markup).toContain('href="https://example.com/paper.pdf"');
+  });
 });

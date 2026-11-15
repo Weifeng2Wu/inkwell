@@ -26,7 +26,11 @@ describe("local SQLite API key storage", () => {
     ).not.toBe(scope);
     expect(apiKeyScope({ ...DEFAULT_ACADEMIC_CONFIG, protocol: "anthropic" })).not.toBe(scope);
     expect(
-      apiKeyScope({ protocol: "", provider: "inkwell-imagegen", baseUrl: "https://api.openai.com/v1" }),
+      apiKeyScope({
+        protocol: "",
+        provider: "inkwell-imagegen",
+        baseUrl: "https://api.openai.com/v1",
+      }),
     ).not.toBe(scope);
   });
   it("reads and writes exclusively through the dedicated credential IPC commands", async () => {

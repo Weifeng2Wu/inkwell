@@ -3,6 +3,7 @@
 import { FileTextIcon } from "@phosphor-icons/react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 
 type MainFileSwitcherProps = {
@@ -20,12 +21,12 @@ export function MainFileSwitcher({
 }: MainFileSwitcherProps) {
   const { t } = useI18n();
   const selectedFile = mainFile && texFiles.includes(mainFile) ? mainFile : "";
-  const title =
+  const hint =
     texFiles.length === 0
       ? t("latex.noTexFiles")
       : selectedFile
-        ? t("header.currentMainFile", { file: selectedFile })
-        : t("header.switchMainFile");
+        ? t("latex.currentMainFile", { file: selectedFile })
+        : t("latex.switchMainFile");
 
   return (
     <Select
@@ -33,21 +34,23 @@ export function MainFileSwitcher({
       onValueChange={onSelect}
       disabled={disabled || texFiles.length === 0}
     >
-      <SelectPrimitive.Trigger
-        data-tour="main-file"
-        aria-label={t("header.switchMainFile")}
-        title={title}
-        className="toolbar-icon-button"
-      >
-        <FileTextIcon className="size-4" aria-hidden="true" />
-      </SelectPrimitive.Trigger>
+      <Tooltip label={hint}>
+        <SelectPrimitive.Trigger
+          data-tour="main-file"
+          aria-label={t("latex.switchMainFile")}
+          aria-description={hint}
+          className="toolbar-icon-button"
+        >
+          <FileTextIcon className="size-4" aria-hidden="true" />
+        </SelectPrimitive.Trigger>
+      </Tooltip>
       <SelectContent className="min-w-56 max-w-[min(32rem,calc(100vw-2rem))]">
         <SelectPrimitive.Group>
-          <SelectPrimitive.Label className="px-2 py-1.5 text-xs text-muted">
-            {t("header.switchMainFile")}
+          <SelectPrimitive.Label className="section-label px-2 py-1.5">
+            {t("latex.switchMainFile")}
           </SelectPrimitive.Label>
           {texFiles.map((file) => (
-            <SelectItem key={file} value={file} className="text-xs break-all">
+            <SelectItem key={file} value={file} className="break-all font-mono text-xs">
               {file}
             </SelectItem>
           ))}

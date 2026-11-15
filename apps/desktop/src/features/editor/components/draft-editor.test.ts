@@ -39,6 +39,24 @@ describe("draft view", () => {
         createElement(DraftEditor, { filePath: "draft.md", projectPath: "/project", content: "" }),
       ),
     );
-    expect(markup).toContain("Start writing to preview your draft.");
+    expect(markup).toContain("Start writing; the preview updates as you type.");
+  });
+  it("exposes backlinks with full paths to distinguish duplicate note names", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        I18nProvider,
+        null,
+        createElement(DraftEditor, {
+          filePath: "draft.md",
+          projectPath: "/project",
+          content: "# Draft",
+          backlinks: ["research/intro.md", "notes/intro.md"],
+          onBacklinkClick: () => {},
+        }),
+      ),
+    );
+    expect(markup).toContain("Backlinks");
+    expect(markup).toContain('title="research/intro.md"');
+    expect(markup).toContain('title="notes/intro.md"');
   });
 });

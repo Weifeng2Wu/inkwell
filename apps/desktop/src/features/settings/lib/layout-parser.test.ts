@@ -100,12 +100,12 @@ describe("shared layout parser configuration", () => {
   it("rejects unsupported formats and empty parser results", async () => {
     await expect(
       parseLayoutImage({ name: "x.svg", mimeType: "image/svg+xml", data: "eA==" }, "configure"),
-    ).rejects.toThrow("Invalid");
+    ).rejects.toMatchObject({ key: "layoutParser.invalidImage" });
     vi.mocked(invoke).mockImplementation(async (command) =>
       command === "agent_api_key_read" ? "key" : { text: "" },
     );
     await expect(
       parseLayoutImage({ name: "x.png", mimeType: "image/png", data: "eA==" }, "configure"),
-    ).rejects.toThrow("no readable");
+    ).rejects.toMatchObject({ key: "layoutParser.noContent" });
   });
 });

@@ -12,7 +12,12 @@ vi.mock("@/features/editor/components/lazy", () => ({
     return null;
   },
 }));
-vi.mock("@/features/i18n", () => ({ useI18n: () => ({ locale: "zh" }) }));
+vi.mock("@/features/i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/i18n")>();
+  const t = (key: string, params?: Record<string, string | number>) =>
+    actual.englishMessage(key, params);
+  return { ...actual, useI18n: () => ({ locale: "en", t }) };
+});
 
 const change = {
   path: "paper.tex",
@@ -67,7 +72,7 @@ describe("inline Agent review", () => {
   });
   it("uses the existing editor region rather than a full-screen modal or split review page", () => {
     const { markup, props } = fixture();
-    expect(markup).toContain("返回编辑");
+    expect(markup).toContain("Back to editing");
     expect(markup).not.toContain('role="dialog"');
     expect(markup).not.toContain("aria-modal");
     expect(markup).not.toContain("fixed");

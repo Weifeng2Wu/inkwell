@@ -16,6 +16,7 @@ import { resolveInitialLocale } from "./locale-detection";
 import { en } from "./locales/en";
 import { ko } from "./locales/ko";
 import { zh } from "./locales/zh";
+import { resolveMessage } from "./localized-error";
 import {
   DEFAULT_LOCALE,
   type I18nContextValue,
@@ -51,30 +52,46 @@ async function detectInitialLocale(): Promise<Locale> {
   });
 }
 
-function resolveNestedKey(obj: unknown, keyPath: string): string | undefined {
-  const parts = keyPath.split(".");
-  let current: unknown = obj;
-
-  for (const part of parts) {
-    if (current && typeof current === "object" && part in current) {
-      current = (current as Record<string, unknown>)[part];
-    } else {
-      return undefined;
-    }
-  }
-
-  return typeof current === "string" ? current : undefined;
+/** The current language, then English, then the key itself so a missing entry stays visible. */
+function translate(
+  locale: Locale,
+  key: string,
+  params?: Record<string, string | number | undefined | null>,
+): string {
+  return (
+    resolveMessage(dictionaries[locale], key, params) ??
+    (locale === "en" ? undefined : resolveMessage(dictionaries.en, key, params)) ??
+    key
+  );
 }
+
+// Shared by every caller outside a provider, so `t` keeps one identity across renders.
+const FALLBACK_CONTEXT: I18nContextValue = {
+  locale: DEFAULT_LOCALE,
+  setLocale: () => {},
+  t: (key, params) => translate(DEFAULT_LOCALE, key, params),
+  locales: LOCALES,
+  dictionary: dictionaries.en,
+};
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-export function I18nProvider({ children }: { children: ReactNode }) {
+export function I18nProvider({
+  children,
+  locale: pinned,
+}: {
+  children?: ReactNode;
+  /** Pins the language for tests and previews. Without it the saved or system language is used. */
+  locale?: Locale;
+}) {
   // Always initialize with DEFAULT_LOCALE so client matches server-rendered HTML during hydration
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const [detected, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const locale = pinned ?? detected;
   const manuallySelected = useRef(false);
 
   // Sync to user's saved locale or system locale immediately after mount
   useEffect(() => {
+    if (pinned) return;
     let active = true;
     void detectInitialLocale().then((initial) => {
       if (active && !manuallySelected.current) setLocaleState(initial);
@@ -82,7 +99,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [pinned]);
 
   const setLocale = useCallback((newLocale: Locale) => {
     manuallySelected.current = true;
@@ -103,34 +120,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const dictionary = dictionaries[locale] ?? dictionaries.en;
 
   const t = useCallback(
-    (key: string, params?: Record<string, string | number | undefined | null>): string => {
-      // 1. Try current locale
-      let text = resolveNestedKey(dictionary, key);
-
-      // 2. Fall back to English
-      if (text === undefined && locale !== "en") {
-        text = resolveNestedKey(dictionaries.en, key);
-      }
-
-      // 3. Fall back to key itself
-      if (text === undefined) {
-        return key;
-      }
-
-      // 4. Parameter interpolation
-      if (params) {
-        return text.replace(/\{(\w+)\}/g, (_, paramName) => {
-          if (paramName in params) {
-            const val = params[paramName];
-            return val !== undefined && val !== null ? String(val) : `{${paramName}}`;
-          }
-          return `{${paramName}}`;
-        });
-      }
-
-      return text;
-    },
-    [dictionary, locale],
+    (key: string, params?: Record<string, string | number | undefined | null>): string =>
+      translate(locale, key, params),
+    [locale],
   );
 
   const contextValue = useMemo<I18nContextValue>(
@@ -148,27 +140,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 }
 
 export function useI18n(): I18nContextValue {
-  const ctx = useContext(I18nContext);
-  if (!ctx) {
-    // Provide a fallback when outside provider (e.g. testing or early render)
-    return {
-      locale: DEFAULT_LOCALE,
-      setLocale: () => {},
-      t: (key: string, params?: Record<string, string | number | undefined | null>) => {
-        let text = resolveNestedKey(dictionaries.en, key) ?? key;
-        if (params) {
-          text = text.replace(/\{(\w+)\}/g, (_, paramName) => {
-            const val = params[paramName];
-            return val !== undefined && val !== null ? String(val) : `{${paramName}}`;
-          });
-        }
-        return text;
-      },
-      locales: LOCALES,
-      dictionary: dictionaries.en,
-    };
-  }
-  return ctx;
+  return useContext(I18nContext) ?? FALLBACK_CONTEXT;
 }
 
 export const useTranslation = useI18n;

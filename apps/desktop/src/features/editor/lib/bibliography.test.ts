@@ -133,3 +133,40 @@ describe("citation argument context", () => {
     expect(citationContext(text, text.length)).not.toBeNull();
   });
 });
+
+describe("citations in documents", () => {
+  it("finds the Markdown citation being typed", async () => {
+    const { markdownCitationContext } = await import("./bibliography");
+    const text = "See [@smith2020; @do";
+    expect(markdownCitationContext(text, text.length)).toMatchObject({
+      query: "do",
+      start: text.length - 2,
+      end: text.length,
+    });
+    expect(markdownCitationContext("@", 1)?.query).toBe("");
+    expect(markdownCitationContext("user@example", 12)).toBeNull();
+    expect(markdownCitationContext("line\n@ke", 8)?.start).toBe(6);
+  });
+
+  it("lists cited keys with their ranges", async () => {
+    const { citedKeys } = await import("./bibliography");
+    const tex = "\\cite{a, b} % \\cite{hidden}\n\\textcite[p.~3]{c} \\ref{fig} \\nocite{*}";
+    const keys = citedKeys(tex, "latex");
+    expect(keys.map((item) => item.key)).toEqual(["a", "b", "c"]);
+    expect(keys.map((item) => tex.slice(item.start, item.end))).toEqual(["a", "b", "c"]);
+    expect(citedKeys("[@a; see @b-c, p. 3] and x@y", "markdown").map((item) => item.key)).toEqual([
+      "a",
+      "b-c",
+    ]);
+    expect(citedKeys("\\cite{a}", "plaintext")).toEqual([]);
+  });
+
+  it("reports citations that are missing from the bibliography", async () => {
+    const { missingCitations } = await import("./bibliography");
+    const known = new Set(["a"]);
+    const tex = "\\cite{a,missing} \\cite{local}\n\\bibitem[L]{local} text";
+    expect(missingCitations(tex, "latex", known).map((item) => item.key)).toEqual(["missing"]);
+    const markdown = "[@a; @gone] thanks @alice, see [@x](http://e.org)";
+    expect(missingCitations(markdown, "markdown", known).map((item) => item.key)).toEqual(["gone"]);
+  });
+});

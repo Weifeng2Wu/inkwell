@@ -53,6 +53,7 @@ const GH_AUTH_POLL_INTERVAL_MS = 1500;
 const GH_AUTH_POLL_TIMEOUT_MS = 120_000;
 const DEFAULT_GIT_AUTO_FETCH_INTERVAL_MS = 120_000;
 const MIN_GIT_AUTO_FETCH_INTERVAL_MS = 15_000;
+const MAX_GIT_AUTO_FETCH_BACKOFF_MS = 15 * 60_000;
 
 type TauriDaemonOptions = {
   gitAutoFetchEnabled?: boolean;
@@ -263,7 +264,13 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
         await invoke("set_project_path", { path });
         projectPathRef.current = path;
         setGitRemoteError(null);
-        setGitState((s) => ({ ...s, gitStatus: null, gitInfo: null, gitGraph: [], gitLogEntries: [] }));
+        setGitState((s) => ({
+          ...s,
+          gitStatus: null,
+          gitInfo: null,
+          gitGraph: [],
+          gitLogEntries: [],
+        }));
         setProjectState({ projectPath: path, files, projectInfo: { path } });
         refreshGitStatusInternal(path);
       } catch (error) {
@@ -714,7 +721,6 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
 
     let isCleanedUp = false;
     let watcherStarted = false;
-    let unlistenFiles: (() => void) | null = null;
     let unlistenFileChanged: (() => void) | null = null;
 
     const debouncedRefreshFileTree = debounce(async (dir: string) => {
@@ -753,17 +759,6 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
       if (isCleanedUp) return;
 
       try {
-        unlistenFiles = await listen<FileNode[]>("files-changed", (event) => {
-          if (!isCleanedUp) {
-            setProjectState((s) => ({ ...s, files: event.payload }));
-          }
-        });
-
-        if (isCleanedUp) {
-          unlistenFiles?.();
-          return;
-        }
-
         unlistenFileChanged = await listen<FileChangeEvent>("file-changed", (event) => {
           if (isCleanedUp) return;
 
@@ -790,7 +785,6 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
       }
 
       if (isCleanedUp) {
-        unlistenFiles?.();
         unlistenFileChanged?.();
       }
     };
@@ -817,7 +811,6 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
       isCleanedUp = true;
       debouncedRefreshFileTree.cancel();
       debouncedRefreshGit.cancel();
-      unlistenFiles?.();
       unlistenFileChanged?.();
       if (watcherStarted) {
         invoke("stop_watch").catch((error) => console.error("Failed to stop watch:", error));
@@ -833,41 +826,59 @@ export function useTauriDaemon(options?: TauriDaemonOptions) {
 
     let isDisposed = false;
     let isFetching = false;
+    let nextFetchAt = 0;
+    let retryDelay = gitAutoFetchIntervalMs;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const isCurrentProject = () => !isDisposed && projectPathRef.current === projectPath;
 
     const runAutoFetch = async () => {
-      if (isDisposed || isFetching) return;
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+      if (!isCurrentProject() || isFetching || Date.now() < nextFetchAt) return;
+      if (document.visibilityState !== "visible" || !navigator.onLine) {
         return;
       }
 
       isFetching = true;
+      clearTimeout(timeoutId);
       try {
         await fetchGitRemote(projectPath);
-        if (!isDisposed) {
+        retryDelay = gitAutoFetchIntervalMs;
+        if (isCurrentProject()) {
           const result = await refreshGitStatusInternal(projectPath);
-          if (!isDisposed && result.success) setGitRemoteError(null);
+          if (isCurrentProject() && result.success) setGitRemoteError(null);
         }
       } catch (error) {
-        if (!isDisposed) {
+        if (isCurrentProject()) {
           setGitRemoteError(String(error));
-          console.error("Failed periodic git fetch:", error);
+          retryDelay = Math.min(
+            retryDelay * 2,
+            Math.max(gitAutoFetchIntervalMs, MAX_GIT_AUTO_FETCH_BACKOFF_MS),
+          );
         }
       } finally {
         isFetching = false;
+        if (isCurrentProject()) {
+          nextFetchAt = Date.now() + retryDelay;
+          timeoutId = setTimeout(() => void runAutoFetch(), retryDelay);
+        }
       }
+    };
+
+    const handleOnline = () => {
+      nextFetchAt = 0;
+      retryDelay = gitAutoFetchIntervalMs;
+      void runAutoFetch();
     };
 
     void runAutoFetch();
     window.addEventListener("focus", runAutoFetch);
+    window.addEventListener("online", handleOnline);
     document.addEventListener("visibilitychange", runAutoFetch);
-    const intervalId = setInterval(() => {
-      void runAutoFetch();
-    }, gitAutoFetchIntervalMs);
 
     return () => {
       isDisposed = true;
-      clearInterval(intervalId);
+      clearTimeout(timeoutId);
       window.removeEventListener("focus", runAutoFetch);
+      window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", runAutoFetch);
     };
   }, [

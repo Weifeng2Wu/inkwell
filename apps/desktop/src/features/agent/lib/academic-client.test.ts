@@ -76,7 +76,9 @@ describe("Academic runtime IPC client", () => {
   it("rejects pending work when disconnected", async () => {
     const client = new AcademicClient(() => {});
     await client.connect();
-    const pending = expect(client.request("prompt", { text: "Fixture" })).rejects.toThrow("closed");
+    const pending = expect(client.request("prompt", { text: "Fixture" })).rejects.toMatchObject({
+      key: "agent.errors.cancelled",
+    });
     await client.disconnect();
     await pending;
   });
@@ -101,9 +103,9 @@ describe("Academic runtime IPC client", () => {
     const client = new AcademicClient(() => {});
     await client.connect();
     vi.useFakeTimers();
-    const pending = expect(client.request("prompt", { text: "Fixture" })).rejects.toThrow(
-      "timed out",
-    );
+    const pending = expect(client.request("prompt", { text: "Fixture" })).rejects.toMatchObject({
+      key: "agent.errors.timedOut",
+    });
     await vi.advanceTimersByTimeAsync(600_000);
     await pending;
     expect(invoke).toHaveBeenCalledWith("academic_agent_stop", { runtimeId: "runtime-fixture" });

@@ -97,9 +97,9 @@ export function SynctexInstallDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(v) => !v && handleClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-[9999]" />
+        <Dialog.Overlay className="motion-fade fixed inset-0 z-[9999] bg-black/45" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-background border border-border rounded-lg shadow-2xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col"
+          className="motion-fade fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-background border border-border rounded-lg shadow-2xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col"
           onPointerDownOutside={(e) => {
             if (isBusy) e.preventDefault();
           }}
@@ -107,26 +107,26 @@ export function SynctexInstallDialog({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div className="flex items-center gap-3">
-              <WarningIcon className="size-5 text-warning" />
-              <Dialog.Title className="text-base font-bold tracking-tight">
+              <WarningIcon className="size-4 text-warning" aria-hidden />
+              <Dialog.Title className="font-medium text-sm">
                 {t("latex.synctexNotAvailableTitle")}
               </Dialog.Title>
             </div>
             {!isBusy && (
               <Dialog.Close
-                className="p-1.5 hover:bg-accent-hover transition-colors border border-transparent hover:border-border"
+                className="rounded p-1.5 text-muted transition-colors hover:bg-accent-hover hover:text-foreground"
                 aria-label={t("common.close")}
               >
-                <XIcon className="size-4" />
+                <XIcon className="size-4" aria-hidden />
               </Dialog.Close>
             )}
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
-            <p className="text-sm text-foreground-secondary leading-relaxed">
+            <Dialog.Description className="text-[13px] text-foreground-secondary leading-relaxed">
               {t("latex.synctexRequiredDesc")}
-            </p>
+            </Dialog.Description>
 
             <AnimatePresence mode="wait">
               {/* Idle: waiting for user confirmation */}
@@ -141,11 +141,11 @@ export function SynctexInstallDialog({
                   <button
                     type="button"
                     onClick={handleQuickInstall}
-                    className="btn btn-sm bg-success text-success-foreground border-success  transition-all"
+                    className="btn btn-sm btn-primary"
                   >
                     {t("latex.installSynctexButton")}
                   </button>
-                  <p className="text-xs text-muted mt-2">
+                  <p className="mt-2 text-muted text-xs">
                     {t("latex.willRunTlmgr", { command: "tlmgr install synctex" })}
                   </p>
                 </motion.div>
@@ -158,7 +158,7 @@ export function SynctexInstallDialog({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 p-3 bg-surface-secondary border border-warning/40"
+                  className="mt-4 rounded-md p-3 bg-surface-secondary border border-warning/40"
                 >
                   <div className="flex items-center gap-2">
                     <Spinner className="size-4" />
@@ -181,18 +181,13 @@ export function SynctexInstallDialog({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 p-3 bg-success/10 border border-success/30"
+                  className="mt-4 rounded-md p-3 bg-success/10 border border-success/30"
                 >
                   <p className="text-sm text-success">{t("latex.synctexInstalledSuccess")}</p>
                   <div className="mt-3 flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleRetry}
-                      className="btn btn-sm bg-success text-success-foreground border-success hover:bg-success transition-colors"
-                    >
+                    <button type="button" onClick={handleRetry} className="btn btn-sm btn-primary">
                       {t("latex.retrySynctex")}
                     </button>
-                    <span className="text-xs text-success">{t("latex.clickToNavigate")}</span>
                   </div>
                 </motion.div>
               )}
@@ -204,7 +199,7 @@ export function SynctexInstallDialog({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 p-3 bg-background border border-warning/40"
+                  className="mt-4 rounded-md p-3 bg-background border border-warning/40"
                 >
                   <p className="text-sm text-foreground-secondary whitespace-pre-wrap">
                     {quickError}
@@ -212,9 +207,9 @@ export function SynctexInstallDialog({
                   <button
                     type="button"
                     onClick={handleRetryQuick}
-                    className="mt-2 text-sm text-warning hover:text-warning underline flex items-center gap-1"
+                    className="mt-2 text-[13px] text-accent hover:underline flex items-center gap-1"
                   >
-                    <ArrowClockwiseIcon className="size-3.5" />
+                    <ArrowClockwiseIcon className="size-3.5" aria-hidden />
                     {t("latex.tryAgain")}
                   </button>
                 </motion.div>
@@ -228,13 +223,11 @@ export function SynctexInstallDialog({
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                 >
-                  <p className="mt-3 text-sm text-warning">
-                    {t("latex.noTexDistFound")}
-                  </p>
+                  <p className="mt-3 text-sm text-warning">{t("latex.noTexDistFound")}</p>
 
                   {/* Installation Progress (full distro) */}
                   {isInstalling && progress && (
-                    <div className="mt-4 p-3 bg-surface-secondary border border-warning/40">
+                    <div className="mt-4 rounded-md p-3 bg-surface-secondary border border-warning/40">
                       <div className="flex items-center gap-2">
                         <Spinner className="size-4" />
                         <span className="text-sm font-medium">{progress.stage}</span>
@@ -253,7 +246,7 @@ export function SynctexInstallDialog({
 
                   {result && (
                     <div
-                      className={`mt-4 p-3 border ${
+                      className={`mt-4 rounded-md p-3 border ${
                         result.success
                           ? "bg-success/10 border-success/30"
                           : "bg-background border-warning/40"
@@ -271,20 +264,19 @@ export function SynctexInstallDialog({
                           <button
                             type="button"
                             onClick={handleRetry}
-                            className="btn btn-sm bg-success text-success-foreground border-success hover:bg-success transition-colors"
+                            className="btn btn-sm btn-primary"
                           >
                             {t("latex.retrySynctex")}
                           </button>
-                          <span className="text-xs text-success">{t("latex.clickToNavigate")}</span>
                         </div>
                       )}
                       {!result.success && (
                         <button
                           type="button"
                           onClick={resetInstaller}
-                          className="mt-2 text-sm text-warning hover:text-warning underline flex items-center gap-1"
+                          className="mt-2 text-[13px] text-accent hover:underline flex items-center gap-1"
                         >
-                          <ArrowClockwiseIcon className="size-3.5" />
+                          <ArrowClockwiseIcon className="size-3.5" aria-hidden />
                           {t("latex.tryAgain")}
                         </button>
                       )}
@@ -300,7 +292,7 @@ export function SynctexInstallDialog({
                         return (
                           <div
                             key={dist.id}
-                            className={`flex items-center justify-between gap-3 p-3 bg-background border transition-colors ${
+                            className={`flex items-center justify-between gap-3 rounded-md p-3 bg-background border transition-colors ${
                               index === 0
                                 ? "border-success/50 hover:border-success"
                                 : "border-border hover:border-accent/30"
@@ -310,7 +302,7 @@ export function SynctexInstallDialog({
                               <div className="font-medium text-sm flex items-center gap-2">
                                 {dist.name}
                                 {index === 0 && (
-                                  <span className="text-xs px-1.5 py-0.5 bg-success/15 text-success font-normal">
+                                  <span className="rounded bg-success/15 px-1.5 py-0.5 font-normal text-[11px] text-success">
                                     {t("latex.recommended")}
                                   </span>
                                 )}
@@ -322,11 +314,7 @@ export function SynctexInstallDialog({
                                 <button
                                   type="button"
                                   onClick={() => handleInstall(dist.id)}
-                                  className={`btn btn-sm border-2 transition-all ${
-                                    index === 0
-                                      ? "bg-success text-success-foreground border-success "
-                                      : "bg-accent text-accent-foreground border-accent rounded-md"
-                                  }`}
+                                  className="btn btn-sm btn-primary"
                                 >
                                   {t("latex.install")}
                                 </button>
@@ -335,11 +323,7 @@ export function SynctexInstallDialog({
                                 <button
                                   type="button"
                                   onClick={() => handleOpenDownload(downloadUrl)}
-                                  className={`btn btn-sm border-2 transition-colors ${
-                                    index === 0 && !dist.install_command
-                                      ? "bg-success text-success-foreground border-success hover:bg-success/90"
-                                      : "border-border bg-background text-muted hover:bg-accent-hover"
-                                  }`}
+                                  className={`btn btn-sm ${index === 0 && !dist.install_command ? "btn-primary" : "btn-secondary"}`}
                                 >
                                   {t("latex.download")}
                                 </button>
@@ -364,13 +348,9 @@ export function SynctexInstallDialog({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end px-5 py-4 border-t border-border">
+          <div className="flex items-center justify-end border-border border-t px-5 py-3">
             {!isBusy && (
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-6 py-2 text-sm font-medium bg-background text-foreground border border-border rounded-md"
-              >
+              <button type="button" onClick={handleClose} className="btn btn-sm btn-secondary">
                 {t("latex.dismiss")}
               </button>
             )}

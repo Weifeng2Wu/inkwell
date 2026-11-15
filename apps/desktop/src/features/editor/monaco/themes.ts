@@ -5,7 +5,7 @@ import type { MonacoTheme } from "monaco-themes";
 import githubDarkTheme from "@/features/editor/monaco/github-dark.json";
 // Source: monaco-themes/themes/ (v0.4.8)
 import githubLightTheme from "@/features/editor/monaco/github-light.json";
-import { editorChromeColors } from "./theme-chrome";
+import { editorChromeColors, editorDiffColors, editorSyntaxRules } from "./theme-chrome";
 
 // Supplementary editor chrome colors not included in the base GitHub Light theme
 const githubLightEditorColors: Record<string, string> = {
@@ -107,15 +107,26 @@ const githubDarkEditorColors: Record<string, string> = {
   "editorBracketHighlight.unexpectedBracket.foreground": "#f85149",
 };
 
+/**
+ * Defines the light and dark editor themes from the active palette. Text editors and diff
+ * editors share them: Monaco has one theme for every editor on the page.
+ *
+ * Code keeps the GitHub grammar palette; manuscripts (LaTeX, BibTeX, Markdown) take the
+ * rules from `syntax-theme.ts`, derived from the theme's own tokens.
+ */
 export const defineEditorThemes = (monaco: Monaco) => {
+  const chrome = { ...editorChromeColors(), ...editorDiffColors() };
+  const syntax = editorSyntaxRules();
+
   // GitHub Light theme - imported from monaco-themes package
   const lightTheme = githubLightTheme as MonacoTheme;
   monaco.editor.defineTheme("one-light", {
     ...lightTheme,
+    rules: [...lightTheme.rules, ...syntax],
     colors: {
       ...lightTheme.colors,
       ...githubLightEditorColors,
-      ...editorChromeColors(),
+      ...chrome,
     },
   });
 
@@ -123,10 +134,11 @@ export const defineEditorThemes = (monaco: Monaco) => {
   const darkTheme = githubDarkTheme as MonacoTheme;
   monaco.editor.defineTheme("one-dark", {
     ...darkTheme,
+    rules: [...darkTheme.rules, ...syntax],
     colors: {
       ...darkTheme.colors,
       ...githubDarkEditorColors,
-      ...editorChromeColors(),
+      ...chrome,
     },
   });
 };

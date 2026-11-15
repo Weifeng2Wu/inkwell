@@ -1,6 +1,5 @@
-// Settings feature — editor preferences, fonts, and the settings dialog.
+// Settings feature — editor preferences, fonts, and the settings page.
 
-export { SettingsDialog } from "./components/settings-dialog";
 export { SettingsPage } from "./components/settings-page";
 export * from "./lib/editor-settings";
 export * from "./lib/font-stacks";
@@ -10,3 +9,4 @@ export * from "./lib/theme";
 export { readThemePalette } from "./lib/theme-palette";
 export * from "./lib/use-editor-settings";
 export { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts";
+export { useSystemFonts } from "./lib/use-system-fonts";

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { englishMessage } from "@/features/i18n/localized-error";
 import { DEFAULT_ACADEMIC_CONFIG } from "./academic-config";
 import { apiKeyScope, readAgentApiKey, writeAgentApiKey } from "./agent-api-key-store";
 import { useAcademicAgent } from "./use-academic-agent";
@@ -71,7 +72,10 @@ vi.mock("react", async (importOriginal) => ({
   },
 }));
 
-vi.mock("@/features/i18n", () => ({ useI18n: () => ({ locale: "en" }) }));
+vi.mock("@/features/i18n", async () => {
+  const messages = await import("@/features/i18n/localized-error");
+  return { ...messages, useI18n: () => ({ locale: "en", t: messages.englishMessage }) };
+});
 vi.mock("@/features/settings", () => ({ parseLayoutImage: vi.fn() }));
 vi.mock("./agent-api-key-store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./agent-api-key-store")>()),
@@ -229,6 +233,28 @@ describe("automatic Agent sessions", () => {
     expect(renderAgent("/project").input).toBe("");
   });
 
+  it("expands mentioned library papers for the built-in Agent", async () => {
+    saveModel();
+    const agent = await settleAgent("/project");
+    const paper = {
+      key: "smith2020",
+      title: "A Study",
+      authors: ["Ann Smith"],
+      year: "2020",
+      venue: "Nature",
+      notes: "papers/smith.pdf.notes.md",
+    };
+    const excerpt = { id: "e", path: "papers/smith.pdf", text: "A quoted finding.", page: 3 };
+    expect(await agent.send('Cite @paper:"smith2020"', [], [excerpt], [paper])).toBe(true);
+    expect(transport.request).toHaveBeenCalledWith("prompt", {
+      text: expect.stringContaining('"notes":"papers/smith.pdf.notes.md"'),
+    });
+    expect(transport.request).toHaveBeenCalledWith("prompt", {
+      text: expect.stringContaining('"papers/smith.pdf" p.3'),
+    });
+    expect(renderAgent("/project").input).toBe("");
+  });
+
   it("restores the original built-in draft without duplicating excerpts after failure", async () => {
     saveModel();
     const agent = await settleAgent("/project");
@@ -353,7 +379,9 @@ describe("independent API checks", () => {
 describe("Agent settings auto-save", () => {
   it("does not dispatch built-in model requests while an external Agent is selected", async () => {
     const agent = renderAgent("/project", false);
-    await expect(agent.generateCommitMessage("Commit changes")).rejects.toThrow("disabled");
+    await expect(agent.generateCommitMessage("Commit changes")).rejects.toThrow(
+      englishMessage("agent.errors.disabledWhileExternal"),
+    );
     expect(await agent.configure(false)).toBe(false);
     expect(invoke).not.toHaveBeenCalled();
   });
@@ -492,7 +520,7 @@ describe("Agent settings auto-save", () => {
     agent.setApiKey("fixture-unsaved-key");
     agent = await settleAgent("/project");
     expect(agent.settingsSaved).toBe(false);
-    expect(agent.settingsSaveError).toBe(agent.labels.keySaveFailed);
+    expect(agent.settingsSaveError).toBe(englishMessage("agent.settings.keySaveFailed"));
     expect(agent.error).not.toContain("fixture-secret-from-error");
     expect(credentials.size).toBe(0);
   });
@@ -501,7 +529,7 @@ describe("Agent settings auto-save", () => {
     vi.mocked(readAgentApiKey).mockRejectedValueOnce(new Error("Vault locked"));
     let agent = await settleAgent("/project");
     expect(agent.settingsSaved).toBe(false);
-    expect(agent.settingsSaveError).toBe(agent.labels.keyLoadFailed);
+    expect(agent.settingsSaveError).toBe(englishMessage("agent.settings.keyLoadFailed"));
     agent.setApiKey("fixture-recovered-key");
     agent = await settleAgent("/project");
     expect(agent.settingsSaved).toBe(true);

@@ -5,10 +5,16 @@ import { SHORTCUTS } from "../lib/keyboard-shortcuts";
 import { KeyboardShortcutSettings } from "./keyboard-shortcut-settings";
 
 describe("shortcut settings layout", () => {
-  it("shows one row per shortcut under four categories", () => {
+  it("shows one row per shortcut under its category", () => {
     const markup = renderToStaticMarkup(createElement(KeyboardShortcutSettings));
     expect(markup.match(/<li /g)).toHaveLength(SHORTCUTS.length);
-    for (const category of ["Workspace", "LaTeX", "Markdown drafts", "Agent chat"])
+    for (const category of [
+      "General",
+      "Views and panels",
+      "Writing and LaTeX",
+      "Markdown drafts",
+      "Agent chat",
+    ])
       expect(markup).toContain(category);
     expect(markup).toContain('data-shortcut-recorder="true"');
     expect(markup).toContain("Restore defaults");
@@ -17,7 +23,7 @@ describe("shortcut settings layout", () => {
   it("filters rows by action name", () => {
     const markup = renderToStaticMarkup(createElement(KeyboardShortcutSettings, { query: "Bold" }));
     expect(markup.match(/<li /g)).toHaveLength(1);
-    expect(markup).toContain("Change shortcut for Bold");
-    expect(markup).not.toContain("Close current tab");
+    expect(markup).toContain("Change the shortcut for “Bold”");
+    expect(markup).not.toContain("Close tab");
   });
 });

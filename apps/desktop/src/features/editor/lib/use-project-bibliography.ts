@@ -4,6 +4,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { FileNode } from "@/types/files";
 import { bibliographyPaths, indexBibliographies } from "./bibliography";
 
+/** Indexes the project's `.bib` files, with open editor buffers overriding the disk. */
 export function useProjectBibliography({
   projectPath,
   files,
@@ -70,11 +71,13 @@ export function useProjectBibliography({
       [projectPath, primaryPath, primaryContent, secondaryPath, secondaryContent],
     ),
   );
-  return useMemo(() => {
-    if (!projectPath) return [];
+  const sources = useMemo((): ReadonlyMap<string, string> => {
+    if (!projectPath) return new Map();
     const sources = new Map(loaded.project === projectPath ? loaded.sources : []);
     for (const buffer of buffers.project === projectPath ? buffers.files : [])
       if (buffer.path && /\.bib$/i.test(buffer.path)) sources.set(buffer.path, buffer.content);
-    return indexBibliographies(sources);
+    return sources;
   }, [projectPath, loaded, buffers]);
+  const bibliography = useMemo(() => indexBibliographies(sources), [sources]);
+  return { bibliography, sources };
 }

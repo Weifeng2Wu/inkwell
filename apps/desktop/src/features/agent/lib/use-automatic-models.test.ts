@@ -175,7 +175,12 @@ describe("automatic model discovery", () => {
 
 it("refetches models when WAF credentials change and ignores the previous result", async () => {
   let finish: (result: ModelDiscoveryResult) => void = () => {};
-  fetchModels.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  fetchModels.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
   render();
   await vi.advanceTimersByTimeAsync(500);
   options.config = { ...options.config, customHeaders: "CF-Access-Client-Secret: new-secret" };

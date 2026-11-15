@@ -66,7 +66,7 @@ export function SystemFontStatus({ fonts, status, retry }: ReturnType<typeof use
         <>
           {t("settings.fonts.error")}{" "}
           <button type="button" className="text-accent hover:underline" onClick={retry}>
-            {t("settings.fonts.retry")}
+            {t("common.retry")}
           </button>
         </>
       )}

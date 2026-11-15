@@ -3,10 +3,13 @@
 import { ArrowCounterClockwiseIcon, XIcon } from "@phosphor-icons/react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRef, useState } from "react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 import {
   DEFAULT_SHORTCUTS,
   displayShortcut,
+  isMac,
+  SHORTCUT_CATEGORIES,
   SHORTCUTS,
   type ShortcutId,
   shortcutConflict,
@@ -22,7 +25,7 @@ export function KeyboardShortcutSettings({ query = "" }: { query?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const cancelReset = useRef<HTMLButtonElement>(null);
-  const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+  const mac = isMac();
   const customized = SHORTCUTS.some((item) => bindings[item.id] !== DEFAULT_SHORTCUTS[item.id]);
   const normalizedQuery = query.trim().toLowerCase();
   const matching = SHORTCUTS.filter((item) =>
@@ -52,7 +55,8 @@ export function KeyboardShortcutSettings({ query = "" }: { query?: string }) {
   if (!matching.length) return null;
   return (
     <section className="space-y-5" aria-label={t("shortcuts.title")}>
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <p className="min-w-0 text-xs leading-5 text-muted">{t("shortcuts.help")}</p>
         <button
           type="button"
           className="btn btn-sm shrink-0"
@@ -68,7 +72,7 @@ export function KeyboardShortcutSettings({ query = "" }: { query?: string }) {
           {error}
         </p>
       )}
-      {(["workspace", "latex", "markdown", "chat"] as const).map((category) => {
+      {SHORTCUT_CATEGORIES.map((category) => {
         const items = matching.filter((item) => item.category === category);
         if (!items.length) return null;
         return (
@@ -130,18 +134,19 @@ export function KeyboardShortcutSettings({ query = "" }: { query?: string }) {
                         </kbd>
                       )}
                     </button>
-                    <button
-                      type="button"
-                      className="toolbar-icon-button"
-                      disabled={bindings[item.id] === item.default}
-                      title={t("shortcuts.restoreOne")}
-                      aria-label={t("shortcuts.restoreOneAction", {
-                        action: t(`shortcuts.actions.${item.id}`),
-                      })}
-                      onClick={() => update(item.id, item.default)}
-                    >
-                      <ArrowCounterClockwiseIcon className="size-4" aria-hidden="true" />
-                    </button>
+                    <Tooltip label={t("shortcuts.restoreOne")}>
+                      <button
+                        type="button"
+                        className="toolbar-icon-button"
+                        disabled={bindings[item.id] === item.default}
+                        aria-label={t("shortcuts.restoreOneAction", {
+                          action: t(`shortcuts.actions.${item.id}`),
+                        })}
+                        onClick={() => update(item.id, item.default)}
+                      >
+                        <ArrowCounterClockwiseIcon className="size-4" aria-hidden="true" />
+                      </button>
+                    </Tooltip>
                   </div>
                 </li>
               ))}

@@ -18,7 +18,7 @@ export function SkillsSettings({
   externalAgent?: ExternalAgentController;
 }) {
   const { t } = useI18n();
-  const { labels, session, dirty, error } = agent;
+  const { session, dirty, error } = agent;
   const currentAgent = useRef(agent);
   currentAgent.current = agent;
 
@@ -54,10 +54,10 @@ export function SkillsSettings({
         externalAgent={externalAgent}
       />
       <SkillsMarket agent={agent} />
-      {session && dirty && <p className="text-xs text-warning">{labels.dirty}</p>}
+      {session && dirty && <p className="text-xs text-warning">{t("agent.dirty")}</p>}
       {error && (
         <p role="alert" className="whitespace-pre-wrap break-words text-xs text-error">
-          {labels.error}: {error}
+          {t("agent.error", { error })}
         </p>
       )}
     </section>

@@ -2,6 +2,9 @@
 export type EditorTheme = "one-light" | "one-dark";
 export type TerminalShellMode = "auto" | "custom";
 
+export const GIT_AUTO_BACKUP_INTERVALS = [5, 10, 15, 30, 60] as const;
+export type GitAutoBackupInterval = (typeof GIT_AUTO_BACKUP_INTERVALS)[number];
+
 // Minimap configuration matching Monaco Editor API
 export interface MinimapSettings {
   enabled: boolean;
@@ -47,6 +50,12 @@ export interface EditorSettings {
   // Git
   gitAutoFetchEnabled: boolean;
   gitAutoFetchIntervalSeconds: number;
+  /** Commit every change to the current branch on a schedule. */
+  gitAutoBackupEnabled: boolean;
+  /** One of `GIT_AUTO_BACKUP_INTERVALS`. */
+  gitAutoBackupIntervalMinutes: number;
+  /** Push after each automatic backup when a remote is configured. */
+  gitAutoBackupPush: boolean;
 
   // Terminal
   terminalShellMode: TerminalShellMode;
@@ -99,6 +108,9 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   // Git
   gitAutoFetchEnabled: true,
   gitAutoFetchIntervalSeconds: 120,
+  gitAutoBackupEnabled: false,
+  gitAutoBackupIntervalMinutes: 10,
+  gitAutoBackupPush: true,
 
   // Terminal
   terminalShellMode: "auto",

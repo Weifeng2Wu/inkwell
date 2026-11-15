@@ -40,7 +40,9 @@ export function workspaceMentions(
   };
   collect(files);
   return entries.filter((entry) => {
-    const entryParent = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/")) : "";
+    const entryParent = entry.path.includes("/")
+      ? entry.path.slice(0, entry.path.lastIndexOf("/"))
+      : "";
     return entryParent === parent && entry.name.toLowerCase().includes(leaf);
   });
 }

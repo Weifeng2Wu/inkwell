@@ -1,11 +1,20 @@
 export const SHORTCUTS = [
-  { id: "openProject", category: "workspace", scope: "app", default: "Mod+O" },
-  { id: "closeTab", category: "workspace", scope: "app", default: "Mod+W" },
-  { id: "settings", category: "workspace", scope: "app", default: "Mod+," },
-  { id: "sidebar", category: "workspace", scope: "app", default: "Mod+Shift+E" },
-  { id: "terminal", category: "workspace", scope: "app", default: "Mod+J" },
-  { id: "compile", category: "latex", scope: "app", default: "Mod+Shift+B" },
-  { id: "comment", category: "latex", scope: "latex", default: "Mod+/" },
+  { id: "openProject", category: "general", scope: "app", default: "Mod+O" },
+  { id: "newDrawing", category: "general", scope: "app", default: "Mod+Alt+D" },
+  { id: "newMindmap", category: "general", scope: "app", default: "Mod+Alt+M" },
+  { id: "closeTab", category: "general", scope: "app", default: "Mod+W" },
+  { id: "settings", category: "general", scope: "app", default: "Mod+," },
+  { id: "sidebar", category: "view", scope: "app", default: "Mod+Shift+E" },
+  { id: "terminal", category: "view", scope: "app", default: "Mod+J" },
+  { id: "quickOpen", category: "general", scope: "app", default: "Mod+P" },
+  { id: "commandPalette", category: "general", scope: "app", default: "Mod+Shift+P" },
+  { id: "search", category: "view", scope: "app", default: "Mod+Shift+F" },
+  { id: "library", category: "view", scope: "app", default: "Mod+Shift+L" },
+  { id: "git", category: "view", scope: "app", default: "Mod+Shift+G" },
+  { id: "agent", category: "view", scope: "app", default: "Mod+Shift+A" },
+  { id: "cite", category: "writing", scope: "app", default: "Mod+Shift+J" },
+  { id: "compile", category: "writing", scope: "app", default: "Mod+Shift+B" },
+  { id: "comment", category: "writing", scope: "latex", default: "Mod+/" },
   { id: "bold", category: "markdown", scope: "markdown", default: "Mod+B" },
   { id: "italic", category: "markdown", scope: "markdown", default: "Mod+I" },
   { id: "link", category: "markdown", scope: "markdown", default: "Mod+K" },
@@ -13,6 +22,15 @@ export const SHORTCUTS = [
 ] as const;
 
 export type ShortcutId = (typeof SHORTCUTS)[number]["id"];
+export type ShortcutCategory = (typeof SHORTCUTS)[number]["category"];
+/** The order in which categories are listed in Settings. */
+export const SHORTCUT_CATEGORIES: readonly ShortcutCategory[] = [
+  "general",
+  "view",
+  "writing",
+  "markdown",
+  "chat",
+];
 export type ShortcutBindings = Record<ShortcutId, string>;
 export const SHORTCUT_STORAGE_KEY = "inkwell-keyboard-shortcuts-v1";
 export const DEFAULT_SHORTCUTS = Object.fromEntries(
@@ -74,7 +92,6 @@ export function validShortcut(binding: string, id: ShortcutId): boolean {
     "Mod+S",
     "Mod+F",
     "Mod+H",
-    "Mod+P",
     "Mod+Y",
     "F5",
     "F11",
@@ -124,4 +141,17 @@ export function displayShortcut(binding: string, mac: boolean): string {
     .split("+")
     .map((key) => (key === "Mod" ? (mac ? "⌘" : "Ctrl") : key))
     .join(" + ");
+}
+
+/** A binding as shown beside a control: `Ctrl+Shift+P`, or `⌘⇧P` on macOS. */
+export function shortcutLabel(binding: string, mac = isMac()): string {
+  if (!binding) return "";
+  const keys = binding.split("+");
+  if (!mac) return keys.map((key) => (key === "Mod" ? "Ctrl" : key)).join("+");
+  const symbols: Record<string, string> = { Mod: "⌘", Shift: "⇧", Alt: "⌥", Enter: "↩" };
+  return keys.map((key) => symbols[key] ?? key).join("");
+}
+
+export function isMac(): boolean {
+  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 }

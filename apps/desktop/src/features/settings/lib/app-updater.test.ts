@@ -35,12 +35,27 @@ beforeEach(() => {
 });
 
 describe("application updater", () => {
-  it("provides the same complete update controls in all supported languages", async () => {
-    const { updateLabels } = await import("./update-labels");
-    for (const labels of Object.values(updateLabels)) {
-      expect(Object.keys(labels).sort()).toEqual(Object.keys(updateLabels.en).sort());
-      expect(Object.values(labels).every((value) => value.trim().length > 0)).toBe(true);
+  it("describes every update phase, naming the version when it is known", async () => {
+    const { updateStatusText } = await import("./update-status");
+    const { englishMessage } = await import("@/features/i18n");
+    const phases = [
+      "checking",
+      "latest",
+      "available",
+      "downloading",
+      "downloaded",
+      "installing",
+      "installed",
+    ] as const;
+    expect(updateStatusText("idle", "0.2.0", englishMessage)).toBe("");
+    for (const phase of phases) {
+      for (const version of [undefined, "0.2.0"]) {
+        const text = updateStatusText(phase, version, englishMessage);
+        expect(text, phase).not.toMatch(/^settings\./);
+        expect(text, phase).not.toContain("{version}");
+      }
     }
+    expect(updateStatusText("available", "0.2.0", englishMessage)).toContain("0.2.0");
   });
   it("initializes once and keeps automatic updates off by default", async () => {
     const updater = await import("./app-updater");

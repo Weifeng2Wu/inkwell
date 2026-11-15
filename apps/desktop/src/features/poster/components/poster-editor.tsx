@@ -1,7 +1,7 @@
 "use client";
 
-import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 import { ArrowUUpLeftIcon, ArrowUUpRightIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
+import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 import {
   type ComponentProps,
   type PointerEvent,
@@ -10,9 +10,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { MonacoEditor } from "@/features/editor/components/lazy";
 import { resolveMarkdownImage } from "@/features/editor/lib/markdown";
-import { useI18n } from "@/features/i18n";
+import { formatNumber, useI18n } from "@/features/i18n";
+import { shortcutLabel } from "@/features/settings";
 import {
   embedPosterImages,
   posterPptx,
@@ -20,11 +22,11 @@ import {
   posterSvg,
   savePosterExport,
 } from "../lib/export";
-import { posterLabels } from "../lib/labels";
+import { fillLabel, posterLabels } from "../lib/labels";
 import {
   createPoster,
-  POSTER_SIZES,
   POSTER_DEFAULTS,
+  POSTER_SIZES,
   type PosterDocument,
   type PosterElement,
   type PosterSize,
@@ -253,7 +255,11 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
       const result = await savePosterExport(bytes, `${name}.${format}`, format);
       if (result !== false) setMessage(l.savedExport);
     } catch (error) {
-      setMessage(`${l.failedExport}: ${error instanceof Error ? error.message : String(error)}`);
+      setMessage(
+        fillLabel(l.failedExport, {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -332,11 +338,9 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
       }}
     >
       <header className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-1.5">
-        <span className="mr-1 text-xs font-semibold">{l.editor}</span>
-        <fieldset
-          className="flex items-center gap-0.5 rounded-md border border-border bg-surface-secondary p-0.5"
-        >
-          <legend className="sr-only">{l.editor}</legend>
+        <span className="mr-1 font-medium text-xs">{l.editor}</span>
+        <fieldset className="flex items-center gap-0.5 rounded-md border border-border bg-surface-secondary p-0.5">
+          <legend className="sr-only">{l.view}</legend>
           <button
             type="button"
             aria-pressed={!source}
@@ -355,26 +359,28 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
           </button>
         </fieldset>
         <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            className="toolbar-icon-button"
-            aria-label={l.undo}
-            title={l.undo}
-            disabled={readonly || !past.length}
-            onClick={() => history(false)}
-          >
-            <ArrowUUpLeftIcon size={16} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="toolbar-icon-button"
-            aria-label={l.redo}
-            title={l.redo}
-            disabled={readonly || !future.length}
-            onClick={() => history(true)}
-          >
-            <ArrowUUpRightIcon size={16} aria-hidden="true" />
-          </button>
+          <Tooltip label={l.undo} keys={shortcutLabel("Mod+Z")}>
+            <button
+              type="button"
+              className="toolbar-icon-button"
+              aria-label={l.undo}
+              disabled={readonly || !past.length}
+              onClick={() => history(false)}
+            >
+              <ArrowUUpLeftIcon size={16} aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip label={l.redo} keys={shortcutLabel("Mod+Shift+Z")}>
+            <button
+              type="button"
+              className="toolbar-icon-button"
+              aria-label={l.redo}
+              disabled={readonly || !future.length}
+              onClick={() => history(true)}
+            >
+              <ArrowUUpRightIcon size={16} aria-hidden="true" />
+            </button>
+          </Tooltip>
           {poster && (
             <label className="relative ml-1 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background pl-2.5 pr-2 text-xs font-medium transition-colors hover:bg-accent-hover focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
               <DownloadSimpleIcon size={15} aria-hidden="true" />
@@ -403,14 +409,21 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
         </div>
       </header>
       {message && (
-        <p role="status" className="border-b border-border px-3 py-2 text-xs">
+        <p role="status" className="motion-fade border-b border-border px-3 py-2 text-xs">
           {message}
         </p>
       )}
       {source ? (
-        <MonacoEditor {...props} language="json" className="h-full" />
+        <>
+          {parsed.error && (
+            <p role="alert" className="border-b border-border px-3 py-2 text-sm text-error">
+              {l.invalid}
+            </p>
+          )}
+          <MonacoEditor {...props} language="json" className="h-full" />
+        </>
       ) : !poster ? (
-        <div className="m-auto max-w-lg space-y-4 p-6">
+        <div className="motion-rise m-auto max-w-lg space-y-4 p-6 text-[13px]">
           {parsed.error ? (
             <>
               <p role="alert">{l.invalid}</p>
@@ -421,7 +434,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
             </>
           ) : (
             <>
-              <p>{l.empty}</p>
+              <p className="text-foreground-secondary leading-relaxed">{l.empty}</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {choices(size, landscape, setSize, setLandscape)}
               </div>
@@ -495,7 +508,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
               <option value={0}>{l.fit}</option>
               {[0.25, 0.5, 0.75, 1, 1.5, 2].map((z) => (
                 <option key={z} value={z}>
-                  {z * 100}%
+                  {formatNumber(z, locale, { style: "percent" })}
                 </option>
               ))}
             </select>
@@ -678,13 +691,11 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
               </svg>
             </div>
             <aside
-              aria-label={l.editor}
+              aria-label={l.inspector}
               className="max-h-56 w-full shrink-0 space-y-4 overflow-y-auto border-t border-border bg-surface/60 p-3.5 text-xs sm:max-h-none sm:w-60 sm:border-l sm:border-t-0"
             >
               <section className="space-y-2.5">
-                <h3 className="text-[11px] font-semibold uppercase text-muted-foreground">
-                  {l.canvasSettings}
-                </h3>
+                <h3 className="section-label">{l.canvasSettings}</h3>
                 <div className="space-y-2.5">
                   {choices(
                     (Object.keys(POSTER_SIZES) as PosterSize[]).find(
@@ -719,7 +730,10 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                     />
                   </label>
                   <p className="border-t border-border pt-2 text-[11px] text-muted-foreground">
-                    {poster.width.toFixed(1)} × {poster.height.toFixed(1)} mm
+                    {fillLabel(l.dimensions, {
+                      width: formatNumber(poster.width, locale, { maximumFractionDigits: 1 }),
+                      height: formatNumber(poster.height, locale, { maximumFractionDigits: 1 }),
+                    })}
                   </p>
                 </div>
               </section>
@@ -729,9 +743,7 @@ export function PosterEditor({ filePath, projectPath, ...props }: Props) {
                 </p>
               ) : (
                 <fieldset disabled={readonly} className="space-y-3.5 border-t border-border pt-3">
-                  <legend className="mb-1 px-1 text-[11px] font-semibold uppercase text-muted-foreground">
-                    {l.selectedElement}
-                  </legend>
+                  <legend className="section-label mb-1 px-1">{l.selectedElement}</legend>
                   <div className="grid grid-cols-2 gap-2">
                     {(["x", "y", "width", "height"] as const).map((key) => (
                       <label key={key} className="space-y-1">

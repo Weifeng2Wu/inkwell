@@ -7,16 +7,15 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import type { SelectionAttachment } from "@/types/editor-selection";
 import type { FileNode } from "@/types/files";
+import type { Paper } from "@/types/papers";
 import type { SkillMetadata } from "../lib/academic-client";
-import { academicLabels } from "../lib/academic-labels";
 import { archiveKey } from "../lib/conversation-archive";
 import { type AgentSelection, EXTERNAL_AGENTS } from "../lib/external-agent-catalog";
-import { externalAgentLabels } from "../lib/external-agent-labels";
 import { useChatScroll } from "../lib/use-chat-scroll";
 import type { ExternalAgentController } from "../lib/use-external-agent";
 import { AgentLogo } from "./agent-logo";
 import { ChatComposer } from "./chat-composer";
-import { ChatMessage, ChatSuggestions } from "./chat-presentation";
+import { ChatEmptyState, ChatMessage } from "./chat-presentation";
 import { ConversationActions } from "./conversation-actions";
 import { ConversationHistory } from "./conversation-history";
 import { MarkdownText } from "./markdown-text";
@@ -28,6 +27,7 @@ export function ExternalAgentPanel({
   files = [],
   skills = [],
   enabledSkillIds = [],
+  papers,
   selections,
   onRemoveSelection,
   onRevealSelection,
@@ -38,15 +38,16 @@ export function ExternalAgentPanel({
   files?: FileNode[];
   skills?: SkillMetadata[];
   enabledSkillIds?: string[];
+  /** Library papers that can be mentioned with `@paper:"key"`. */
+  papers?: readonly Paper[];
   selections?: SelectionAttachment[];
   onRemoveSelection?: (id: string) => void;
   onRevealSelection?: (selection: SelectionAttachment) => void;
 }) {
-  const { locale } = useI18n();
-  const labels = externalAgentLabels(locale);
-  const historyLabels = academicLabels[locale];
+  const { t } = useI18n();
   const panel = useRef<HTMLElement>(null);
-  const showSuggestions = agent.messages.length === 0 && !agent.working && !agent.authentication;
+  const showExamples =
+    agent.messages.length === 0 && !agent.working && !agent.authentication && Boolean(directory);
   const [showHistory, setShowHistory] = useState(false);
   const latestSelection = selections?.at(-1)?.id;
   useEffect(() => {
@@ -73,7 +74,8 @@ export function ExternalAgentPanel({
   const scroll = useChatScroll(
     showHistory ? "" : JSON.stringify([directory, selected, agent.messages[0]?.id]),
   );
-  const name = EXTERNAL_AGENTS.find((entry) => entry.id === selected)?.name;
+  const name = EXTERNAL_AGENTS.find((entry) => entry.id === selected)?.name ?? t("agent.reply");
+  const streaming = agent.working && agent.connected;
   if (showHistory)
     return (
       <ConversationHistory
@@ -81,8 +83,7 @@ export function ExternalAgentPanel({
         onClose={() => setShowHistory(false)}
         onNew={agent.newConversation}
         agent={{
-          labels: historyLabels,
-          working: agent.working && agent.connected,
+          working: streaming,
           conversations: agent.history.map((record) => ({
             key: record.id,
             sessionId: record.id,
@@ -117,9 +118,7 @@ export function ExternalAgentPanel({
         {selected !== "builtin" && <AgentLogo id={selected} className="size-5" />}
         <h2 className="truncate text-sm font-medium">{name}</h2>
         <ConversationActions
-          disabled={!directory || (agent.working && agent.connected)}
-          newLabel={historyLabels.newSession}
-          historyLabel={historyLabels.history}
+          disabled={!directory || streaming}
           onNew={agent.newConversation}
           onHistory={() => {
             setShowHistory(true);
@@ -129,62 +128,71 @@ export function ExternalAgentPanel({
       </header>
       <div
         ref={scroll.viewport}
-        className={`min-h-0 flex-1 overflow-y-auto p-3 ${showSuggestions ? "flex flex-col" : ""}`}
+        className={`min-h-0 flex-1 overflow-y-auto p-3 ${showExamples ? "flex flex-col" : ""}`}
         aria-live="polite"
         style={{ overflowAnchor: "none", scrollBehavior: "auto" }}
       >
         <div
           ref={scroll.content}
-          className={showSuggestions ? "flex flex-1 flex-col gap-4" : "flow-root space-y-4"}
+          className={showExamples ? "flex flex-1 flex-col gap-4" : "flow-root space-y-4"}
         >
           {!agent.connected && agent.working && !agent.authentication && (
             <p role="status" className="text-xs text-muted-foreground">
-              {labels.connecting}
+              {t("agent.external.connecting")}
             </p>
           )}
           {!agent.connected && !agent.working && directory && (
-            <button
-              type="button"
-              className="btn btn-sm"
-              disabled={!directory}
-              onClick={() => {
-                if (agent.replaceRequired) setConfirmReconnect(true);
-                else void agent.connect();
-              }}
-            >
-              {agent.error ? labels.retryConnection : labels.connect}
-            </button>
+            <div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  if (agent.replaceRequired) setConfirmReconnect(true);
+                  else void agent.connect();
+                }}
+              >
+                {t(agent.error ? "agent.external.reconnect" : "agent.external.connect")}
+              </button>
+            </div>
           )}
-          {!directory && <p className="text-sm text-muted-foreground">{labels.noProject}</p>}
+          {!directory && (
+            <p className="text-[13px] text-muted-foreground">{t("agent.openProject")}</p>
+          )}
           {agent.authentication && (
-            <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
-              <p className="text-sm font-medium">
-                {labels.authRequired} · {name}
+            <div className="motion-rise space-y-2 rounded-lg border border-border bg-surface p-3">
+              <p className="text-[13px] font-medium">
+                {t("agent.external.authRequired", { agent: name })}
               </p>
-              <p className="text-xs text-muted-foreground">{labels.authExplanation}</p>
-              {agent.authentication.methods.map((method) => (
-                <div key={method.id} className="space-y-1">
+              <p className="text-xs leading-5 text-muted-foreground">
+                {t("agent.external.authExplanation")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {agent.authentication.methods.map((method) => (
                   <button
+                    key={method.id}
                     type="button"
                     className="btn btn-sm"
                     onClick={() => agent.authentication?.choose(method.id)}
                   >
                     {method.name}
                   </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
-          {showSuggestions && (
-            <ChatSuggestions
-              labels={historyLabels}
+          {showExamples && (
+            <ChatEmptyState
               onSelect={(prompt) => {
                 agent.setInput(prompt);
-                panel.current?.querySelector("textarea")?.focus();
+                requestAnimationFrame(() => {
+                  const field = panel.current?.querySelector("textarea");
+                  field?.focus();
+                  field?.setSelectionRange(prompt.length, prompt.length);
+                });
               }}
             />
           )}
-          {agent.messages.map((message) =>
+          {agent.messages.map((message, index) =>
             message.role === "assistant" &&
             !message.content &&
             !message.generatedImages?.length &&
@@ -192,7 +200,8 @@ export function ExternalAgentPanel({
               <ChatMessage
                 key={message.id}
                 role={message.role}
-                label={message.role === "user" ? historyLabels.you : historyLabels.assistant}
+                label={message.role === "user" ? t("agent.you") : name}
+                entering={streaming && index >= agent.messages.length - 2}
               >
                 {message.role === "user" ? (
                   <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
@@ -202,7 +211,7 @@ export function ExternalAgentPanel({
                       <MarkdownText text={message.content} />
                     ) : (
                       !message.generatedImages?.length && (
-                        <p className="text-sm text-muted-foreground">{labels.thinking}</p>
+                        <p className="text-sm text-muted-foreground">{t("agent.thinking")}</p>
                       )
                     )}
                     {message.generatedImages?.map((image) => (
@@ -211,14 +220,14 @@ export function ExternalAgentPanel({
                           <Image
                             unoptimized
                             src={convertFileSrc(image.path)}
-                            alt={historyLabels.generatedReference}
+                            alt={t("agent.generatedImage")}
                             width={512}
                             height={768}
-                            className="max-h-[28rem] w-auto max-w-full border border-border object-contain"
+                            className="max-h-[28rem] w-auto max-w-full rounded-md border border-border object-contain"
                           />
                         </a>
                         <figcaption className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                          {historyLabels.generatedReference}: {image.relativePath}
+                          {image.relativePath}
                         </figcaption>
                       </figure>
                     ))}
@@ -228,18 +237,20 @@ export function ExternalAgentPanel({
             ),
           )}
           {agent.activity && (
-            <p role="status" className="break-words text-xs text-muted-foreground">
-              {labels.activity}: {agent.activity}
+            <p role="status" className="motion-fade break-words text-xs text-muted-foreground">
+              {t("agent.external.activity", { activity: agent.activity })}
             </p>
           )}
           {agent.permissions.map((permission) => (
             <div
               key={permission.id}
-              className="space-y-2 rounded-lg border border-border bg-surface p-3"
+              className="motion-rise space-y-2 rounded-lg border border-border bg-surface p-3"
             >
-              <p className="break-words text-sm">{permission.title}</p>
+              <p className="break-words text-[13px] font-medium">
+                {permission.title || t("agent.external.toolRequest")}
+              </p>
               {permission.details && (
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-secondary p-2 font-mono text-xs">
                   {permission.details}
                 </pre>
               )}
@@ -250,10 +261,10 @@ export function ExternalAgentPanel({
                     <button
                       key={option.optionId}
                       type="button"
-                      className="btn btn-sm"
+                      className="btn btn-primary btn-sm"
                       onClick={() => void agent.permission(permission.id, option.optionId)}
                     >
-                      {labels.approve}: {option.name}
+                      {t("agent.external.approve", { option: option.name })}
                     </button>
                   ))}
                 <button
@@ -261,20 +272,14 @@ export function ExternalAgentPanel({
                   className="btn btn-sm"
                   onClick={() => void agent.permission(permission.id, null)}
                 >
-                  {labels.deny}
+                  {t("agent.external.deny")}
                 </button>
               </div>
             </div>
           ))}
           {agent.error && (
             <p role="alert" className="whitespace-pre-wrap break-words text-xs text-error">
-              {agent.error.includes("does not advertise a read-only ACP mode")
-                ? {
-                    zh: "此 Agent 不支持受限（只读）模式。请在 Agent 设置中选择「逐次询问」后重新连接，或使用内置 Agent。",
-                    en: "This Agent does not support Restricted mode. Choose Ask every time in Agent settings and reconnect, or use the built-in Agent.",
-                    ko: "이 Agent는 제한 모드를 지원하지 않습니다. Agent 설정에서 매번 확인을 선택한 후 다시 연결하거나 내장 Agent를 사용하세요.",
-                  }[locale]
-                : agent.error}
+              {agent.error}
             </p>
           )}
         </div>
@@ -284,13 +289,13 @@ export function ExternalAgentPanel({
           <Dialog.Overlay className="fixed inset-0 z-[9999] bg-black/45" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-[10000] w-[min(92vw,30rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-5 shadow-2xl focus:outline-none">
             <Dialog.Title className="text-base font-semibold">
-              {labels.replaceConfirmTitle}
+              {t("agent.external.replaceTitle")}
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-sm text-muted-foreground">
-              {labels.replaceConfirm}
+              {t("agent.external.replaceMessage")}
             </Dialog.Description>
             <div className="mt-5 flex justify-end gap-2">
-              <Dialog.Close className="btn btn-sm">{labels.cancel}</Dialog.Close>
+              <Dialog.Close className="btn btn-sm">{t("common.cancel")}</Dialog.Close>
               <button
                 type="button"
                 className="btn btn-sm btn-primary"
@@ -299,7 +304,7 @@ export function ExternalAgentPanel({
                   void agent.connect(true);
                 }}
               >
-                {labels.replaceAction}
+                {t("agent.external.replaceAction")}
               </button>
             </div>
           </Dialog.Content>
@@ -313,16 +318,15 @@ export function ExternalAgentPanel({
         onChange={agent.setInput}
         onSend={(text, images, excerpts) => {
           scroll.scrollToBottom();
-          return agent.send(text, images, excerpts);
+          return agent.send(text, images, excerpts, papers);
         }}
         onStop={agent.stop}
-        working={agent.working && agent.connected}
+        working={streaming}
         canStop={agent.connected}
         disabled={!agent.connected}
-        placeholder={labels.placeholder}
-        sendLabel={labels.send}
-        stopLabel={labels.stop}
+        placeholder={t("agent.composer.placeholderExternal", { name })}
         files={files}
+        papers={papers}
         skills={sharedSkills.length ? sharedSkills : skills}
         directory={directory}
       />

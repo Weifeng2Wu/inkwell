@@ -1,10 +1,11 @@
 "use client";
 
+import { WarningIcon } from "@phosphor-icons/react";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/features/i18n";
 import type { PdfNotesSession } from "../lib/pdf-notes-session";
 import { usePdfNotes } from "../lib/use-pdf-notes";
-import { DraftEditor, type MonacoEditor } from "./lazy";
+import { DraftEditor } from "./lazy";
 
 type Draft = { text: string; baseline: string; error?: string };
 // Preserve rejected drafts across tab switches. Disk remains the durable source;
@@ -16,7 +17,7 @@ export function PdfNotesEditor({
   projectPath,
   pdfPath,
   ...props
-}: ComponentProps<typeof MonacoEditor> & {
+}: ComponentProps<typeof DraftEditor> & {
   filePath: string;
   projectPath: string;
   pdfPath: string;
@@ -117,8 +118,25 @@ export function PdfNotesEditor({
           onContentChange={(text) => update({ ...draftRef.current, text, error: undefined })}
         />
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface-secondary px-3 py-2 text-xs">
-        <span className={error ? "text-error" : "text-muted"} role="status">
+      <div
+        className={`flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 text-xs ${
+          error ? "bg-error/5 py-2" : "bg-surface py-1"
+        }`}
+      >
+        <span
+          className={`flex min-w-0 items-center gap-1.5 ${error ? "text-error" : "text-muted"}`}
+          role="status"
+        >
+          {error ? (
+            <WarningIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          ) : (
+            <span
+              aria-hidden="true"
+              className={`size-1.5 shrink-0 rounded-full transition-colors duration-150 ${
+                draft.text === draft.baseline ? "bg-success" : "bg-warning"
+              }`}
+            />
+          )}
           {error
             ? t(
                 error.includes("PDF_NOTES_CONFLICT")
@@ -131,14 +149,14 @@ export function PdfNotesEditor({
           <>
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm btn-secondary"
               onClick={() => void persist().catch(() => {})}
             >
               {t("pdfReading.retry")}
             </button>
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm btn-secondary"
               onClick={() => {
                 void navigator.clipboard.writeText(draftRef.current.text).catch(() => {});
               }}
@@ -147,7 +165,7 @@ export function PdfNotesEditor({
             </button>
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm btn-secondary"
               onClick={() => {
                 if (!window.confirm(t("pdfReading.discardDraftConfirm"))) return;
                 void session

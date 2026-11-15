@@ -1,41 +1,52 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
+  addPdfAnnotations,
   type PdfAnnotation,
-  type PdfReadingMode,
   parsePdfNotes,
   removePdfAnnotation,
-  setPdfReadingMode,
   upsertPdfAnnotation,
 } from "./pdf-notes";
 
-type NativeDocument = { path: string; content: string; canSyncSource: boolean };
+type NativeDocument = { content: string; revision: string };
 export type PdfNotesSnapshot = {
+  /** The sidecar's Markdown, or the starting template while it has not been created. */
   content: string | undefined;
   annotations: PdfAnnotation[];
-  mode: PdfReadingMode | undefined;
-  canSyncSource: boolean;
-  pdfRevision: number;
   busy: boolean;
   error: string | undefined;
 };
 const sessions = new Map<string, PdfNotesSession>();
 
-function normalizePath(path: string) {
+export function normalizePdfPath(path: string) {
   const normalized = path.replace(/\\/g, "/").replace(/\/$/, "");
   return /^[a-z]:/i.test(normalized) ? normalized.toLowerCase() : normalized;
+}
+
+/** The PDF's path relative to the project, which is how the backend addresses it. */
+export function projectRelativePdfPath(projectPath: string, pdfPath: string) {
+  const root = projectPath.replace(/\\/g, "/").replace(/\/$/, "");
+  const normalized = pdfPath.replace(/\\/g, "/");
+  return normalizePdfPath(normalized).startsWith(`${normalizePdfPath(root)}/`)
+    ? normalized.slice(root.length + 1)
+    : normalized;
+}
+
+function isConflict(error: unknown) {
+  return String(error).includes("PDF_NOTES_CONFLICT");
 }
 
 export class PdfNotesSession {
   private snapshot: PdfNotesSnapshot = {
     content: undefined,
     annotations: [],
-    mode: undefined,
-    canSyncSource: false,
-    pdfRevision: 0,
     busy: false,
     error: undefined,
   };
+  /** What a save must still find on disk; null while the sidecar does not exist. */
+  private revision: string | null = null;
+  private loaded = false;
+  private invalid = false;
   private subscribers = new Set<() => void>();
   private queue: Promise<unknown> = Promise.resolve();
   private pendingWrites = new Set<Promise<unknown>>();
@@ -53,21 +64,10 @@ export class PdfNotesSession {
   subscribe = (callback: () => void) => {
     this.subscribers.add(callback);
     if (this.subscribers.size === 1) {
+      const notes = normalizePdfPath(`${this.pdfPath}.notes.md`);
+      const absolute = normalizePdfPath(`${this.projectPath}/${this.pdfPath}.notes.md`);
       this.stopWatching = listen<{ path: string; kind: string }>("file-changed", ({ payload }) => {
-        const path = normalizePath(payload.path);
-        const pdf = normalizePath(this.pdfPath);
-        const absolute = normalizePath(`${this.projectPath}/${this.pdfPath}`);
-        if ([pdf, absolute].includes(path) && payload.kind === "modify") {
-          this.publish({ pdfRevision: this.snapshot.pdfRevision + 1 });
-        }
-        const companion = ["synctex.gz", "synctex", "tex"].flatMap((extension) => [
-          pdf.replace(/\.pdf$/i, `.${extension}`),
-          absolute.replace(/\.pdf$/i, `.${extension}`),
-        ]);
-        if (
-          [`${pdf}.notes.md`, `${absolute}.notes.md`, pdf, absolute, ...companion].includes(path) &&
-          payload.kind !== "access"
-        )
+        if ([notes, absolute].includes(normalizePdfPath(payload.path)) && payload.kind !== "access")
           void this.reload().catch(() => {});
       }).catch(() => () => {});
       void this.reload().catch(() => {});
@@ -86,37 +86,38 @@ export class PdfNotesSession {
     for (const callback of this.subscribers) callback();
   }
 
-  private accept(document: NativeDocument) {
+  private accept(document: NativeDocument | null) {
+    const content = document?.content ?? this.initialContent;
+    const revision = document?.revision ?? null;
+    // The watcher echoes this session's own saves; an unchanged file needs no parsing.
+    const unchanged =
+      this.loaded && revision === this.revision && content === this.snapshot.content;
+    this.loaded = true;
+    this.revision = revision;
+    if (unchanged) {
+      const error = this.invalid ? "PDF_NOTES_INVALID" : undefined;
+      if (this.snapshot.error !== error) this.publish({ error });
+      return;
+    }
     try {
-      const parsed = parsePdfNotes(document.content);
-      const name = this.pdfPath.split("/").pop();
-      if (parsed.pdf !== name) throw new Error("PDF_NOTES_INVALID");
-      this.publish({
-        content: document.content,
-        annotations: parsed.annotations,
-        mode: parsed.mode,
-        canSyncSource: document.canSyncSource,
-        error: undefined,
-      });
+      const parsed = parsePdfNotes(content);
+      if (parsed.pdf !== this.pdfPath.split("/").pop()) throw new Error("PDF_NOTES_INVALID");
+      this.invalid = false;
+      this.publish({ content, annotations: parsed.annotations, error: undefined });
     } catch {
       // Keep the raw Markdown available for repair; never replace a malformed sidecar.
-      this.publish({
-        content: document.content,
-        annotations: [],
-        mode: undefined,
-        canSyncSource: document.canSyncSource,
-        error: "PDF_NOTES_INVALID",
-      });
+      this.invalid = true;
+      this.publish({ content, annotations: [], error: "PDF_NOTES_INVALID" });
     }
   }
 
   private async load() {
-    const document = await invoke<NativeDocument>("pdf_notes_load", {
-      expectedProject: this.projectPath,
-      relativePath: this.pdfPath,
-      initialContent: this.initialContent,
-    });
-    this.accept(document);
+    this.accept(
+      await invoke<NativeDocument | null>("pdf_notes_load", {
+        expectedProject: this.projectPath,
+        relativePath: this.pdfPath,
+      }),
+    );
   }
 
   private enqueue<Result>(operation: () => Promise<Result>, writes = false): Promise<Result> {
@@ -154,38 +155,33 @@ export class PdfNotesSession {
     return this.initialization;
   };
 
-  private async save(content: string, expectedContent: string) {
-    try {
-      await invoke("pdf_notes_save", {
-        expectedProject: this.projectPath,
-        relativePath: this.pdfPath,
-        expectedContent,
-        content,
-      });
-      this.accept({
-        path: `${this.pdfPath}.notes.md`,
-        content,
-        canSyncSource: this.snapshot.canSyncSource,
-      });
-    } catch (error) {
-      // A competing Markdown editor can win the compare-and-swap. Read its version,
-      // but leave the rejected local draft with its caller for recovery.
-      if (String(error).includes("PDF_NOTES_CONFLICT")) await this.load();
-      throw error;
-    }
+  /** Replaces the sidecar, creating it on the first save. */
+  private async save(content: string) {
+    const revision = await invoke<string>("pdf_notes_save", {
+      expectedProject: this.projectPath,
+      relativePath: this.pdfPath,
+      expectedRevision: this.revision,
+      content,
+    });
+    this.accept({ content, revision });
   }
 
   private mutate(transform: (content: string) => string) {
     return this.enqueue(async () => {
-      await this.load();
-      const current = this.snapshot.content;
-      if (current === undefined || this.snapshot.error) throw new Error("PDF_NOTES_INVALID");
-      await this.save(transform(current), current);
+      if (!this.loaded) await this.load();
+      for (let attempt = 0; ; attempt += 1) {
+        const current = this.snapshot.content;
+        if (current === undefined || this.invalid) throw new Error("PDF_NOTES_INVALID");
+        try {
+          return await this.save(transform(current));
+        } catch (error) {
+          if (!isConflict(error)) throw error;
+          // The notes changed underneath: apply the change to the newer version once.
+          await this.load();
+          if (attempt > 0) throw error;
+        }
+      }
     }, true);
-  }
-
-  setMode(mode: PdfReadingMode) {
-    return this.mutate((content) => setPdfReadingMode(content, mode));
   }
 
   upsert(annotation: PdfAnnotation, heading: string, expectedNote?: string) {
@@ -209,23 +205,22 @@ export class PdfNotesSession {
   }
 
   addMany(annotations: PdfAnnotation[], headings: string[]) {
-    return this.mutate((content) => {
-      let next = content;
-      for (const [index, annotation] of annotations.entries()) {
-        if (parsePdfNotes(next).annotations.some((item) => item.id === annotation.id)) {
-          throw new Error("PDF_NOTES_CONFLICT");
-        }
-        next = upsertPdfAnnotation(next, annotation, headings[index] ?? `Page ${annotation.page}`);
-      }
-      return next;
-    });
+    return this.mutate((content) => addPdfAnnotations(content, annotations, headings));
   }
 
+  /** Saves a hand-edited draft; it is never merged, so a newer disk version wins. */
   replaceMarkdown(content: string, expectedContent: string) {
     return this.enqueue(async () => {
       const parsed = parsePdfNotes(content);
       if (parsed.pdf !== this.pdfPath.split("/").pop()) throw new Error("PDF_NOTES_INVALID");
-      await this.save(content, expectedContent);
+      if (this.snapshot.content !== expectedContent) await this.load();
+      if (this.snapshot.content !== expectedContent) throw new Error("PDF_NOTES_CONFLICT");
+      try {
+        await this.save(content);
+      } catch (error) {
+        if (isConflict(error)) await this.load();
+        throw error;
+      }
     }, true);
   }
 
@@ -237,12 +232,8 @@ export class PdfNotesSession {
 }
 
 export function getPdfNotesSession(projectPath: string, pdfPath: string, initialContent: string) {
-  const root = projectPath.replace(/\\/g, "/").replace(/\/$/, "");
-  const normalized = pdfPath.replace(/\\/g, "/");
-  const relative = normalizePath(normalized).startsWith(`${normalizePath(root)}/`)
-    ? normalized.slice(root.length + 1)
-    : normalized;
-  const key = normalizePath(`${projectPath}/${relative}`);
+  const relative = projectRelativePdfPath(projectPath, pdfPath);
+  const key = normalizePdfPath(`${projectPath}/${relative}`);
   let session = sessions.get(key);
   if (!session) {
     session = new PdfNotesSession(projectPath, relative, initialContent);

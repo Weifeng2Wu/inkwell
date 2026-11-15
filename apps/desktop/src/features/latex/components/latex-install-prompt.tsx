@@ -4,6 +4,7 @@ import { ArrowClockwiseIcon, WarningIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 import { useLatexInstaller } from "@/features/latex";
 
@@ -42,28 +43,30 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
   }, [onRefreshCompilers, reset]);
 
   return (
-    <div className="bg-warning/10 border border-warning/40 p-4">
+    <div className="motion-rise rounded-lg border border-warning/40 bg-warning/10 p-4">
       <div className="flex items-start gap-3">
         {/* Warning Icon */}
-        <WarningIcon className="size-6 text-warning flex-shrink-0 mt-0.5" />
+        <WarningIcon className="mt-0.5 size-5 flex-shrink-0 text-warning" aria-hidden />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="font-bold text-warning">{t("latex.notDetectedTitle")}</h3>
-              <p className="text-sm text-warning mt-1">
+              <h3 className="font-medium text-foreground text-sm">{t("latex.notDetectedTitle")}</h3>
+              <p className="mt-1 text-[13px] text-foreground-secondary">
                 {t("latex.notDetectedDesc")}
               </p>
             </div>
             {!isInstalling && !result && (
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className="flex-shrink-0 p-1.5 text-warning hover:bg-warning/15 transition-colors"
-                title={t("latex.compilerDetectionRefresh")}
-              >
-                <ArrowClockwiseIcon className="size-4" />
-              </button>
+              <Tooltip label={t("latex.compilerDetectionRefresh")}>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="flex-shrink-0 rounded p-1.5 text-muted transition-colors hover:bg-warning/15 hover:text-foreground"
+                  aria-label={t("latex.compilerDetectionRefresh")}
+                >
+                  <ArrowClockwiseIcon className="size-4" aria-hidden />
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -74,7 +77,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-3 p-3 bg-background border border-warning/40"
+                className="mt-3 rounded-md p-3 bg-background border border-warning/40"
               >
                 <div className="flex items-center gap-2">
                   <Spinner className="size-4" />
@@ -97,7 +100,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className={`mt-3 p-3 border ${
+                className={`mt-3 rounded-md p-3 border ${
                   result.success
                     ? "bg-success/10 border-success/30"
                     : "bg-background border-warning/40"
@@ -115,20 +118,18 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                     <button
                       type="button"
                       onClick={handleRefresh}
-                      className="btn btn-sm bg-success text-success-foreground border-success hover:bg-success transition-colors"
+                      className="btn btn-sm btn-primary"
                     >
                       {t("latex.refreshCompilers")}
                     </button>
-                    <span className="text-xs text-success">
-                      {t("latex.clickToDetect")}
-                    </span>
+                    <span className="text-muted text-xs">{t("latex.clickToDetect")}</span>
                   </div>
                 )}
                 {!result.success && (
                   <button
                     type="button"
                     onClick={reset}
-                    className="mt-2 text-sm text-warning hover:text-warning underline"
+                    className="mt-2 text-[13px] text-accent hover:underline"
                   >
                     {t("latex.tryAgain")}
                   </button>
@@ -146,7 +147,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                 return (
                   <div
                     key={dist.id}
-                    className={`flex items-center justify-between gap-3 p-3 bg-background border transition-colors ${
+                    className={`flex items-center justify-between gap-3 rounded-md p-3 bg-background border transition-colors ${
                       index === 0
                         ? "border-success/50 hover:border-success"
                         : "border-warning/30 hover:border-warning/60"
@@ -156,7 +157,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                       <div className="font-medium text-sm flex items-center gap-2">
                         {dist.name}
                         {index === 0 && (
-                          <span className="text-xs px-1.5 py-0.5 bg-success/15 text-success font-normal">
+                          <span className="rounded bg-success/15 px-1.5 py-0.5 font-normal text-[11px] text-success">
                             {t("latex.recommended")}
                           </span>
                         )}
@@ -168,11 +169,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                         <button
                           type="button"
                           onClick={() => handleInstall(dist.id)}
-                          className={`btn btn-sm border-2 transition-all ${
-                            index === 0
-                              ? "bg-success text-success-foreground border-success "
-                              : "bg-accent text-accent-foreground border-accent "
-                          }`}
+                          className="btn btn-sm btn-primary"
                         >
                           {t("latex.install")}
                         </button>
@@ -181,11 +178,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
                         <button
                           type="button"
                           onClick={() => handleOpenDownload(downloadUrl)}
-                          className={`btn btn-sm border-2 transition-colors ${
-                            index === 0 && !dist.install_command
-                              ? "bg-success text-success-foreground border-success hover:bg-success/90"
-                              : "border-warning text-warning hover:bg-warning/10"
-                          }`}
+                          className={`btn btn-sm ${index === 0 && !dist.install_command ? "btn-primary" : "btn-secondary"}`}
                         >
                           {t("latex.download")}
                         </button>
@@ -199,7 +192,7 @@ export function LaTeXInstallPrompt({ onRefreshCompilers }: LaTeXInstallPromptPro
 
           {/* Loading state */}
           {!isInstalling && !result && distributions.length === 0 && (
-            <div className="mt-4 flex items-center gap-2 text-sm text-warning">
+            <div className="mt-4 flex items-center gap-2 text-[13px] text-muted">
               <Spinner className="size-4" />
               {t("latex.loadingDistributions")}
             </div>

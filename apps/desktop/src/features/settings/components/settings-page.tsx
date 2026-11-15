@@ -3,17 +3,21 @@
 import {
   ArrowCounterClockwiseIcon,
   ArrowLeftIcon,
+  CloudArrowUpIcon,
   GearIcon,
   KeyboardIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   PlusIcon,
+  PuzzlePieceIcon,
   SparkleIcon,
   TerminalIcon,
+  TranslateIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -22,30 +26,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   type AcademicAgentController,
   AcademicAgentSettings,
   type AgentSelectionController,
   AgentSelectionSettings,
-  academicLabels,
   DEFAULT_ACADEMIC_CONFIG,
   type ExternalAgentController,
   ExternalAgentSettings,
   SkillsSettings,
 } from "@/features/agent";
-import { GitHubAuthSettings } from "@/features/git";
-import { GitSyncSettings, type GitSyncController } from "@/features/git/components/git-sync-settings";
-import { type Locale, useI18n } from "@/features/i18n";
-import { quickStartLabels } from "@/features/onboarding/lib/labels";
-import { QUICK_START_STEPS } from "@/features/onboarding/lib/quick-start-state";
+import { type CloudBackupController, CloudBackupSettings } from "@/features/backup";
+import { GitHubAuthSettings, type GitSyncController, GitSyncSettings } from "@/features/git";
+import { useI18n } from "@/features/i18n";
+import {
+  QUICK_START_STEP_IDS,
+  QUICK_START_STEPS,
+} from "@/features/onboarding/lib/quick-start-state";
 import {
   DEFAULT_EDITOR_SETTINGS,
   type EditorSettings,
+  GIT_AUTO_BACKUP_INTERVALS,
   type MinimapSettings,
 } from "@/features/settings/lib/editor-settings";
-import { THEMES } from "@/features/settings/lib/theme";
+import { THEMES, themeLabel } from "@/features/settings/lib/theme";
 import { useEditorSettings } from "@/features/settings/lib/use-editor-settings";
-import { updateLabels } from "../lib/update-labels";
 import { AgentConnectionSettings } from "./agent-connection-settings";
 import { AppUpdateSettings } from "./app-update-settings";
 import { FontSettings } from "./font-settings";
@@ -55,9 +61,19 @@ import { TerminalFontSettings } from "./terminal-font-settings";
 import { ThemeGrid } from "./theme-grid";
 import { TranslationSettings } from "./translation-settings";
 
-export type SettingsTabId = "general" | "editor" | "terminalGit" | "agent" | "skills" | "shortcuts" | "updates" | "translation";
+export type SettingsTabId =
+  | "general"
+  | "editor"
+  | "terminalGit"
+  | "sync"
+  | "agent"
+  | "skills"
+  | "shortcuts"
+  | "updates"
+  | "translation";
 
 export interface SettingsPageProps {
+  cloudBackup?: CloudBackupController;
   gitSync?: GitSyncController;
   quickStart?: {
     step: number;
@@ -75,6 +91,15 @@ export interface SettingsPageProps {
   academicAgent?: AcademicAgentController;
   agentSelection?: AgentSelectionController;
   externalAgent?: ExternalAgentController;
+}
+
+function CategoryHeading({ title, description }: { title: string; description?: string }) {
+  return (
+    <div>
+      <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+      {description && <p className="mt-1 text-xs text-muted">{description}</p>}
+    </div>
+  );
 }
 
 function SectionCard({
@@ -148,6 +173,56 @@ function SettingSelect({
   );
 }
 
+/** Automatic backup rows, shared by the Terminal & Git category and the search results. */
+function GitBackupSettingRows({
+  settings,
+  onUpdate,
+}: {
+  settings: EditorSettings;
+  onUpdate: (updates: Partial<EditorSettings>) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <>
+      <SettingRow label={t("settings.gitSection.autoBackup")}>
+        <Switch
+          aria-label={t("settings.gitSection.autoBackup")}
+          data-git-auto-backup
+          checked={settings.gitAutoBackupEnabled}
+          onCheckedChange={(v) => onUpdate({ gitAutoBackupEnabled: v })}
+        />
+      </SettingRow>
+      {settings.gitAutoBackupEnabled && (
+        <>
+          <SettingSelect
+            label={t("settings.gitSection.autoBackupInterval")}
+            value={settings.gitAutoBackupIntervalMinutes}
+            onChange={(v) =>
+              onUpdate({
+                gitAutoBackupIntervalMinutes:
+                  GIT_AUTO_BACKUP_INTERVALS.find((minutes) => String(minutes) === v) ??
+                  DEFAULT_EDITOR_SETTINGS.gitAutoBackupIntervalMinutes,
+              })
+            }
+            options={GIT_AUTO_BACKUP_INTERVALS.map((minutes) => ({
+              value: minutes,
+              label: t("settings.units.minutes", { count: minutes }),
+            }))}
+          />
+          <SettingRow label={t("settings.gitSection.autoBackupPush")}>
+            <Switch
+              aria-label={t("settings.gitSection.autoBackupPush")}
+              data-git-auto-backup-push
+              checked={settings.gitAutoBackupPush}
+              onCheckedChange={(v) => onUpdate({ gitAutoBackupPush: v })}
+            />
+          </SettingRow>
+        </>
+      )}
+    </>
+  );
+}
+
 function NumberStepper({
   value,
   onChange,
@@ -165,6 +240,7 @@ function NumberStepper({
   unit?: string;
   ariaLabel: string;
 }) {
+  const { t } = useI18n();
   const roundVal = (v: number) => Math.round(v * 10) / 10;
 
   return (
@@ -173,9 +249,9 @@ function NumberStepper({
         type="button"
         onClick={() => onChange(Math.max(min, roundVal(value - step)))}
         className="size-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-r border-border"
-        aria-label={`Decrease ${ariaLabel}`}
+        aria-label={t("settings.decrease", { setting: ariaLabel })}
       >
-        <MinusIcon className="size-3" />
+        <MinusIcon className="size-3" aria-hidden="true" />
       </button>
       <input
         type="number"
@@ -196,9 +272,9 @@ function NumberStepper({
         type="button"
         onClick={() => onChange(Math.min(max, roundVal(value + step)))}
         className="size-8 flex items-center justify-center text-muted hover:text-foreground hover:bg-accent-hover transition-colors border-l border-border"
-        aria-label={`Increase ${ariaLabel}`}
+        aria-label={t("settings.increase", { setting: ariaLabel })}
       >
-        <PlusIcon className="size-3" />
+        <PlusIcon className="size-3" aria-hidden="true" />
       </button>
       {unit && (
         <span className="text-[11px] text-muted-foreground px-2 border-l border-border bg-surface-secondary h-8 flex items-center">
@@ -211,8 +287,9 @@ function NumberStepper({
 
 export function SettingsPage({
   gitSync,
+  cloudBackup,
   quickStart,
-  onOpenTerminal,
+  onOpenTerminal: _onOpenTerminal,
   onOpenQuickStart,
   onClose,
   editorSettings: externalEditorSettings,
@@ -236,13 +313,14 @@ export function SettingsPage({
     initialTab === "editor" ? "general" : initialTab,
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const guidedTab: SettingsTabId | undefined = quickStart
     ? ({ 4: "agent", 5: "general", 6: "agent", 7: "skills", 8: "terminalGit" } as const)[
         quickStart.step as 4 | 5 | 6 | 7 | 8
       ]
     : undefined;
   const currentTab = guidedTab ?? activeTab;
-  const guideLabels = quickStartLabels[locale];
+  const guideStep = quickStart ? QUICK_START_STEP_IDS[quickStart.step] : undefined;
   useEffect(() => {
     if (!guidedTab) return;
     setActiveTab(guidedTab);
@@ -272,7 +350,7 @@ export function SettingsPage({
         !e.defaultPrevented &&
         !(
           e.target instanceof Element &&
-          e.target.closest('[data-shortcut-recorder], [role="dialog"]')
+          e.target.closest('[data-shortcut-recorder], [role="dialog"], [role="alertdialog"]')
         )
       ) {
         if (quickStart) quickStart.onClose();
@@ -283,13 +361,11 @@ export function SettingsPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, quickStart]);
 
-  const handleResetCurrent = useCallback(() => {
-    if (currentTab === "agent") {
-      academicAgent?.setConfig(DEFAULT_ACADEMIC_CONFIG);
-    } else {
-      onUpdateEditorSettings(DEFAULT_EDITOR_SETTINGS);
-    }
-  }, [currentTab, academicAgent, onUpdateEditorSettings]);
+  const restoresAgent = currentTab === "agent";
+  const handleRestoreDefaults = useCallback(() => {
+    if (restoresAgent) academicAgent?.setConfig(DEFAULT_ACADEMIC_CONFIG);
+    else onUpdateEditorSettings(DEFAULT_EDITOR_SETTINGS);
+  }, [restoresAgent, academicAgent, onUpdateEditorSettings]);
 
   const navItems = useMemo(
     () => [
@@ -301,9 +377,9 @@ export function SettingsPage({
       },
       {
         id: "translation" as const,
-        icon: GearIcon,
-        label: t("translation.title"),
-        desc: "",
+        icon: TranslateIcon,
+        label: t("settings.categories.translation"),
+        desc: t("settings.categories.translationDesc"),
       },
       {
         id: "terminalGit" as const,
@@ -317,17 +393,23 @@ export function SettingsPage({
         label: t("shortcuts.title"),
         desc: t("shortcuts.description"),
       },
+      {
+        id: "sync" as const,
+        icon: CloudArrowUpIcon,
+        label: t("cloudBackup.category"),
+        desc: t("cloudBackup.description"),
+      },
       ...(academicAgent
         ? [
             {
               id: "agent" as const,
               icon: SparkleIcon,
-              label: academicLabels[locale].settings,
-              desc: academicLabels[locale].settingsDescription,
+              label: t("settings.categories.agent"),
+              desc: t("settings.categories.agentDesc"),
             },
             {
               id: "skills" as const,
-              icon: SparkleIcon,
+              icon: PuzzlePieceIcon,
               label: t("settings.categories.skills"),
               desc: t("settings.categories.skillsDesc"),
             },
@@ -336,123 +418,264 @@ export function SettingsPage({
       {
         id: "updates" as const,
         icon: ArrowCounterClockwiseIcon,
-        label: updateLabels[locale].title,
-        desc: updateLabels[locale].description,
+        label: t("settings.categories.updates"),
+        desc: t("settings.categories.updatesDesc"),
       },
     ],
-    [t, locale, academicAgent],
+    [t, academicAgent],
   );
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
-
   const matchesSearch = useCallback(
-    (text: string) => {
-      if (!normalizedSearch) return true;
-      return text.toLowerCase().includes(normalizedSearch);
-    },
+    (...texts: string[]) =>
+      !normalizedSearch || texts.some((text) => text.toLowerCase().includes(normalizedSearch)),
     [normalizedSearch],
   );
+  const saveState = academicAgent?.settingsSaveError
+    ? "failed"
+    : academicAgent && !academicAgent.settingsSaved
+      ? "saving"
+      : "saved";
+
+  // Rows shown both in their category and in search results.
+  const languageRow = (
+    <SettingSelect
+      label={t("settings.general.interfaceLanguage")}
+      description={t("settings.general.interfaceLanguageDesc")}
+      value={locale}
+      onChange={(value) => {
+        const next = locales.find((entry) => entry.id === value);
+        if (next) setLocale(next.id);
+      }}
+      options={locales.map((entry) => ({ value: entry.id, label: entry.nativeName }))}
+    />
+  );
+  const fontRows = <FontSettings settings={editorSettings} onChange={onUpdateEditorSettings} />;
+  const fontSizeRow = (
+    <SettingRow
+      label={t("settings.display.fontSize")}
+      description={t("settings.display.fontSizeDesc")}
+    >
+      <NumberStepper
+        value={editorSettings.fontSize}
+        onChange={(v) => onUpdateEditorSettings({ fontSize: v })}
+        min={8}
+        max={32}
+        unit="px"
+        ariaLabel={t("settings.display.fontSize")}
+      />
+    </SettingRow>
+  );
+  const wordWrapRow = (
+    <SettingSelect
+      label={t("settings.display.wordWrap")}
+      value={editorSettings.wordWrap}
+      onChange={(v) => onUpdateEditorSettings({ wordWrap: v as EditorSettings["wordWrap"] })}
+      options={[
+        { value: "off", label: t("settings.options.off") },
+        { value: "on", label: t("settings.options.wrapWindow") },
+        {
+          value: "wordWrapColumn",
+          label: t("settings.options.wrapColumn", { column: editorSettings.wordWrapColumn }),
+        },
+        {
+          value: "bounded",
+          label: t("settings.options.wrapBounded", { column: editorSettings.wordWrapColumn }),
+        },
+      ]}
+    />
+  );
+  const vimModeRow = (
+    <SettingRow
+      label={t("settings.editing.vimMode")}
+      description={t("settings.editing.vimModeDesc")}
+    >
+      <Switch
+        aria-label={t("settings.editing.vimMode")}
+        checked={editorSettings.vimMode}
+        onCheckedChange={(v) => onUpdateEditorSettings({ vimMode: v })}
+      />
+    </SettingRow>
+  );
+  const minimapRow = (
+    <SettingRow label={t("settings.minimap.enable")} description={t("settings.minimap.enableDesc")}>
+      <Switch
+        aria-label={t("settings.minimap.enable")}
+        checked={editorSettings.minimap.enabled}
+        onCheckedChange={(v) =>
+          onUpdateEditorSettings({ minimap: { ...editorSettings.minimap, enabled: v } })
+        }
+      />
+    </SettingRow>
+  );
+  const autoFetchRow = (
+    <SettingRow
+      label={t("settings.gitSection.autoFetch")}
+      description={t("settings.gitSection.autoFetchDesc")}
+    >
+      <Switch
+        aria-label={t("settings.gitSection.autoFetch")}
+        checked={editorSettings.gitAutoFetchEnabled}
+        onCheckedChange={(v) => onUpdateEditorSettings({ gitAutoFetchEnabled: v })}
+      />
+    </SettingRow>
+  );
+  const backupRows = (
+    <GitBackupSettingRows settings={editorSettings} onUpdate={onUpdateEditorSettings} />
+  );
+  const terminalFontRow = (
+    <TerminalFontSettings
+      value={editorSettings.terminalFontFamily}
+      onChange={(font) => onUpdateEditorSettings({ terminalFontFamily: font })}
+    />
+  );
+  const shellModeRow = (
+    <SettingSelect
+      label={t("settings.terminalSection.shellMode")}
+      value={editorSettings.terminalShellMode}
+      onChange={(v) =>
+        onUpdateEditorSettings({ terminalShellMode: v as EditorSettings["terminalShellMode"] })
+      }
+      options={[
+        { value: "auto", label: t("settings.options.shellAuto") },
+        { value: "custom", label: t("settings.options.shellCustom") },
+      ]}
+    />
+  );
+  const agentSettings = academicAgent && (
+    <AcademicAgentSettings
+      agent={academicAgent}
+      external={agentSelection?.selected !== undefined && agentSelection.selected !== "builtin"}
+    />
+  );
+  const skillsSettings = academicAgent && (
+    <SkillsSettings
+      agent={academicAgent}
+      selection={agentSelection}
+      externalAgent={externalAgent}
+    />
+  );
+
+  const fontLabels = [
+    t("settings.fonts.uiFontFamily"),
+    t("settings.fonts.textFontFamily"),
+    t("settings.fonts.codeFontFamily"),
+  ];
+  const backupLabels = [
+    t("settings.gitSection.autoBackup"),
+    t("settings.gitSection.autoBackupDesc"),
+    t("settings.gitSection.autoBackupPush"),
+  ];
 
   return (
     <div
       data-settings-page
-      className="fixed inset-0 z-50 bg-background text-foreground flex flex-col h-screen w-screen overflow-hidden select-none"
+      className="fixed inset-0 z-50 flex h-screen w-screen select-none flex-col overflow-hidden bg-background text-foreground"
     >
       {/* Top Navigation Bar */}
-      <header className="h-14 border-b border-border bg-background px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-6">
+        <div className="flex min-w-0 items-center gap-4">
           <button
             type="button"
             onClick={quickStart ? quickStart.onClose : onClose}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground-secondary hover:text-foreground hover:bg-accent-hover border border-border hover:border-border-dark rounded-md transition-colors"
-            title={`${t("settings.backToEditor")} (Esc)`}
+            className="flex shrink-0 items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground-secondary transition-colors hover:border-border-dark hover:bg-accent-hover hover:text-foreground"
           >
-            <ArrowLeftIcon className="size-3.5" />
-            <span>{t("settings.backToEditor")}</span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-muted bg-surface-secondary border border-border rounded">
-              Esc
-            </kbd>
+            <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
+            <span>{t("settings.back")}</span>
+            <kbd className="kbd-quiet hidden sm:inline-flex">Esc</kbd>
           </button>
 
           <span
             role="status"
-            title={academicAgent?.settingsSaveError ?? undefined}
-            className="inline-flex items-center gap-1.5 text-[11px] text-muted font-medium bg-surface-secondary px-2.5 py-1 rounded-full border border-border"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface-secondary px-2.5 py-1 text-[11px] font-medium text-muted"
           >
             <span
               aria-hidden="true"
               className={`size-1.5 rounded-full ${
-                academicAgent?.settingsSaveError
+                saveState === "failed"
                   ? "bg-error"
-                  : academicAgent && !academicAgent.settingsSaved
+                  : saveState === "saving"
                     ? "bg-border"
                     : "bg-success"
               }`}
             />
-            {academicAgent?.settingsSaveError
-              ? academicAgent.labels.settingsSaveFailed
-              : academicAgent && !academicAgent.settingsSaved
-                ? academicAgent.labels.settingsSaving
-                : t("settings.autoSaved")}
+            {t(`settings.${saveState === "failed" ? "saveFailed" : saveState}`)}
           </span>
+          {academicAgent?.settingsSaveError && (
+            <span
+              role="alert"
+              className="hidden min-w-0 max-w-64 truncate text-xs text-error md:inline"
+              title={academicAgent.settingsSaveError}
+            >
+              {academicAgent.settingsSaveError}
+            </span>
+          )}
         </div>
 
         {/* Search Input */}
-        <div className="relative w-64 md:w-80">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+        <div className="relative w-64 shrink md:w-80">
+          <MagnifyingGlassIcon
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
           <input
             type="text"
             disabled={Boolean(quickStart)}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("settings.searchPlaceholder")}
+            placeholder={t("settings.search")}
             className="settings-control settings-search-control w-full"
-            aria-label={t("settings.searchPlaceholder")}
+            aria-label={t("settings.search")}
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-0.5"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted transition-colors hover:text-foreground"
               aria-label={t("common.clear")}
             >
-              <XIcon className="size-3" />
+              <XIcon className="size-3" aria-hidden="true" />
             </button>
           )}
         </div>
 
         {/* Quick Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {!quickStart && onOpenQuickStart && (
             <button type="button" onClick={onOpenQuickStart} className="btn btn-sm">
-              {{ zh: "快速引导", en: "Quick start", ko: "빠른 시작" }[locale]}
+              {t("onboarding.name")}
             </button>
           )}
-          {currentTab !== "shortcuts" && currentTab !== "updates" && currentTab !== "translation" && (
-            <button
-              type="button"
-              onClick={handleResetCurrent}
-              disabled={Boolean(quickStart) || (currentTab === "agent" && academicAgent?.working)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted hover:text-foreground hover:bg-accent-hover border border-border rounded-md transition-colors"
-              title={t("settings.resetCurrentTab")}
-            >
-              <ArrowCounterClockwiseIcon className="size-3.5" />
-              <span className="hidden sm:inline">{t("settings.resetDefaults")}</span>
-            </button>
-          )}
+          {currentTab !== "shortcuts" &&
+            currentTab !== "sync" &&
+            currentTab !== "updates" &&
+            currentTab !== "translation" && (
+              <Tooltip label={t("settings.restoreDefaults")}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRestore(true)}
+                  disabled={Boolean(quickStart) || (restoresAgent && academicAgent?.working)}
+                  aria-label={t("settings.restoreDefaults")}
+                  className="btn btn-sm"
+                >
+                  <ArrowCounterClockwiseIcon className="size-3.5" aria-hidden="true" />
+                  <span className="hidden lg:inline">{t("settings.restoreDefaults")}</span>
+                </button>
+              </Tooltip>
+            )}
           {onClose && (
             <button
               type="button"
               onClick={quickStart ? quickStart.onClose : onClose}
-              className="px-4 py-1.5 text-xs font-medium bg-accent text-accent-foreground hover:bg-accent/90 rounded-md transition-colors"
+              className="btn btn-primary btn-sm"
             >
-              {t("settings.done")}
+              {t("common.done")}
             </button>
           )}
         </div>
       </header>
 
-      {quickStart && (
+      {quickStart && guideStep && (
         <section
           data-quick-start
           data-tour-step={
@@ -467,36 +690,47 @@ export function SettingsPage({
                     : "github"
           }
           aria-labelledby="settings-guide-heading"
-          className="shrink-0 border-b border-accent/25 bg-accent/5 px-6 py-4"
+          className="motion-fade shrink-0 border-b border-accent/25 bg-accent/5 px-6 py-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-accent">
-                {guideLabels.quickStart} · {quickStart.step + 1} / {QUICK_START_STEPS}
+                {t("onboarding.progress", {
+                  current: quickStart.step + 1,
+                  total: QUICK_START_STEPS,
+                })}
               </p>
               <h2 id="settings-guide-heading" className="mt-1 text-sm font-semibold">
-                {guideLabels.steps[quickStart.step]}
+                {t(`onboarding.steps.${guideStep}.title`)}
               </h2>
-              <p className="mt-1 text-xs leading-6 text-muted">
-                {guideLabels.descriptions[quickStart.step]}
+              <p className="mt-1 max-w-3xl text-xs leading-6 text-muted">
+                {t(`onboarding.steps.${guideStep}.body`)}
               </p>
               {quickStart.saveError && (
-                <p role="alert" className="text-xs text-error">
-                  {guideLabels.storageError}
+                <p role="alert" className="mt-1 text-xs text-error">
+                  {t("onboarding.storageError")}
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <button type="button" className="btn btn-sm" onClick={quickStart.onBack}>
-                {guideLabels.back}
-              </button>
+            <div className="flex items-center gap-2">
               {quickStart.step < QUICK_START_STEPS - 1 && (
-                <button type="button" className="text-xs text-muted" onClick={quickStart.onNext}>
-                  {guideLabels.later}
+                <button
+                  type="button"
+                  className="px-2 text-xs text-muted transition-colors hover:text-foreground"
+                  onClick={quickStart.onNext}
+                >
+                  {t("onboarding.skip")}
                 </button>
               )}
-              <button type="button" className="btn btn-primary" onClick={quickStart.onNext}>
-                {quickStart.step === QUICK_START_STEPS - 1 ? guideLabels.finish : guideLabels.next}
+              <button type="button" className="btn btn-sm" onClick={quickStart.onBack}>
+                {t("onboarding.back")}
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={quickStart.onNext}>
+                {t(
+                  quickStart.step === QUICK_START_STEPS - 1
+                    ? "onboarding.finish"
+                    : "onboarding.next",
+                )}
               </button>
             </div>
           </div>
@@ -504,328 +738,231 @@ export function SettingsPage({
       )}
 
       {/* Main Two-Column Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar Category Navigation */}
-        <aside className="w-64 border-r border-border bg-surface-secondary/20 p-4 flex flex-col justify-between shrink-0 overflow-y-auto">
-          <div className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = !searchQuery && currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  disabled={Boolean(quickStart)}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setSearchQuery("");
-                  }}
-                  className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors border ${
-                    isActive
-                      ? "bg-accent/10 border-accent/30 text-foreground shadow-sm"
-                      : "border-transparent text-foreground-secondary hover:bg-accent-hover hover:border-border"
-                  }`}
-                >
-                  <Icon
-                    className={`size-4 mt-0.5 shrink-0 ${
-                      isActive ? "text-accent" : "text-muted-foreground"
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className={`text-xs font-semibold ${
-                        isActive ? "text-foreground" : "text-foreground-secondary"
-                      }`}
-                    >
-                      {item.label}
-                    </div>
-                    {item.desc && <div className="text-[11px] text-muted line-clamp-1 mt-0.5">{item.desc}</div>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+        <nav
+          aria-label={t("workbench.settings")}
+          className="flex w-64 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-secondary/20 p-3"
+        >
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = !searchQuery && currentTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled={Boolean(quickStart)}
+                aria-current={isActive ? "page" : undefined}
+                data-active={isActive}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setSearchQuery("");
+                }}
+                className={`list-row flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left ${
+                  isActive ? "text-foreground" : "text-foreground-secondary"
+                }`}
+              >
+                <Icon
+                  aria-hidden="true"
+                  className={`mt-0.5 size-4 shrink-0 ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-medium">{item.label}</span>
+                  <span
+                    className={`mt-0.5 block text-xs leading-4 text-muted ${item.id === "sync" ? "truncate" : ""}`}
+                    title={item.id === "sync" ? item.desc : undefined}
+                  >
+                    {item.desc}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
         {/* Right Main Settings Panel */}
         <main
           data-settings-section="content"
-          className="flex-1 h-full overflow-y-auto p-6 md:p-8 lg:p-10"
+          className="h-full flex-1 overflow-y-auto p-6 md:p-8 lg:p-10"
         >
-          <div className="max-w-3xl mx-auto pb-12">
-            {/* SEARCH RESULTS VIEW */}
+          <div className="mx-auto max-w-3xl pb-12">
             {searchQuery ? (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-foreground">
-                    {t("settings.searchResultsTitle")}
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                    {t("settings.searchResults")}
                   </h2>
-                  <p className="text-xs text-muted mt-1">
-                    {t("settings.searchPlaceholder")}: &ldquo;{searchQuery}&rdquo;
+                  <p className="mt-1 text-xs text-muted">
+                    {t("settings.searchResultsFor", { query: searchQuery.trim() })}
                   </p>
                 </div>
 
-                {/* Show all sections that match query */}
-                <KeyboardShortcutSettings query={searchQuery} />
-                {/* General items */}
-                {matchesSearch(`${updateLabels[locale].title} ${updateLabels[locale].automatic} Inkwell update version 更新 版本`) && <AppUpdateSettings />}
-                {matchesSearch(t("layoutParser.title")) && <LayoutParserSettings />}
-                {matchesSearch(`${t("translation.title")} Google 腾讯 Tencent LLM DeepL DeepLX Azure Volcano 火山 翻译`) && <TranslationSettings />}
-                {(matchesSearch(t("settings.general.language")) ||
-                  matchesSearch(t("settings.general.theme"))) && (
-                  <SectionCard title={t("settings.categories.general")}>
-                    {matchesSearch(t("settings.general.language")) && (
-                      <SettingSelect
-                        label={t("settings.general.language")}
-                        description={t("settings.general.languageDesc")}
-                        value={locale}
-                        onChange={(val) => setLocale(val as Locale)}
-                        options={locales.map((loc) => ({
-                          value: loc.id,
-                          label: `${loc.label} (${loc.nativeName})`,
-                        }))}
-                      />
-                    )}
-                    {matchesSearch(t("settings.general.theme")) && (
-                      <SettingRow
-                        label={t("settings.general.theme")}
-                        description={t("settings.general.themeDesc")}
-                      >
-                        <Select value={theme || "light"} onValueChange={setTheme}>
-                          <SelectTrigger
-                            className="settings-control settings-select"
-                            aria-label={t("settings.general.theme")}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="settings-select-content">
-                            {THEMES.map((th) => (
-                              <SelectItem key={th.id} value={th.id} className="text-xs">
-                                {th.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </SettingRow>
-                    )}
-                  </SectionCard>
-                )}
-
-                {/* Editor items */}
-                {(matchesSearch(t("settings.keybindings.vimMode")) ||
-                  matchesSearch(t("settings.display.fontFamily")) ||
-                  matchesSearch(t("settings.fonts.uiFontFamily")) ||
-                  matchesSearch(t("settings.fonts.textFontFamily")) ||
-                  matchesSearch(t("settings.fonts.codeFontFamily")) ||
-                  matchesSearch(t("settings.display.fontSize")) ||
-                  matchesSearch(t("settings.display.wordWrap")) ||
-                  matchesSearch(t("settings.minimap.enableMinimap"))) && (
-                  <SectionCard title={t("settings.categories.editor")}>
-                    {(matchesSearch(t("settings.display.fontFamily")) ||
-                      matchesSearch(t("settings.fonts.uiFontFamily")) ||
-                      matchesSearch(t("settings.fonts.textFontFamily")) ||
-                      matchesSearch(t("settings.fonts.codeFontFamily"))) && (
-                      <FontSettings settings={editorSettings} onChange={onUpdateEditorSettings} />
-                    )}
-                    {matchesSearch(t("settings.keybindings.vimMode")) && (
-                      <SettingRow
-                        label={t("settings.keybindings.vimMode")}
-                        description={t("settings.keybindings.vimModeDesc")}
-                      >
-                        <Switch
-                          checked={editorSettings.vimMode}
-                          onCheckedChange={(v) => onUpdateEditorSettings({ vimMode: v })}
-                        />
-                      </SettingRow>
-                    )}
-                    {matchesSearch(t("settings.display.fontSize")) && (
-                      <SettingRow
-                        label={t("settings.display.fontSize")}
-                        description={t("settings.display.fontSizeDesc")}
-                      >
-                        <NumberStepper
-                          value={editorSettings.fontSize}
-                          onChange={(v) => onUpdateEditorSettings({ fontSize: v })}
-                          min={8}
-                          max={32}
-                          unit="px"
-                          ariaLabel={t("settings.display.fontSize")}
-                        />
-                      </SettingRow>
-                    )}
-                    {matchesSearch(t("settings.display.wordWrap")) && (
-                      <SettingSelect
-                        label={t("settings.display.wordWrap")}
-                        value={editorSettings.wordWrap}
-                        onChange={(v) =>
-                          onUpdateEditorSettings({
-                            wordWrap: v as EditorSettings["wordWrap"],
-                          })
-                        }
-                        options={[
-                          { value: "off", label: t("settings.options.off") },
-                          { value: "on", label: t("settings.options.on") },
-                          { value: "wordWrapColumn", label: t("settings.options.wordWrapColumn") },
-                          { value: "bounded", label: t("settings.options.bounded") },
-                        ]}
-                      />
-                    )}
-                    {matchesSearch(t("settings.minimap.enableMinimap")) && (
-                      <SettingRow
-                        label={t("settings.minimap.enableMinimap")}
-                        description={t("settings.minimap.enableMinimapDesc")}
-                      >
-                        <Switch
-                          checked={editorSettings.minimap.enabled}
-                          onCheckedChange={(v) =>
-                            onUpdateEditorSettings({
-                              minimap: { ...editorSettings.minimap, enabled: v },
-                            })
-                          }
-                        />
-                      </SettingRow>
-                    )}
-                  </SectionCard>
-                )}
-
-                {/* Git & Terminal items */}
-                {matchesSearch(`${t("settings.gitSection.syncProject")} ${t("settings.gitSection.fetchNow")} ${t("settings.gitSection.pullNow")}`) && (
-                  <SectionCard title={t("settings.gitSection.syncProject")}>
-                    <GitSyncSettings controller={gitSync} />
-                  </SectionCard>
-                )}
-                {matchesSearch(
-                  `GitHub ${t("settings.gitSection.login")} ${t("settings.gitSection.installCli")}`,
-                ) && (
-                  <SectionCard title="GitHub">
-                    <GitHubAuthSettings />
-                  </SectionCard>
-                )}
-                {(matchesSearch(t("settings.gitSection.autoFetch")) ||
-                  matchesSearch(t("settings.terminalSection.fontFamily")) ||
-                  matchesSearch(t("settings.terminalSection.shellMode"))) && (
-                  <SectionCard title={t("settings.categories.terminalGit")}>
-                    {matchesSearch(t("settings.gitSection.autoFetch")) && (
-                      <SettingRow
-                        label={t("settings.gitSection.autoFetch")}
-                        description={t("settings.gitSection.autoFetchDesc")}
-                      >
-                        <Switch
-                          checked={editorSettings.gitAutoFetchEnabled}
-                          onCheckedChange={(v) =>
-                            onUpdateEditorSettings({ gitAutoFetchEnabled: v })
-                          }
-                        />
-                      </SettingRow>
-                    )}
-                    {matchesSearch(t("settings.terminalSection.fontFamily")) && (
-                      <TerminalFontSettings
-                        value={editorSettings.terminalFontFamily}
-                        onChange={(font) => onUpdateEditorSettings({ terminalFontFamily: font })}
-                      />
-                    )}
-                    {matchesSearch(t("settings.terminalSection.shellMode")) && (
-                      <SettingSelect
-                        label={t("settings.terminalSection.shellMode")}
-                        value={editorSettings.terminalShellMode}
-                        onChange={(v) =>
-                          onUpdateEditorSettings({
-                            terminalShellMode: v as EditorSettings["terminalShellMode"],
-                          })
-                        }
-                        options={[
-                          { value: "auto", label: t("settings.options.auto") },
-                          { value: "custom", label: t("settings.options.custom") },
-                        ]}
-                      />
-                    )}
-                  </SectionCard>
-                )}
-
-                {academicAgent &&
-                  matchesSearch(
-                    [
-                      academicLabels[locale].settings,
-                      academicLabels[locale].settingsDescription,
-                      academicLabels[locale].personalPrompt,
-                      "agent provider model API key permissions",
-                    ].join(" "),
-                  ) && (
-                    <AcademicAgentSettings
-                      agent={academicAgent}
-                      external={
-                        agentSelection?.selected !== undefined &&
-                        agentSelection.selected !== "builtin"
-                      }
-                    />
+                {/* Every child is conditional, so no match leaves this empty and reveals the hint below. */}
+                <div data-settings-results className="peer space-y-6 empty:hidden">
+                  <KeyboardShortcutSettings query={searchQuery} />
+                  {matchesSearch(
+                    t("settings.updates.title"),
+                    t("settings.updates.automatic"),
+                    t("settings.keywords.updates"),
+                  ) && <AppUpdateSettings />}
+                  {matchesSearch(t("layoutParser.title"), t("settings.keywords.layoutParser")) && (
+                    <LayoutParserSettings />
                   )}
-                {academicAgent &&
-                  matchesSearch(
-                    [
-                      t("settings.categories.skills"),
-                      t("settings.categories.skillsDesc"),
-                      academicLabels[locale].skills,
-                      academicLabels[locale].market,
-                      "skills",
-                    ].join(" "),
+                  {matchesSearch(
+                    t("settings.categories.translation"),
+                    t("settings.keywords.translation"),
+                  ) && <TranslationSettings />}
+                  {matchesSearch(
+                    t("settings.general.language"),
+                    t("settings.general.interfaceLanguage"),
+                    t("settings.general.theme"),
                   ) && (
-                    <SkillsSettings
-                      agent={academicAgent}
-                      selection={agentSelection}
-                      externalAgent={externalAgent}
-                    />
+                    <SectionCard title={t("settings.categories.general")}>
+                      {matchesSearch(
+                        t("settings.general.language"),
+                        t("settings.general.interfaceLanguage"),
+                      ) && languageRow}
+                      {matchesSearch(t("settings.general.theme")) && (
+                        <SettingRow
+                          label={t("settings.general.theme")}
+                          description={t("settings.general.themeDesc")}
+                        >
+                          <Select value={theme || "light"} onValueChange={setTheme}>
+                            <SelectTrigger
+                              className="settings-control settings-select"
+                              aria-label={t("settings.general.theme")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="settings-select-content">
+                              {THEMES.map((option) => (
+                                <SelectItem key={option.id} value={option.id} className="text-xs">
+                                  {themeLabel(option, t)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </SettingRow>
+                      )}
+                    </SectionCard>
                   )}
-                {agentSelection && matchesSearch("agent ACP") && (
-                  <>
-                    <AgentSelectionSettings selection={agentSelection} />
-                    <ExternalAgentSettings selection={agentSelection} />
-                  </>
-                )}
+
+                  {matchesSearch(
+                    ...fontLabels,
+                    t("settings.editing.vimMode"),
+                    t("settings.display.fontSize"),
+                    t("settings.display.wordWrap"),
+                    t("settings.minimap.enable"),
+                  ) && (
+                    <SectionCard title={t("settings.categories.editor")}>
+                      {matchesSearch(...fontLabels) && fontRows}
+                      {matchesSearch(t("settings.editing.vimMode")) && vimModeRow}
+                      {matchesSearch(t("settings.display.fontSize")) && fontSizeRow}
+                      {matchesSearch(t("settings.display.wordWrap")) && wordWrapRow}
+                      {matchesSearch(t("settings.minimap.enable")) && minimapRow}
+                    </SectionCard>
+                  )}
+
+                  {cloudBackup &&
+                    matchesSearch(
+                      t("cloudBackup.category"),
+                      t("cloudBackup.description"),
+                      "R2",
+                      "S3",
+                    ) && (
+                      <SectionCard title={t("cloudBackup.title")}>
+                        <CloudBackupSettings controller={cloudBackup} />
+                      </SectionCard>
+                    )}
+                  {matchesSearch(
+                    t("settings.gitSection.syncProject"),
+                    t("settings.gitSection.fetchNow"),
+                    t("settings.gitSection.pullNow"),
+                    t("settings.gitSection.backupNow"),
+                  ) && (
+                    <SectionCard title={t("settings.gitSection.syncProject")}>
+                      <GitSyncSettings controller={gitSync} />
+                    </SectionCard>
+                  )}
+                  {matchesSearch(
+                    "GitHub",
+                    t("settings.gitSection.login"),
+                    t("settings.gitSection.installCli"),
+                  ) && (
+                    <SectionCard title="GitHub">
+                      <GitHubAuthSettings />
+                    </SectionCard>
+                  )}
+                  {matchesSearch(
+                    ...backupLabels,
+                    t("settings.gitSection.autoFetch"),
+                    t("settings.terminalSection.title"),
+                    t("settings.terminalSection.fontFamily"),
+                    t("settings.terminalSection.shellMode"),
+                  ) && (
+                    <SectionCard title={t("settings.categories.terminalGit")}>
+                      {matchesSearch(t("settings.gitSection.autoFetch")) && autoFetchRow}
+                      {matchesSearch(...backupLabels) && backupRows}
+                      {matchesSearch(
+                        t("settings.terminalSection.title"),
+                        t("settings.terminalSection.fontFamily"),
+                      ) && terminalFontRow}
+                      {matchesSearch(
+                        t("settings.terminalSection.title"),
+                        t("settings.terminalSection.shellMode"),
+                      ) && shellModeRow}
+                    </SectionCard>
+                  )}
+
+                  {matchesSearch(
+                    t("settings.categories.agent"),
+                    t("settings.categories.agentDesc"),
+                    t("agent.settings.personalPrompt"),
+                    t("settings.keywords.agent"),
+                  ) && agentSettings}
+                  {matchesSearch(
+                    t("settings.categories.skills"),
+                    t("settings.categories.skillsDesc"),
+                    t("agent.skills.title"),
+                    t("settings.keywords.skills"),
+                  ) && skillsSettings}
+                  {agentSelection &&
+                    matchesSearch(
+                      t("agent.external.heading"),
+                      t("agent.external.defaultAgent"),
+                      t("settings.keywords.externalAgents"),
+                    ) && (
+                      <>
+                        <AgentSelectionSettings selection={agentSelection} />
+                        <ExternalAgentSettings selection={agentSelection} />
+                      </>
+                    )}
+                </div>
+                <p
+                  data-settings-no-results
+                  className="hidden rounded-lg border border-border bg-surface px-4 py-6 text-center text-[13px] leading-6 text-muted peer-empty:block"
+                >
+                  {t("settings.searchEmpty", { query: searchQuery.trim() })}
+                </p>
               </div>
             ) : (
-              /* TAB VIEW */
-              <div className="space-y-6">
+              <div className="motion-fade space-y-6" key={currentTab}>
                 {currentTab === "shortcuts" && <KeyboardShortcutSettings />}
-                {currentTab === "skills" && academicAgent && (
-                  <SkillsSettings
-                    agent={academicAgent}
-                    selection={agentSelection}
-                    externalAgent={externalAgent}
-                  />
-                )}
+                {currentTab === "skills" && skillsSettings}
                 {currentTab === "agent" && (
                   <AgentConnectionSettings agent={academicAgent} selection={agentSelection} />
                 )}
-                {/* ===== 1. GENERAL TAB ===== */}
                 {currentTab === "updates" && <AppUpdateSettings />}
                 {currentTab === "translation" && <TranslationSettings />}
                 {currentTab === "general" && (
                   <>
+                    <CategoryHeading
+                      title={t("settings.categories.general")}
+                      description={t("settings.categories.generalDesc")}
+                    />
                     {agentSelection && <AgentSelectionSettings selection={agentSelection} />}
-                    <div className="mb-6">
-                      <h2 className="text-xl font-bold tracking-tight text-foreground">
-                        {t("settings.categories.general")}
-                      </h2>
-                      <p className="text-xs text-muted mt-1">
-                        {t("settings.categories.generalDesc")}
-                      </p>
-                    </div>
 
-                    <SectionCard
-                      title={t("settings.general.language")}
-                      description={t("settings.general.languageDesc")}
-                    >
-                      <SettingSelect
-                        label={t("settings.general.language")}
-                        description={t("settings.general.languageDesc")}
-                        value={locale}
-                        onChange={(val) => setLocale(val as Locale)}
-                        options={locales.map((loc) => ({
-                          value: loc.id,
-                          label: `${loc.label} (${loc.nativeName})`,
-                        }))}
-                      />
-                    </SectionCard>
+                    <SectionCard title={t("settings.general.language")}>{languageRow}</SectionCard>
 
                     <SectionCard
                       title={t("settings.general.appearance")}
@@ -838,46 +975,13 @@ export function SettingsPage({
                       />
                     </SectionCard>
 
-                    {/* Keybindings */}
                     <div data-settings-section="layout">
                       <LayoutParserSettings />
                     </div>
-                    <SectionCard title={t("settings.keybindings.title")}>
-                      <SettingRow
-                        label={t("settings.keybindings.vimMode")}
-                        description={t("settings.keybindings.vimModeDesc")}
-                      >
-                        <div className="flex items-center gap-3">
-                          {editorSettings.vimMode && (
-                            <span className="text-[10px] px-2 py-0.5 bg-accent text-accent-foreground font-bold tracking-wider rounded">
-                              {t("settings.keybindings.normal")}
-                            </span>
-                          )}
-                          <Switch
-                            checked={editorSettings.vimMode}
-                            onCheckedChange={(v) => onUpdateEditorSettings({ vimMode: v })}
-                          />
-                        </div>
-                      </SettingRow>
-                    </SectionCard>
 
-                    {/* Typography & Display */}
                     <SectionCard title={t("settings.display.title")}>
-                      <FontSettings settings={editorSettings} onChange={onUpdateEditorSettings} />
-
-                      <SettingRow
-                        label={t("settings.display.fontSize")}
-                        description={t("settings.display.fontSizeDesc")}
-                      >
-                        <NumberStepper
-                          value={editorSettings.fontSize}
-                          onChange={(v) => onUpdateEditorSettings({ fontSize: v })}
-                          min={8}
-                          max={32}
-                          unit="px"
-                          ariaLabel={t("settings.display.fontSize")}
-                        />
-                      </SettingRow>
+                      {fontRows}
+                      {fontSizeRow}
 
                       <SettingRow
                         label={t("settings.display.lineHeight")}
@@ -904,8 +1008,8 @@ export function SettingsPage({
                         options={[
                           { value: "on", label: t("settings.options.on") },
                           { value: "off", label: t("settings.options.off") },
-                          { value: "relative", label: t("settings.options.relative") },
-                          { value: "interval", label: t("settings.options.interval") },
+                          { value: "relative", label: t("settings.options.lineNumbersRelative") },
+                          { value: "interval", label: t("settings.options.lineNumbersInterval") },
                         ]}
                       />
 
@@ -918,11 +1022,11 @@ export function SettingsPage({
                           })
                         }
                         options={[
-                          { value: "none", label: t("common.none") },
-                          { value: "boundary", label: t("settings.options.boundary") },
-                          { value: "selection", label: t("settings.options.selection") },
-                          { value: "trailing", label: t("settings.options.trailing") },
-                          { value: "all", label: t("settings.options.all") },
+                          { value: "none", label: t("settings.options.never") },
+                          { value: "boundary", label: t("settings.options.whitespaceBoundary") },
+                          { value: "selection", label: t("settings.options.whitespaceSelection") },
+                          { value: "trailing", label: t("settings.options.whitespaceTrailing") },
+                          { value: "all", label: t("settings.options.whitespaceAll") },
                         ]}
                       />
 
@@ -931,30 +1035,34 @@ export function SettingsPage({
                         description={t("settings.display.smoothScrollingDesc")}
                       >
                         <Switch
+                          aria-label={t("settings.display.smoothScrolling")}
                           checked={editorSettings.smoothScrolling}
                           onCheckedChange={(v) => onUpdateEditorSettings({ smoothScrolling: v })}
                         />
                       </SettingRow>
+
+                      <SettingSelect
+                        label={t("settings.display.cursorStyle")}
+                        value={editorSettings.cursorStyle}
+                        onChange={(v) =>
+                          onUpdateEditorSettings({
+                            cursorStyle: v as EditorSettings["cursorStyle"],
+                          })
+                        }
+                        options={[
+                          { value: "line", label: t("settings.options.cursorLine") },
+                          { value: "block", label: t("settings.options.cursorBlock") },
+                          { value: "underline", label: t("settings.options.cursorUnderline") },
+                          { value: "line-thin", label: t("settings.options.cursorThinLine") },
+                        ]}
+                      />
                     </SectionCard>
 
-                    {/* Minimap */}
                     <SectionCard title={t("settings.minimap.title")}>
-                      <SettingRow
-                        label={t("settings.minimap.enableMinimap")}
-                        description={t("settings.minimap.enableMinimapDesc")}
-                      >
-                        <Switch
-                          checked={editorSettings.minimap.enabled}
-                          onCheckedChange={(v) =>
-                            onUpdateEditorSettings({
-                              minimap: { ...editorSettings.minimap, enabled: v },
-                            })
-                          }
-                        />
-                      </SettingRow>
+                      {minimapRow}
 
                       {editorSettings.minimap.enabled && (
-                        <div className="pl-4 border-l-2 border-border space-y-3 pt-2">
+                        <div className="space-y-3 border-l border-border pl-4 pt-2">
                           <SettingSelect
                             label={t("settings.minimap.side")}
                             value={editorSettings.minimap.side}
@@ -984,7 +1092,7 @@ export function SettingsPage({
                               })
                             }
                             options={[
-                              { value: "mouseover", label: t("settings.options.mouseover") },
+                              { value: "mouseover", label: t("settings.options.onHover") },
                               { value: "always", label: t("settings.options.always") },
                             ]}
                           />
@@ -994,6 +1102,7 @@ export function SettingsPage({
                             description={t("settings.minimap.renderCharactersDesc")}
                           >
                             <Switch
+                              aria-label={t("settings.minimap.renderCharacters")}
                               checked={editorSettings.minimap.renderCharacters}
                               onCheckedChange={(v) =>
                                 onUpdateEditorSettings({
@@ -1016,7 +1125,7 @@ export function SettingsPage({
                               }
                               min={1}
                               max={3}
-                              unit="x"
+                              unit="×"
                               ariaLabel={t("settings.minimap.scale")}
                             />
                           </SettingRow>
@@ -1024,8 +1133,9 @@ export function SettingsPage({
                       )}
                     </SectionCard>
 
-                    {/* Editing & Formatting */}
                     <SectionCard title={t("settings.editing.title")}>
+                      {vimModeRow}
+
                       <SettingRow
                         label={t("settings.editing.tabSize")}
                         description={t("settings.editing.tabSizeDesc")}
@@ -1035,7 +1145,6 @@ export function SettingsPage({
                           onChange={(v) => onUpdateEditorSettings({ tabSize: v })}
                           min={1}
                           max={8}
-                          unit="spaces"
                           ariaLabel={t("settings.editing.tabSize")}
                         />
                       </SettingRow>
@@ -1045,26 +1154,13 @@ export function SettingsPage({
                         description={t("settings.editing.insertSpacesDesc")}
                       >
                         <Switch
+                          aria-label={t("settings.editing.insertSpaces")}
                           checked={editorSettings.insertSpaces}
                           onCheckedChange={(v) => onUpdateEditorSettings({ insertSpaces: v })}
                         />
                       </SettingRow>
 
-                      <SettingSelect
-                        label={t("settings.display.wordWrap")}
-                        value={editorSettings.wordWrap}
-                        onChange={(v) =>
-                          onUpdateEditorSettings({
-                            wordWrap: v as EditorSettings["wordWrap"],
-                          })
-                        }
-                        options={[
-                          { value: "off", label: t("settings.options.off") },
-                          { value: "on", label: t("settings.options.on") },
-                          { value: "wordWrapColumn", label: t("settings.options.wordWrapColumn") },
-                          { value: "bounded", label: t("settings.options.bounded") },
-                        ]}
-                      />
+                      {wordWrapRow}
 
                       <SettingSelect
                         label={t("settings.editing.autoClosingBrackets")}
@@ -1078,7 +1174,7 @@ export function SettingsPage({
                           { value: "always", label: t("settings.options.always") },
                           {
                             value: "languageDefined",
-                            label: t("settings.options.languageDefined"),
+                            label: t("settings.options.languageDefault"),
                           },
                           {
                             value: "beforeWhitespace",
@@ -1088,27 +1184,12 @@ export function SettingsPage({
                         ]}
                       />
 
-                      <SettingSelect
-                        label={t("settings.display.cursorStyle")}
-                        value={editorSettings.cursorStyle}
-                        onChange={(v) =>
-                          onUpdateEditorSettings({
-                            cursorStyle: v as EditorSettings["cursorStyle"],
-                          })
-                        }
-                        options={[
-                          { value: "line", label: t("settings.options.line") },
-                          { value: "block", label: t("settings.options.block") },
-                          { value: "underline", label: t("settings.options.underline") },
-                          { value: "line-thin", label: t("settings.options.lineThin") },
-                        ]}
-                      />
-
                       <SettingRow
-                        label={t("settings.formatting.formatOnSave")}
-                        description={t("settings.formatting.formatOnSaveDesc")}
+                        label={t("settings.editing.formatOnSave")}
+                        description={t("settings.editing.formatOnSaveDesc")}
                       >
                         <Switch
+                          aria-label={t("settings.editing.formatOnSave")}
                           checked={editorSettings.formatOnSave}
                           onCheckedChange={(v) => onUpdateEditorSettings({ formatOnSave: v })}
                         />
@@ -1117,23 +1198,32 @@ export function SettingsPage({
                   </>
                 )}
 
-                {/* ===== 3. TERMINAL & GIT TAB ===== */}
+                {currentTab === "sync" && (
+                  <>
+                    <CategoryHeading title={t("cloudBackup.category")} />
+                    <SectionCard title={t("settings.gitSection.title")}>
+                      <GitHubAuthSettings />
+                      <GitSyncSettings controller={gitSync} />
+                      {backupRows}
+                    </SectionCard>
+                    <SectionCard title={t("cloudBackup.title")}>
+                      {cloudBackup ? (
+                        <CloudBackupSettings controller={cloudBackup} />
+                      ) : (
+                        <p className="text-xs text-muted">{t("cloudBackup.desktopOnly")}</p>
+                      )}
+                    </SectionCard>
+                  </>
+                )}
                 {currentTab === "terminalGit" && (
                   <>
-                    <div className="mb-6">
-                      <h2 className="text-xl font-bold tracking-tight text-foreground">
-                        {t("settings.categories.terminalGit")}
-                      </h2>
-                      <p className="text-xs text-muted mt-1">
-                        {t("settings.categories.terminalGitDesc")}
-                      </p>
-                    </div>
+                    <CategoryHeading
+                      title={t("settings.categories.terminalGit")}
+                      description={t("settings.categories.terminalGitDesc")}
+                    />
 
                     <SectionCard title={t("settings.terminalSection.title")}>
-                      <TerminalFontSettings
-                        value={editorSettings.terminalFontFamily}
-                        onChange={(font) => onUpdateEditorSettings({ terminalFontFamily: font })}
-                      />
+                      {terminalFontRow}
 
                       <SettingRow label={t("settings.terminalSection.fontSize")}>
                         <NumberStepper
@@ -1157,19 +1247,7 @@ export function SettingsPage({
                         />
                       </SettingRow>
 
-                      <SettingSelect
-                        label={t("settings.terminalSection.shellMode")}
-                        value={editorSettings.terminalShellMode}
-                        onChange={(v) =>
-                          onUpdateEditorSettings({
-                            terminalShellMode: v as EditorSettings["terminalShellMode"],
-                          })
-                        }
-                        options={[
-                          { value: "auto", label: t("settings.options.auto") },
-                          { value: "custom", label: t("settings.options.custom") },
-                        ]}
-                      />
+                      {shellModeRow}
 
                       {editorSettings.terminalShellMode === "custom" && (
                         <SettingRow
@@ -1195,17 +1273,7 @@ export function SettingsPage({
                         <GitHubAuthSettings />
                       </div>
                       <GitSyncSettings controller={gitSync} />
-                      <SettingRow
-                        label={t("settings.gitSection.autoFetch")}
-                        description={t("settings.gitSection.autoFetchDesc")}
-                      >
-                        <Switch
-                          checked={editorSettings.gitAutoFetchEnabled}
-                          onCheckedChange={(v) =>
-                            onUpdateEditorSettings({ gitAutoFetchEnabled: v })
-                          }
-                        />
-                      </SettingRow>
+                      {autoFetchRow}
 
                       {editorSettings.gitAutoFetchEnabled && (
                         <SettingSelect
@@ -1217,14 +1285,15 @@ export function SettingsPage({
                             })
                           }
                           options={[
-                            { value: 30, label: t("git.secondsUnit", { count: 30 }) },
-                            { value: 60, label: t("git.minutesUnit", { count: 1, s: "" }) },
-                            { value: 120, label: t("git.minutesUnit", { count: 2, s: "s" }) },
-                            { value: 300, label: t("git.minutesUnit", { count: 5, s: "s" }) },
-                            { value: 600, label: t("git.minutesUnit", { count: 10, s: "s" }) },
+                            { value: 30, label: t("settings.units.seconds", { count: 30 }) },
+                            ...[1, 2, 5, 10].map((minutes) => ({
+                              value: minutes * 60,
+                              label: t("settings.units.minutes", { count: minutes }),
+                            })),
                           ]}
                         />
                       )}
+                      {backupRows}
                     </SectionCard>
                   </>
                 )}
@@ -1233,6 +1302,20 @@ export function SettingsPage({
           </div>
         </main>
       </div>
+      {confirmRestore && (
+        <ConfirmDialog
+          title={t(restoresAgent ? "settings.restoreAgentTitle" : "settings.restoreEditorTitle")}
+          message={t(
+            restoresAgent ? "settings.restoreAgentMessage" : "settings.restoreEditorMessage",
+          )}
+          confirmLabel={t("settings.restoreDefaults")}
+          onConfirm={() => {
+            setConfirmRestore(false);
+            handleRestoreDefaults();
+          }}
+          onCancel={() => setConfirmRestore(false)}
+        />
+      )}
     </div>
   );
 }

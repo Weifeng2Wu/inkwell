@@ -35,7 +35,6 @@ export interface CompileOutputEvent {
   is_warning: boolean;
 }
 
-
 export const COMPILE_PROMPT = `Please compile the LaTeX document.
 
 Main file: {mainFile}

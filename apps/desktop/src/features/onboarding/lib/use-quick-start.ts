@@ -40,11 +40,15 @@ export function useQuickStart(workspaceReady: boolean) {
     setVisible(true);
     setSaveError(false);
   }
+  // Runs after every render so the handler always sees the current step.
   useEffect(() => {
     if (!visible) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.isContentEditable || (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)))
+      if (
+        target?.isContentEditable ||
+        (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      )
         return;
       if (event.key.toLowerCase() === "n") {
         event.preventDefault();
@@ -57,7 +61,7 @@ export function useQuickStart(workspaceReady: boolean) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [visible, step, workspaceReady]);
+  });
   return {
     visible,
     step,

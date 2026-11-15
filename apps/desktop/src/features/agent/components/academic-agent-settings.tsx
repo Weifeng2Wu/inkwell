@@ -1,17 +1,15 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useI18n } from "@/features/i18n";
+import { errorMessage, LOCALES, useI18n } from "@/features/i18n";
 import { apiKeyScope } from "../lib/agent-api-key-store";
-import { externalAgentLabels } from "../lib/external-agent-labels";
-import { modelCapabilityLabels } from "../lib/model-capability-labels";
 import { formatModelDiscoveryError, withModelProtocol } from "../lib/model-discovery";
 import type { AcademicAgentController } from "../lib/use-academic-agent";
 import { useAutomaticModels } from "../lib/use-automatic-models";
-import { CustomHeadersInput } from "./custom-headers-input";
-import { ServiceModelInput } from "./service-model-input";
 import { AgentApiKeyInput } from "./agent-api-key-input";
+import { CustomHeadersInput } from "./custom-headers-input";
 import { ModelPicker, selectModel } from "./model-picker";
+import { ServiceModelInput } from "./service-model-input";
 
 export function AcademicAgentSettings({
   agent,
@@ -23,10 +21,8 @@ export function AcademicAgentSettings({
   showPreferences?: boolean;
 }) {
   const fieldId = useId();
-  const { locale } = useI18n();
-  const externalLabels = externalAgentLabels(locale);
+  const { t } = useI18n();
   const {
-    labels,
     directory,
     config,
     setConfig,
@@ -61,11 +57,12 @@ export function AcademicAgentSettings({
     apiKey,
     apiKeyLoading,
     working: false,
-    errorLabel: labels.modelsFailed,
+    errorLabel: t("agent.settings.modelsFailed"),
     fetchModels,
     onDiscovered: (result) =>
       setConfig((current) => selectModel(current, current.model, result.capabilities)),
   });
+  const heading = t(external ? "agent.settings.sharedHeading" : "agent.settings.modelHeading");
   const inputClass = "settings-control mt-1 w-full";
   const selectRowClass =
     "grid grid-cols-1 items-center gap-3 text-sm sm:grid-cols-[minmax(0,1fr)_16rem]";
@@ -73,18 +70,16 @@ export function AcademicAgentSettings({
   return (
     <section
       className="space-y-4 rounded-lg border border-border bg-background p-5 shadow-sm"
-      aria-label={external ? externalLabels.shared : labels.settings}
+      aria-label={heading}
     >
       <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
-        <h3 className="text-sm font-semibold">
-          {external ? externalLabels.shared : labels.settings}
-        </h3>
+        <h3 className="text-sm font-semibold">{heading}</h3>
       </div>
       <fieldset className="space-y-4">
         {!external && (
           <div className="space-y-4">
             <label className={selectRowClass} htmlFor={`${fieldId}-protocol`}>
-              <span>{labels.protocol}</span>
+              <span>{t("agent.settings.protocol")}</span>
               <select
                 id={`${fieldId}-protocol`}
                 className={selectClass}
@@ -98,17 +93,17 @@ export function AcademicAgentSettings({
               >
                 {!config.protocol && (
                   <option value="" disabled hidden>
-                    {labels.protocol}
+                    {t("agent.settings.chooseProtocol")}
                   </option>
                 )}
-                <option value="openai">{labels.openaiCompatible}</option>
-                <option value="anthropic">{labels.anthropicCompatible}</option>
-                <option value="gemini">{labels.geminiCompatible}</option>
+                <option value="openai">{t("agent.settings.openaiCompatible")}</option>
+                <option value="anthropic">{t("agent.settings.anthropicCompatible")}</option>
+                <option value="gemini">{t("agent.settings.geminiCompatible")}</option>
               </select>
             </label>
             {config.protocol ? (
               <label className="block text-xs" htmlFor={`${fieldId}-base-url`}>
-                {labels.baseUrl}
+                {t("agent.settings.baseUrl")}
                 <input
                   id={`${fieldId}-base-url`}
                   type="url"
@@ -120,7 +115,7 @@ export function AcademicAgentSettings({
               </label>
             ) : (
               <label className="block text-xs" htmlFor={`${fieldId}-provider`}>
-                {labels.provider}
+                {t("agent.settings.provider")}
                 <input
                   id={`${fieldId}-provider`}
                   className={inputClass}
@@ -131,8 +126,7 @@ export function AcademicAgentSettings({
             )}
             <ModelPicker
               inputId={`${fieldId}-model`}
-              label={labels.model}
-              locale={locale}
+              label={t("agent.settings.model")}
               config={config}
               onChange={setConfig}
               models={models.models}
@@ -142,14 +136,14 @@ export function AcademicAgentSettings({
               webSearchAvailable={Boolean(agent.webSearchApiKey.trim())}
             />
             <label className="block text-xs" htmlFor={`${fieldId}-key`}>
-              {labels.key}
+              {t("agent.settings.apiKey")}
               <AgentApiKeyInput
                 key={apiKeyScope(config)}
                 id={`${fieldId}-key`}
                 className={inputClass}
                 value={apiKey}
                 loading={apiKeyLoading}
-                placeholder={apiKeyLoading ? labels.keyLoading : ""}
+                placeholder={apiKeyLoading ? t("agent.settings.keyLoading") : ""}
                 onCommit={setApiKey}
               />
             </label>
@@ -166,12 +160,14 @@ export function AcademicAgentSettings({
                   onClick={() => testConnection(config, apiKey)}
                   disabled={testingConnection || apiKeyLoading || !config.model.trim()}
                 >
-                  {testingConnection ? labels.testingImageGeneration : labels.testConnection}
+                  {t(
+                    testingConnection ? "agent.settings.testing" : "agent.settings.testConnection",
+                  )}
                 </button>
               </div>
               {connectionTest && (
                 <p role="status" className="text-xs text-success">
-                  {labels.testSuccess} · {connectionTest.milliseconds} ms
+                  {t("agent.settings.testSuccess", { ms: connectionTest.milliseconds })}
                 </p>
               )}
               {connectionTestError && (
@@ -181,12 +177,12 @@ export function AcademicAgentSettings({
               )}
               {models.loading && (
                 <p role="status" className="text-xs text-muted-foreground">
-                  {modelCapabilityLabels[locale].loading}
+                  {t("agent.settings.modelsLoading")}
                 </p>
               )}
               {models.models?.length === 0 && (
                 <p role="status" className="text-xs text-muted-foreground">
-                  {labels.modelsEmpty}
+                  {t("agent.settings.modelsEmpty")}
                 </p>
               )}
               {models.error && (
@@ -197,10 +193,10 @@ export function AcademicAgentSettings({
             </div>
             <div className="space-y-3 border-t border-border pt-4">
               <div>
-                <h4 className="text-xs font-semibold">{labels.imageGeneration}</h4>
+                <h4 className="text-xs font-semibold">{t("agent.settings.imageGeneration")}</h4>
               </div>
               <label className="block text-xs" htmlFor={`${fieldId}-image-base-url`}>
-                {labels.imageGenerationBaseUrl}
+                {t("agent.settings.imageBaseUrl")}
                 <input
                   id={`${fieldId}-image-base-url`}
                   type="url"
@@ -218,7 +214,7 @@ export function AcademicAgentSettings({
               </label>
 
               <label className="block text-xs" htmlFor={`${fieldId}-image-model`}>
-                {labels.imageGenerationModel}
+                {t("agent.settings.imageModel")}
                 <ServiceModelInput
                   id={`${fieldId}-image-model`}
                   baseUrl={config.imageGeneration.baseUrl}
@@ -232,7 +228,7 @@ export function AcademicAgentSettings({
                 />
               </label>
               <label className="block text-xs" htmlFor={`${fieldId}-image-key`}>
-                {labels.imageGenerationKey}
+                {t("agent.settings.imageKey")}
                 <AgentApiKeyInput
                   key={apiKeyScope({
                     protocol: "",
@@ -245,8 +241,8 @@ export function AcademicAgentSettings({
                   loading={agent.imageGenerationApiKeyLoading}
                   placeholder={
                     agent.imageGenerationApiKeyLoading
-                      ? labels.keyLoading
-                      : labels.imageGenerationKeyHint
+                      ? t("agent.settings.keyLoading")
+                      : t("agent.settings.imageKeyPlaceholder")
                   }
                   onCommit={agent.setImageGenerationApiKey}
                 />
@@ -299,7 +295,7 @@ export function AcademicAgentSettings({
                       setImageApiError(
                         formatModelDiscoveryError(
                           caught,
-                          labels.imageGenerationTestFailed,
+                          t("agent.settings.imageTestFailed"),
                           agent.imageGenerationApiKey,
                         ),
                       );
@@ -308,7 +304,7 @@ export function AcademicAgentSettings({
                     }
                   }}
                 >
-                  {testingImageApi ? labels.testingImageGeneration : labels.testImageGeneration}
+                  {t(testingImageApi ? "agent.settings.testing" : "agent.settings.testImage")}
                 </button>
                 {imageApiTest &&
                   imageApiTest.endpoint ===
@@ -320,7 +316,7 @@ export function AcademicAgentSettings({
                       agent.imageGenerationApiKey,
                     ]) && (
                     <p role="status" className="text-xs text-success">
-                      {labels.imageGenerationTestSuccess}
+                      {t("agent.settings.imageTestSuccess")}
                     </p>
                   )}
                 {imageApiError && (
@@ -336,8 +332,10 @@ export function AcademicAgentSettings({
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-xs font-semibold">{labels.webSearch}</h4>
-                  <p className="mt-1 text-xs text-muted">{labels.webSearchDescription}</p>
+                  <h4 className="text-xs font-semibold">{t("agent.settings.webSearch")}</h4>
+                  <p className="mt-1 text-xs text-muted">
+                    {t("agent.settings.webSearchDescription")}
+                  </p>
                 </div>
                 <a
                   href="https://app.tavily.com/home"
@@ -345,11 +343,11 @@ export function AcademicAgentSettings({
                   rel="noopener noreferrer"
                   className="shrink-0 text-xs text-accent hover:underline"
                 >
-                  {labels.webSearchGetKey} ↗
+                  {t("agent.settings.webSearchGetKey")} ↗
                 </a>
               </div>
               <label className="block text-xs" htmlFor={`${fieldId}-search-base-url`}>
-                {labels.webSearchBaseUrl}
+                {t("agent.settings.webSearchBaseUrl")}
                 <input
                   id={`${fieldId}-search-base-url`}
                   type="url"
@@ -366,7 +364,7 @@ export function AcademicAgentSettings({
               </label>
 
               <label className="block text-xs" htmlFor={`${fieldId}-search-key`}>
-                {labels.webSearchKey}
+                {t("agent.settings.webSearchKey")}
                 <AgentApiKeyInput
                   key={apiKeyScope({
                     protocol: "",
@@ -378,7 +376,9 @@ export function AcademicAgentSettings({
                   value={agent.webSearchApiKey}
                   loading={agent.webSearchApiKeyLoading}
                   placeholder={
-                    agent.webSearchApiKeyLoading ? labels.keyLoading : labels.webSearchKeyHint
+                    agent.webSearchApiKeyLoading
+                      ? t("agent.settings.keyLoading")
+                      : t("agent.settings.webSearchKeyPlaceholder")
                   }
                   onCommit={agent.setWebSearchApiKey}
                 />
@@ -407,18 +407,21 @@ export function AcademicAgentSettings({
                       const ok = await testWebSearch();
                       if (ok) setWebSearchTested(searchTestScope);
                     } catch (caught) {
-                      setWebSearchError({ scope: searchTestScope, message: String(caught) });
+                      setWebSearchError({
+                        scope: searchTestScope,
+                        message: errorMessage(caught, t),
+                      });
                     } finally {
                       setTestingWebSearch(false);
                     }
                   }}
                 >
-                  {testingWebSearch ? labels.testingWebSearch : labels.testWebSearch}
+                  {t(testingWebSearch ? "agent.settings.testing" : "agent.settings.testWebSearch")}
                 </button>
-                <p className="text-xs text-muted">{labels.webSearchTestHint}</p>
+                <p className="text-xs text-muted">{t("agent.settings.webSearchTestHint")}</p>
                 {webSearchTested === searchTestScope && (
                   <p role="status" className="text-xs text-success">
-                    {labels.webSearchTestSuccess}
+                    {t("agent.settings.webSearchTestSuccess")}
                   </p>
                 )}
                 {webSearchError?.scope === searchTestScope && (
@@ -433,7 +436,7 @@ export function AcademicAgentSettings({
         {showPreferences && (
           <>
             <label className={selectRowClass} htmlFor={`${fieldId}-permission-mode`}>
-              <span>{labels.permissions}</span>
+              <span>{t("agent.settings.permissionMode")}</span>
               <select
                 id={`${fieldId}-permission-mode`}
                 className={selectClass}
@@ -448,13 +451,13 @@ export function AcademicAgentSettings({
                     setConfig({ ...config, permissionMode });
                 }}
               >
-                <option value="restricted">{labels.permissionRestricted}</option>
-                <option value="ask">{labels.permissionAsk}</option>
-                <option value="auto">{labels.permissionAuto}</option>
+                <option value="restricted">{t("agent.settings.permissionRestricted")}</option>
+                <option value="ask">{t("agent.settings.permissionAsk")}</option>
+                <option value="auto">{t("agent.settings.permissionAuto")}</option>
               </select>
             </label>
             <label className={selectRowClass} htmlFor={`${fieldId}-answer-language`}>
-              <span>{labels.answerLanguage}</span>
+              <span>{t("agent.settings.answerLanguage")}</span>
               <select
                 id={`${fieldId}-answer-language`}
                 className={selectClass}
@@ -465,31 +468,33 @@ export function AcademicAgentSettings({
                     setConfig({ ...config, answerLanguage });
                 }}
               >
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-                <option value="ko">한국어</option>
+                {LOCALES.map((language) => (
+                  <option key={language.id} value={language.id}>
+                    {language.nativeName}
+                  </option>
+                ))}
               </select>
             </label>
             <div className="space-y-1">
               <label className="block text-xs" htmlFor={`${fieldId}-personal-prompt`}>
-                {labels.personalPrompt}
+                {t("agent.settings.personalPrompt")}
               </label>
               <textarea
                 id={`${fieldId}-personal-prompt`}
                 className={`${inputClass} h-32 min-h-32 max-h-32 resize-none`}
                 value={config.personalPrompt}
                 maxLength={16_384}
-                placeholder={labels.personalPromptPlaceholder}
+                placeholder={t("agent.settings.personalPromptPlaceholder")}
                 onChange={(event) => setConfig({ ...config, personalPrompt: event.target.value })}
               />
             </div>
           </>
         )}
       </fieldset>
-      {session && dirty && <p className="text-xs text-warning">{labels.dirty}</p>}
+      {session && dirty && <p className="text-xs text-warning">{t("agent.dirty")}</p>}
       {error && (
         <p role="alert" className="whitespace-pre-wrap break-words text-xs text-error">
-          {labels.error}: {error}
+          {t("agent.error", { error })}
         </p>
       )}
     </section>

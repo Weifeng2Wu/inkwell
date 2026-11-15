@@ -1,10 +1,10 @@
-export const POSTER_DEFAULTS = {
-  background: "#ffffff",
-  ink: "#14253d",
-  accent: "#174a7e",
-  panel: "#eef3f8",
-  font: "Arial",
-} as const;
+import {
+  POSTER_DEFAULTS,
+  parsePosterCanvas,
+  wrapPosterText,
+} from "@inkwell/academic-agent/poster-document";
+
+export { POSTER_DEFAULTS, validImageSource } from "@inkwell/academic-agent/poster-document";
 export const POSTER_SIZES = {
   A0: [841, 1189],
   A1: [594, 841],
@@ -37,101 +37,10 @@ export type PosterDocument = {
 };
 
 export const isPosterFile = (path: string) => /\.poster\.json$/i.test(path);
-const color = (value: unknown) => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
-const finite = (value: unknown, min: number, max: number): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
-export function validImageSource(value: string) {
-  return (
-    /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value) ||
-    (!!value &&
-      !/^(?:[a-z][a-z\d+.-]*:|\/|\\)/i.test(value) &&
-      ![...value].some((c) => c.charCodeAt(0) < 32) &&
-      /\.(png|jpe?g|webp)$/i.test(value))
-  );
-}
-export function parsePoster(content: string): PosterDocument {
-  if (content.length > 20 * 1024 * 1024) throw new Error("Poster exceeds 20 MiB.");
-  const p = JSON.parse(content);
-  if (
-    p?.version !== 1 ||
-    typeof p.title !== "string" ||
-    p.title.length > 1000 ||
-    !finite(p.width, 100, 1400) ||
-    !finite(p.height, 100, 1400) ||
-    !color(p.background) ||
-    !Array.isArray(p.elements) ||
-    p.elements.length > 500
-  )
-    throw new Error("Invalid poster document.");
-  const ids = new Set();
-  for (const e of p.elements) {
-    if (
-      !e ||
-      typeof e.id !== "string" ||
-      !e.id ||
-      ids.has(e.id) ||
-      !["text", "rect", "image"].includes(e.type) ||
-      !finite(e.x, 0, p.width) ||
-      !finite(e.y, 0, p.height) ||
-      !finite(e.width, 1, p.width) ||
-      !finite(e.height, 1, p.height) ||
-      e.x + e.width > p.width + 0.01 ||
-      e.y + e.height > p.height + 0.01 ||
-      (e.color !== undefined && !color(e.color)) ||
-      (e.fill !== undefined && !color(e.fill)) ||
-      (e.fontSize !== undefined && !finite(e.fontSize, 1, 120)) ||
-      (e.bold !== undefined && typeof e.bold !== "boolean") ||
-      (e.align !== undefined && !["left", "center", "right"].includes(e.align)) ||
-      (e.text !== undefined && (typeof e.text !== "string" || e.text.length > 20000)) ||
-      (e.alt !== undefined && (typeof e.alt !== "string" || e.alt.length > 1000)) ||
-      (e.type === "text" && typeof e.text !== "string") ||
-      (e.type === "image" && (typeof e.src !== "string" || !validImageSource(e.src)))
-    )
-      throw new Error("Invalid poster element.");
-    ids.add(e.id);
-  }
-  delete p.style;
-  return p as PosterDocument;
-}
+export const parsePoster = parsePosterCanvas;
 export const serializePoster = (poster: PosterDocument) => `${JSON.stringify(poster, null, 2)}\n`;
 
-// Millimetres are shared by the canvas, SVG and PPTX. Text sizes are also mm.
-export function wrapText(text: string, width: number, fontSize: number): string[] {
-  const lines: string[] = [];
-  for (const paragraph of text.split("\n")) {
-    let line = "",
-      used = 0;
-    for (const token of paragraph.match(/\S+\s*|\s+/g) ?? [""]) {
-      const units = (value: string) =>
-        [...value].reduce(
-          (n, c) => n + ((c.codePointAt(0) ?? 0) > 255 ? 1 : /[il.,' ]/.test(c) ? 0.3 : 0.58),
-          0,
-        ) * fontSize;
-      if (units(token) <= width) {
-        if (used + units(token) > width && line) {
-          lines.push(line.trimEnd());
-          line = "";
-          used = 0;
-        }
-        line += token;
-        used += units(token);
-      } else {
-        for (const char of token) {
-          const next = units(char);
-          if (used + next > width && line) {
-            lines.push(line.trimEnd());
-            line = "";
-            used = 0;
-          }
-          line += char;
-          used += next;
-        }
-      }
-    }
-    lines.push(line.trimEnd());
-  }
-  return lines;
-}
+export const wrapText = wrapPosterText;
 export function textOverflows(e: PosterElement) {
   return (
     e.type === "text" &&
@@ -157,10 +66,7 @@ export function resizePoster(p: PosterDocument, width: number, height: number): 
     })),
   };
 }
-export function createPoster(
-  size: PosterSize = "A0",
-  landscape = false,
-): PosterDocument {
+export function createPoster(size: PosterSize = "A0", landscape = false): PosterDocument {
   const [short, long] = POSTER_SIZES[size];
   const width = landscape ? long : short,
     height = landscape ? short : long;
@@ -197,17 +103,7 @@ export function createPoster(
     height: height * 0.18,
     fill: POSTER_DEFAULTS.accent,
   });
-  text(
-    "title",
-    "Your research title",
-    28,
-    25,
-    width - 56,
-    height * 0.085,
-    20,
-    true,
-    "#ffffff",
-  );
+  text("title", "Your research title", 28, 25, width - 56, height * 0.085, 20, true, "#ffffff");
   text(
     "authors",
     "Authors · Institution · Contact",
@@ -248,17 +144,7 @@ export function createPoster(
       height: row - gap,
       fill: POSTER_DEFAULTS.panel,
     });
-    text(
-      `heading-${i}`,
-      heading,
-      x + 10,
-      y + 10,
-      col - 20,
-      28,
-      11,
-      true,
-      POSTER_DEFAULTS.accent,
-    );
+    text(`heading-${i}`, heading, x + 10, y + 10, col - 20, 28, 11, true, POSTER_DEFAULTS.accent);
     text(
       `body-${i}`,
       "Add evidence from your paper here. Double-click to edit; drag to move.",

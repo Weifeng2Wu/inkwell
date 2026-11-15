@@ -20,7 +20,11 @@ export function withModelProtocol(
   };
 }
 
-export function formatModelDiscoveryError(error: unknown, fallback: string, apiKey: string): string {
+export function formatModelDiscoveryError(
+  error: unknown,
+  fallback: string,
+  apiKey: string,
+): string {
   const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   let detail = message.trim();
   if (apiKey) detail = detail.replaceAll(apiKey, "[redacted]");

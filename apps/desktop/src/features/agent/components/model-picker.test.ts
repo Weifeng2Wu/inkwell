@@ -1,6 +1,7 @@
-import { Children, createElement, isValidElement } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/features/i18n";
 import {
   modelCapabilityScope,
   resolveModelCapabilities,
@@ -17,14 +18,13 @@ describe("model capabilities in the picker", () => {
         config,
         onChange: () => {},
         models: null,
-        locale: "en",
         label: "Model",
         inputId: "model",
       }),
     );
-    expect(markup).toContain("Multimodal · images / PDF: Unknown");
-    expect(markup).toContain("Reasoning: Unknown");
-    expect(markup).toContain("Web search: Not supported");
+    expect(markup).toContain("Images and PDFs: unknown");
+    expect(markup).toContain("Reasoning: unknown");
+    expect(markup).toContain("Web search: not supported (no search service is connected)");
     expect(markup.match(/data-capability=/g)).toHaveLength(3);
     expect(markup).toContain('role="combobox"');
     expect(markup).not.toContain("Automatic");
@@ -49,7 +49,6 @@ describe("model capabilities in the picker", () => {
           config,
           onChange: () => {},
           models: null,
-          locale: "en",
           label: "Model",
           inputId: "model",
           ...extra,
@@ -67,16 +66,16 @@ describe("model capabilities in the picker", () => {
     const capabilities = resolveModelCapabilities(config);
     capabilities.reasoning = { supported: false, source: "catalog" };
     const onToggle = vi.fn();
-    const element = ModelCapabilityIcons({ capabilities, locale: "en", onToggle });
-    const buttons = Children.toArray(element.props.children).filter(
-      (child) => isValidElement(child) && child.type === "button",
+    const markup = renderToStaticMarkup(
+      createElement(ModelCapabilityIcons, { capabilities, onToggle }),
     );
-    expect(buttons).toHaveLength(1);
-    const button = buttons[0];
-    if (!isValidElement<{ onClick: () => void }>(button))
-      throw new Error("Missing declaration icon");
-    button.props.onClick();
-    expect(onToggle).toHaveBeenCalledExactlyOnceWith("vision");
+    const buttons = [...markup.matchAll(/<button\b[^>]*data-capability="(\w+)"/g)];
+    expect(buttons.map((button) => button[1])).toEqual(["vision"]);
+    expect(markup).toContain('aria-label="Mark “Images and PDFs” as supported"');
+    expect(markup).toContain(
+      'aria-label="Reasoning: not supported (from the built-in model list)"',
+    );
+    expect(onToggle).not.toHaveBeenCalled();
   });
   it("keeps manual declarations when refreshing and selecting models", () => {
     const manual = resolveModelCapabilities(config);
@@ -89,17 +88,20 @@ describe("model capabilities in the picker", () => {
       source: "manual",
     });
     const markup = renderToStaticMarkup(
-      createElement(ModelPicker, {
-        config: refreshed,
-        onChange: () => {},
-        models: ["unlisted"],
-        discovered,
-        locale: "zh",
-        label: "模型",
-        inputId: "model",
-      }),
+      createElement(
+        I18nProvider,
+        { locale: "zh" },
+        createElement(ModelPicker, {
+          config: refreshed,
+          onChange: () => {},
+          models: ["unlisted"],
+          discovered,
+          label: "模型",
+          inputId: "model",
+        }),
+      ),
     );
-    expect(markup).toContain("多模态 · 图片 / PDF: 支持 · 手动配置");
+    expect(markup).toContain('aria-label="将「图片和 PDF」标记为不支持"');
     expect(markup).toContain('data-supported="true"');
   });
 });

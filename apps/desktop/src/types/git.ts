@@ -33,6 +33,16 @@ export interface GitStatus {
   isRepo: boolean;
 }
 
+/** Result of the `git_backup` command. */
+export interface GitBackupResult {
+  committed: boolean;
+  pushed: boolean;
+  /** Files over 50 MiB that were left out of the commit, relative to the repository root. */
+  skippedLargeFiles: string[];
+  /** Set when the commit succeeded but uploading it failed. */
+  pushError: string | null;
+}
+
 export interface GitLogEntry {
   hash: string;
   shortHash: string;

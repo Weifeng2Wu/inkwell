@@ -50,3 +50,33 @@
     mix-blend-mode: normal;
   }
 }
+
+/* Find-in-document matches, located from the rendered text layer. */
+.inkwell-pdf-search-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.inkwell-pdf-search-hit {
+  position: absolute;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+
+.inkwell-pdf-search-hit[data-pdf-search-current] {
+  background: color-mix(in srgb, var(--warning) 60%, transparent);
+  outline: 1px solid var(--warning);
+}
+
+@media (forced-colors: active) {
+  .inkwell-pdf-search-hit {
+    background: transparent;
+    outline: 1px solid Highlight;
+  }
+
+  .inkwell-pdf-search-hit[data-pdf-search-current] {
+    outline: 2px solid Highlight;
+  }
+}

@@ -19,7 +19,26 @@ export const DraftEditor = dynamic(
 );
 
 export const PosterEditor = dynamic(
-  () => import("@/features/poster/components/poster-editor").then((module) => module.PosterEditor),
+  () =>
+    import("@/features/poster/components/poster-document-editor").then(
+      (module) => module.PosterDocumentEditor,
+    ),
+  { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
+);
+
+export const DrawingEditor = dynamic(
+  () => {
+    Object.assign(window, { EXCALIDRAW_ASSET_PATH: "/excalidraw/" });
+    return import("@/features/drawing/components/drawing-editor").then(
+      (module) => module.DrawingEditor,
+    );
+  },
+  { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
+);
+
+export const MindmapEditor = dynamic(
+  () =>
+    import("@/features/mindmap/components/mindmap-editor").then((module) => module.MindmapEditor),
   { ssr: false, loading: () => <EditorSkeleton className="h-full" /> },
 );
 

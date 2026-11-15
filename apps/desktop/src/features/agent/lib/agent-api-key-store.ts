@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { LocalizedError } from "@/features/i18n";
 import type { ApiKeyConfig } from "./academic-client";
 
 export function apiKeyScope(config: ApiKeyConfig): string {
@@ -39,6 +40,6 @@ export async function readAgentApiKey(scope: string): Promise<string | null> {
 }
 
 export async function writeAgentApiKey(scope: string, apiKey: string): Promise<void> {
-  if (!isTauri()) throw new Error("Local API key storage requires the desktop app.");
+  if (!isTauri()) throw new LocalizedError("agent.errors.keyStorageDesktopOnly");
   await invoke("agent_api_key_write", { scope, apiKey });
 }

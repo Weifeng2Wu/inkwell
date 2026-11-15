@@ -78,12 +78,14 @@ describe("external Agent settings", () => {
         }),
       ),
     );
-    expect(markup).toContain("Sign in · Antigravity");
+    expect(markup).toContain("Antigravity needs you to sign in");
     expect(markup).toContain("Sign in with Google");
     expect(markup).not.toContain(">Disconnect<");
     expect(markup).not.toContain("Inkwell API keys are not forwarded");
     expect(markup).not.toContain("ACP is not an OS sandbox");
-    expect(markup).toContain("Sign in to continue connecting.");
+    expect(markup).toContain(
+      "Choose a sign-in method. The connection continues once you are signed in.",
+    );
     expect(markup).toContain("/agent-logos/antigravity-color.svg");
     const header = markup.match(/<header[\s\S]*?<\/header>/)?.[0];
     expect(header).toContain("Antigravity");
@@ -137,7 +139,7 @@ describe("external Agent settings", () => {
     );
     expect(markup).toContain("DeepSeek Harness");
     expect(markup).toContain("ZCode");
-    expect(markup).toContain("Popular Agents");
+    expect(markup).toContain("External Agents");
     expect(markup.match(/<li /g)).toHaveLength(EXTERNAL_AGENTS.length);
     for (const agent of EXTERNAL_AGENTS) {
       const color = ["claude", "codex", "antigravity", "qoder", "deepseek", "kimi"].includes(
@@ -169,16 +171,16 @@ describe("external Agent settings", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(ExternalAgentSettings, { selection })),
     );
-    expect(markup).toContain('aria-label="Installed · Codex"');
-    expect(markup).toContain("Uninstall ACP");
-    expect(markup).toMatch(/<span role="status" aria-label="Installed · Codex"/);
-    expect(markup).toMatch(/<button[^>]*aria-label="Install · Pi"/);
+    expect(markup).toContain('aria-label="Installed: Codex"');
+    expect(markup).toContain("Remove ACP adapter");
+    expect(markup).toMatch(/<span role="status" aria-label="Installed: Codex"/);
+    expect(markup).toMatch(/<button[^>]*aria-label="Install: Pi"/);
     expect(markup).toContain("border-accent bg-accent text-accent-foreground");
     expect(markup).toContain("bg-success/5");
     expect(markup).toContain("bg-success/15");
     expect(markup).toContain(">Install ACP adapter</button>");
-    expect(markup).toContain('aria-label="Install · Pi"');
-    expect(markup).toContain('aria-label="Unavailable · Grok Build"');
+    expect(markup).toContain('aria-label="Install: Pi"');
+    expect(markup).toContain('aria-label="Unavailable: Grok Build"');
     expect(markup).not.toContain("/private/");
   });
   it("disables installation outside the desktop shell", () => {
@@ -186,7 +188,7 @@ describe("external Agent settings", () => {
     const markup = renderToStaticMarkup(
       createElement(I18nProvider, null, createElement(ExternalAgentSettings, { selection })),
     );
-    expect(markup).toContain("Available in the desktop app");
+    expect(markup).toContain("Installing Agents requires the desktop app.");
     expect(markup).not.toContain('aria-busy="true"');
     expect(markup.match(/disabled=""/g)).toHaveLength(EXTERNAL_AGENTS.length + 1);
   });

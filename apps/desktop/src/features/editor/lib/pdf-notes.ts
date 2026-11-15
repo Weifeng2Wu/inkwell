@@ -1,4 +1,3 @@
-export type PdfReadingMode = "read" | "write";
 export type PdfAnnotationKind = "highlight" | "underline";
 export const PDF_ANNOTATION_COLORS = ["warning", "success", "info", "accent", "error"] as const;
 export type PdfAnnotationColor = (typeof PDF_ANNOTATION_COLORS)[number];
@@ -137,36 +136,50 @@ export function parsePdfNotes(content: string) {
     ids.add(annotation.id);
     return { ...annotation, offset: block.index ?? 0, length: block[0].length };
   });
-  return {
-    pdf: info.pdf,
-    mode: "mode" in info ? (info.mode as PdfReadingMode) : undefined,
-    annotations,
-  };
+  // Sidecars written before the reading mode moved to app storage may still carry it.
+  return { pdf: info.pdf, annotations };
 }
 
-export function setPdfReadingMode(content: string, mode: PdfReadingMode) {
-  parsePdfNotes(content);
-  return content.replace(
-    /^<!-- inkwell-pdf-notes (.+) -->/,
-    (_, json: string) => `${HEADER}${metadata({ ...JSON.parse(json), mode })} -->`,
-  );
-}
-
-export function upsertPdfAnnotation(content: string, annotation: PdfAnnotation, heading: string) {
-  const { annotations } = parsePdfNotes(content);
+function annotationBlock(annotation: PdfAnnotation, heading: string) {
   readAnnotation(annotation, annotation.note);
   if (RESERVED.test(annotation.note)) throw new Error("PDF_NOTES_INVALID");
-  const existing = annotations.find((item) => item.id === annotation.id);
   // The Markdown note body is authoritative; geometry alone is hidden metadata.
   const { note, id, page, kind, color, quote: selectedQuote, fingerprint, rects } = annotation;
   const anchor = { id, page, kind, color, quote: selectedQuote, fingerprint, rects };
   const quote = annotation.quote.replace(/[\\`*_{}[\]<>]/g, "\\$&").replace(/\r?\n/g, "\n> ");
-  const block = `${START}${metadata(anchor)} -->\n### ${heading}\n\n> ${quote}\n\n${COMMENT}\n${note}\n${END}`;
-  if (!existing)
-    return `${content}${content.endsWith("\n\n") ? "" : content.endsWith("\n") ? "\n" : "\n\n"}${block}\n`;
+  return `${START}${metadata(anchor)} -->\n### ${heading}\n\n> ${quote}\n\n${COMMENT}\n${note}\n${END}`;
+}
+
+function appendBlock(content: string, block: string) {
+  return `${content}${content.endsWith("\n\n") ? "" : content.endsWith("\n") ? "\n" : "\n\n"}${block}\n`;
+}
+
+export function upsertPdfAnnotation(content: string, annotation: PdfAnnotation, heading: string) {
+  const existing = parsePdfNotes(content).annotations.find((item) => item.id === annotation.id);
+  const block = annotationBlock(annotation, heading);
+  if (!existing) return appendBlock(content, block);
   return (
     content.slice(0, existing.offset) + block + content.slice(existing.offset + existing.length)
   );
+}
+
+/** Appends new annotations after parsing the notes once; a reused id is a conflict. */
+export function addPdfAnnotations(
+  content: string,
+  annotations: readonly PdfAnnotation[],
+  headings: readonly string[],
+) {
+  const ids = new Set(parsePdfNotes(content).annotations.map((item) => item.id));
+  let next = content;
+  for (const [index, annotation] of annotations.entries()) {
+    if (ids.has(annotation.id)) throw new Error("PDF_NOTES_CONFLICT");
+    ids.add(annotation.id);
+    next = appendBlock(
+      next,
+      annotationBlock(annotation, headings[index] ?? `Page ${annotation.page}`),
+    );
+  }
+  return next;
 }
 
 export function removePdfAnnotation(content: string, id: string) {

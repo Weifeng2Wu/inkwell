@@ -10,7 +10,8 @@ vi.mock("next-themes", () => ({
   useTheme: () => ({ theme: "light", resolvedTheme: "light", setTheme: vi.fn() }),
 }));
 
-vi.mock("@phosphor-icons/react", () => ({
+vi.mock("@phosphor-icons/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@phosphor-icons/react")>()),
   ArrowCounterClockwiseIcon: () => null,
   ArrowLeftIcon: () => null,
   ArrowSquareOutIcon: () => null,
@@ -34,10 +35,10 @@ vi.mock("@/features/agent", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/agent")>()),
   AcademicAgentSettings: () => null,
   DEFAULT_ACADEMIC_CONFIG: {},
-  academicLabels: { en: { settings: "Agent settings" } },
 }));
 
-vi.mock("@/features/i18n", () => ({
+vi.mock("@/features/i18n", async () => ({
+  ...(await import("@/features/i18n/localized-error")),
   useI18n: () => ({
     t: (key: string) => key,
     locale: "en",
@@ -49,7 +50,8 @@ vi.mock("@/features/i18n", () => ({
 describe("settings organization", () => {
   it("keeps one reset entry without duplicate settings headings", () => {
     const markup = renderToStaticMarkup(createElement(SettingsPage));
-    expect(markup.match(/settings.resetDefaults/g)).toHaveLength(1);
+    expect(markup.match(/<button[^>]*aria-label="settings\.restoreDefaults"/g)).toHaveLength(1);
+    expect(markup.match(/>settings\.restoreDefaults</g)).toHaveLength(1);
     expect(markup).not.toContain("settings.resetAll");
     expect(markup).not.toContain("settings.title");
   });
@@ -63,9 +65,9 @@ describe("settings organization", () => {
   });
 
   it.each([
-    { saved: true, error: null, color: "bg-success", text: "settings.autoSaved" },
-    { saved: false, error: null, color: "bg-border", text: "Saving…" },
-    { saved: false, error: "Storage full", color: "bg-error", text: "Auto-save failed" },
+    { saved: true, error: null, color: "bg-success", text: "settings.saved" },
+    { saved: false, error: null, color: "bg-border", text: "settings.saving" },
+    { saved: false, error: "Storage full", color: "bg-error", text: "settings.saveFailed" },
   ])("shows the correct auto-save indicator for $text", ({ saved, error, color, text }) => {
     function SettingsWithAgent() {
       const agent = useAcademicAgent({ directory: "/project" });
@@ -84,9 +86,9 @@ describe("settings organization", () => {
     for (const key of [
       "settings.general.language",
       "settings.general.appearance",
-      "settings.keybindings.vimMode",
+      "settings.editing.vimMode",
       "settings.fonts.uiFontFamily",
-      "settings.formatting.formatOnSave",
+      "settings.editing.formatOnSave",
       "settings.display.fontSizeDesc",
       "settings.display.lineHeightDesc",
       "settings.editing.tabSizeDesc",

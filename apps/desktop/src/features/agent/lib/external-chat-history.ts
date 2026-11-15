@@ -1,3 +1,4 @@
+import { LocalizedError } from "@/features/i18n";
 import { desktopStorage, storageRequest } from "@/lib/storage/app-storage";
 
 export type ExternalChatMessage = {
@@ -19,7 +20,7 @@ export function chatHistoryKey(directory: string, agent: string) {
 }
 export function readChatHistory(key: string): ExternalChatRecord[] {
   const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
-  if (!Array.isArray(parsed)) throw new Error("Invalid conversation history");
+  if (!Array.isArray(parsed)) throw new LocalizedError("agent.errors.historyInvalid");
   return parsed.filter(
     (record): record is ExternalChatRecord =>
       record &&
@@ -69,7 +70,7 @@ export async function loadChatRecord(key: string, id: string) {
   if (desktopStorage())
     return storageRequest<ExternalChatRecord>({ type: "conversation_read", scope: scope(key), id });
   const record = readChatHistory(key).find((item) => item.id === id);
-  if (!record) throw new Error("Conversation not found.");
+  if (!record) throw new LocalizedError("agent.errors.conversationNotFound");
   return record;
 }
 

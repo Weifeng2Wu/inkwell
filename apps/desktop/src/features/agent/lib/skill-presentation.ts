@@ -12,6 +12,9 @@ export function localizeSkill<T extends SkillMetadata>(skill: T, t: I18nContextV
       name: t("skillCatalog.natureSuiteName"),
       description: t("skillCatalog.natureSuiteDescription"),
     };
+  // The literature skill keeps its bundled description until locale entries exist for it.
+  if (skill.id === "literature-review" && skill.source === "Inkwell built-in")
+    return { ...skill, source: t("skillCatalog.builtIn") };
   if (skill.id !== "academic-poster" || skill.source !== "Inkwell built-in") return skill;
   return {
     ...skill,

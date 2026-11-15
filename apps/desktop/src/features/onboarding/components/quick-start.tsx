@@ -3,9 +3,8 @@
 import { ArrowRightIcon } from "@phosphor-icons/react";
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "@/features/i18n";
-import { quickStartLabels } from "../lib/labels";
-import { QUICK_START_STEPS } from "../lib/quick-start-state";
+import { errorMessage, useI18n } from "@/features/i18n";
+import { QUICK_START_STEP_IDS, QUICK_START_STEPS } from "../lib/quick-start-state";
 import { placeTourCard, type TourRect } from "../lib/tour-placement";
 
 const TARGETS = ["workspace", "settings", "main-file", "compile"];
@@ -28,8 +27,8 @@ export function QuickStart({
   onNext,
   onBack,
 }: Props) {
-  const { locale } = useI18n();
-  const l = quickStartLabels[locale];
+  const { locale, t } = useI18n();
+  const stepId = QUICK_START_STEP_IDS[step] ?? "project";
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState("");
   const [placement, setPlacement] = useState<{
@@ -127,7 +126,7 @@ export function QuickStart({
       {placement?.target && (
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed z-[56] rounded-lg border-2 border-accent"
+          className="motion-fade pointer-events-none fixed z-[56] rounded-lg border border-accent ring-2 ring-accent/30"
           style={{
             left: placement.target.left - 5,
             top: placement.target.top - 5,
@@ -142,7 +141,7 @@ export function QuickStart({
         role="dialog"
         aria-modal="true"
         aria-labelledby="tour-heading"
-        className="fixed z-[60] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-border bg-background p-5 text-foreground shadow-2xl"
+        className="motion-pop fixed z-[60] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-lg border border-border bg-background p-5 text-foreground shadow-2xl"
         style={
           placement
             ? { left: placement.left, top: placement.top, width: placement.width }
@@ -150,17 +149,19 @@ export function QuickStart({
         }
       >
         <p className="mb-3 text-xs text-accent">
-          {l.quickStart} · {step + 1} / {QUICK_START_STEPS}
+          {t("onboarding.progress", { current: step + 1, total: QUICK_START_STEPS })}
         </p>
         <h2
           ref={headingRef}
           id="tour-heading"
           tabIndex={-1}
-          className="text-lg font-semibold outline-none"
+          className="text-base font-semibold outline-none"
         >
-          {l.steps[step]}
+          {t(`onboarding.steps.${stepId}.title`)}
         </h2>
-        <p className="mt-3 text-sm leading-7 text-muted">{l.descriptions[step]}</p>
+        <p className="mt-2 text-[13px] leading-6 text-muted">
+          {t(`onboarding.steps.${stepId}.body`)}
+        </p>
         {step === 0 && (
           <>
             <button
@@ -173,20 +174,22 @@ export function QuickStart({
                 try {
                   await onOpenFolder();
                 } catch (error) {
-                  setOpenError(String(error));
+                  setOpenError(errorMessage(error, t));
                 } finally {
                   setOpening(false);
                 }
               }}
             >
-              {opening ? "…" : l.chooseFolder}
+              {t(opening ? "onboarding.opening" : "onboarding.openFolder")}
             </button>
             {workspaceReady && (
               <p role="status" className="mt-3 text-xs text-success">
-                {l.workspaceReady}
+                {t("onboarding.projectReady")}
               </p>
             )}
-            {!isTauri() && <p className="mt-3 text-xs leading-6 text-muted">{l.webPreview}</p>}
+            {!isTauri() && (
+              <p className="mt-3 text-xs leading-5 text-muted">{t("onboarding.webPreview")}</p>
+            )}
             {(openError || workspaceError) && (
               <p role="alert" className="mt-3 text-xs text-error">
                 {openError || workspaceError}
@@ -196,7 +199,7 @@ export function QuickStart({
         )}
         {saveError && (
           <p role="alert" className="mt-3 text-xs text-error">
-            {l.storageError}
+            {t("onboarding.storageError")}
           </p>
         )}
         <div className="mt-5 flex justify-end border-t border-border pt-4">
@@ -206,7 +209,7 @@ export function QuickStart({
             disabled={step === 0 || opening}
             onClick={onBack}
           >
-            {l.back}
+            {t("onboarding.back")}
           </button>
           <button
             ref={nextRef}
@@ -215,8 +218,8 @@ export function QuickStart({
             disabled={!workspaceReady || opening}
             onClick={onNext}
           >
-            {l.next}
-            <ArrowRightIcon className="ml-1 size-3" />
+            {t("onboarding.next")}
+            <ArrowRightIcon className="ml-1 size-3" aria-hidden="true" />
           </button>
         </div>
       </section>

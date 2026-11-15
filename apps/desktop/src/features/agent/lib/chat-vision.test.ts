@@ -2,14 +2,25 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseLayoutImage, parseLayoutPdf } from "@/features/settings";
 import { prepareChatVision } from "./chat-vision";
+import { extractPdfText } from "./pdf-text";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@/features/settings", () => ({ parseLayoutImage: vi.fn(), parseLayoutPdf: vi.fn() }));
+vi.mock("./pdf-text", () => ({ extractPdfText: vi.fn() }));
+const scanned = { text: "[page 1]\n", pages: 1, characters: 0, truncated: false };
+const textLayer = (body: string, truncated = false) => ({
+  text: `[page 1]\n${body}`,
+  pages: 1,
+  characters: body.replace(/\s+/g, "").length,
+  truncated,
+});
 const image = { name: "figure.png", mimeType: "image/png", data: "eA==" };
 beforeEach(() => {
   vi.mocked(parseLayoutImage).mockReset();
   vi.mocked(parseLayoutPdf).mockReset();
   vi.mocked(invoke).mockReset();
+  // By default a PDF has no text layer (a scan), which selects the layout parser.
+  vi.mocked(extractPdfText).mockReset().mockResolvedValue(scanned);
 });
 
 describe("chat vision fallback", () => {
@@ -37,10 +48,73 @@ describe("chat vision fallback", () => {
     expect(result.text).toContain("Table: 42");
     expect(result.images).toEqual([]);
   });
-  it("leaves PDF references alone for image-capable models", async () => {
-    const text = 'Read @file:"paper.pdf"';
-    expect(await prepare(text, undefined, true)).toEqual({ text, images: [] });
-    expect(invoke).not.toHaveBeenCalled();
+  it("extracts referenced PDFs locally, for image-capable models too, without the layout parser", async () => {
+    const text = 'Read @file:"papers/x.pdf"';
+    const body = `Results: accuracy 92%. ${"Body text. ".repeat(20)}`;
+    vi.mocked(invoke).mockResolvedValue([37, 80, 68, 70]);
+    vi.mocked(extractPdfText).mockResolvedValue(textLayer(body));
+    vi.mocked(parseLayoutImage).mockResolvedValue("Chart: x=1");
+    for (const supportsImages of [true, false]) {
+      const result = await prepareChatVision(
+        text,
+        [image],
+        supportsImages,
+        "configure",
+        new AbortController().signal,
+        "/project",
+      );
+      expect(result.text).toContain(text);
+      expect(result.text).toContain("UNTRUSTED");
+      expect(result.text).toContain("[page 1]\\nResults: accuracy 92%");
+      expect(result.text).toContain('"filename":"papers/x.pdf"');
+      expect(result.text).not.toContain('"truncated":true');
+      expect(parseLayoutPdf).not.toHaveBeenCalled();
+      if (supportsImages) {
+        // Native image input is passed through unchanged.
+        expect(result.images).toEqual([image]);
+        expect(parseLayoutImage).not.toHaveBeenCalled();
+      }
+    }
+    expect(parseLayoutImage).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledWith("read_chat_pdf", {
+      relativePath: "papers/x.pdf",
+      expectedProject: "/project",
+    });
+  });
+  it("falls back to the layout parser only for scans, and keeps sparse text if that fails", async () => {
+    const text = 'Read @file:"scan.pdf"';
+    vi.mocked(invoke).mockResolvedValue([37, 80, 68, 70]);
+    vi.mocked(parseLayoutPdf).mockResolvedValue("OCR text");
+    expect((await prepare(text, undefined, true)).text).toContain("OCR text");
+    vi.mocked(extractPdfText).mockRejectedValueOnce(new Error("worker failed"));
+    expect((await prepare(text)).text).toContain("OCR text");
+    vi.mocked(extractPdfText).mockResolvedValue(textLayer("Title page"));
+    vi.mocked(parseLayoutPdf).mockRejectedValue(new Error("configure"));
+    const sparse = await prepare(text);
+    expect(sparse.text).toContain("Title page");
+    vi.mocked(extractPdfText).mockResolvedValue(scanned);
+    await expect(prepare(text)).rejects.toThrow("configure");
+  });
+  it("truncates long PDF text to the 80 KB budget and marks it instead of failing", async () => {
+    vi.mocked(invoke).mockResolvedValue([37, 80, 68, 70]);
+    vi.mocked(extractPdfText).mockImplementation(async () =>
+      textLayer("长文本 text ".repeat(20000)),
+    );
+    const text = 'Compare @file:"a.pdf" @file:"b.pdf"';
+    const result = await prepare(text, undefined, true);
+    const json = result.text.slice(result.text.indexOf("\n[{") + 1);
+    expect(new TextEncoder().encode(json).length).toBeLessThanOrEqual(80000);
+    const entries: { filename: string; content: string; truncated?: boolean }[] = JSON.parse(json);
+    expect(entries.map((entry) => entry.filename)).toEqual(["a.pdf", "b.pdf"]);
+    for (const entry of entries) {
+      expect(entry.truncated).toBe(true);
+      expect(entry.content).toContain("[truncated:");
+      // Both documents get a comparable share of the budget.
+      expect(entry.content.length).toBeGreaterThan(10000);
+    }
+    // Extraction that stopped early is marked even when it fits.
+    vi.mocked(extractPdfText).mockResolvedValue(textLayer("x".repeat(500), true));
+    expect((await prepare('@file:"a.pdf"')).text).toContain('"truncated":true');
     expect(parseLayoutPdf).not.toHaveBeenCalled();
   });
   it("does not treat ordinary filenames or malformed mentions as PDF references", async () => {
@@ -62,21 +136,24 @@ describe("chat vision fallback", () => {
   it("bounds the combined PDF and image context and the number of PDFs", async () => {
     vi.mocked(invoke).mockResolvedValue([37, 80, 68, 70]);
     vi.mocked(parseLayoutImage).mockResolvedValue("x".repeat(40000));
-    vi.mocked(parseLayoutPdf).mockResolvedValue("x".repeat(40000));
-    await expect(
-      prepareChatVision(
-        'Read @file:"paper.pdf"',
-        [image],
-        false,
-        "configure",
-        new AbortController().signal,
-        "/project",
-      ),
-    ).rejects.toThrow("80 KB");
+    vi.mocked(parseLayoutPdf).mockResolvedValue("y".repeat(60000));
+    const combined = await prepareChatVision(
+      'Read @file:"paper.pdf"',
+      [image],
+      false,
+      "configure",
+      new AbortController().signal,
+      "/project",
+    );
+    const json = combined.text.slice(combined.text.indexOf("\n[{") + 1);
+    expect(new TextEncoder().encode(json).length).toBeLessThanOrEqual(80000);
+    // Image text is kept whole; the PDF takes what is left and is marked.
+    expect(json).toContain("x".repeat(40000));
+    expect(json).toContain('"truncated":true');
     vi.mocked(invoke).mockClear();
     await expect(
       prepare(Array.from({ length: 9 }, (_, i) => `@file:"${i}.pdf"`).join(" ")),
-    ).rejects.toThrow("maximum 8");
+    ).rejects.toMatchObject({ key: "agent.errors.tooManyPdfs", params: { max: 8 } });
     expect(invoke).not.toHaveBeenCalled();
   });
   it("stops waiting for PDF reads and never uploads a file read after cancellation", async () => {

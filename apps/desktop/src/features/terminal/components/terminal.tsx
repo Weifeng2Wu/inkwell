@@ -5,6 +5,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { memo, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/features/i18n";
 import { readThemePalette, resolveTerminalFontFamily, useThemeMode } from "@/features/settings";
 
 // GitHub Light terminal colors
@@ -92,6 +93,10 @@ export const Terminal = memo(function Terminal({
   // Client-side mount check - intentionally set in effect for hydration safety
   const [mounted, setMounted] = useState(false);
   const themeMode = useThemeMode();
+  const { t } = useI18n();
+  // Read through a ref: a language switch must not restart the shell.
+  const translate = useRef(t);
+  translate.current = t;
 
   useEffect(() => {
     setMounted(true);
@@ -200,7 +205,7 @@ export const Terminal = memo(function Terminal({
     const setup = async () => {
       try {
         if (!isTauri()) {
-          term.writeln("\r\nTerminal PTY is only supported inside the Tauri desktop app.\r\n");
+          term.writeln(`\r\n${translate.current("terminal.desktopOnly")}\r\n`);
           return;
         }
 
@@ -239,7 +244,7 @@ export const Terminal = memo(function Terminal({
 
           const { id, code } = event.payload;
           if (id === ptyId) {
-            term.write(`\r\n[Process exited with code ${code}]\r\n`);
+            term.write(`\r\n${translate.current("terminal.processExited", { code })}\r\n`);
             ptyId = null;
             return;
           }
@@ -295,14 +300,16 @@ export const Terminal = memo(function Terminal({
 
         const exitCode = pendingExit.get(spawnedPtyId);
         if (exitCode !== undefined) {
-          term.write(`\r\n[Process exited with code ${exitCode}]\r\n`);
+          term.write(`\r\n${translate.current("terminal.processExited", { code: exitCode })}\r\n`);
           ptyId = null;
           pendingExit.delete(spawnedPtyId);
         }
       } catch (err) {
         if (!isCleanedUp) {
           console.error("Failed to spawn PTY:", err);
-          term.write(`\r\nFailed to start terminal: ${err}\r\n`);
+          term.write(
+            `\r\n${translate.current("terminal.startFailed", { error: String(err) })}\r\n`,
+          );
         }
       }
     };
@@ -359,7 +366,9 @@ export const Terminal = memo(function Terminal({
   if (!mounted) {
     return (
       <div className={`bg-background ${className}`}>
-        <div className="p-4 text-sm text-muted">Loading terminal...</div>
+        <div className="motion-fade p-4 text-[13px] text-muted">
+          {t("terminal.loadingTerminal")}
+        </div>
       </div>
     );
   }
@@ -367,7 +376,7 @@ export const Terminal = memo(function Terminal({
   if (!projectPath) {
     return (
       <div className={`bg-background flex items-center justify-center ${className}`}>
-        <span className="text-sm text-muted">Open a project to use terminal</span>
+        <span className="text-[13px] text-muted">{t("terminal.noProject")}</span>
       </div>
     );
   }

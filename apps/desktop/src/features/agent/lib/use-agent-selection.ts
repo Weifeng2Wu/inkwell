@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { errorMessage, useI18n } from "@/features/i18n";
 import { appStorage } from "@/lib/storage/app-storage";
 import { hasAcpConsent } from "./acp-consent";
 import {
@@ -18,6 +19,9 @@ export function useAgentSelection() {
   const [launches, setLaunches] = useState<Record<string, LaunchOverride>>({});
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
+  const translate = useRef(t);
+  translate.current = t;
 
   useEffect(() => {
     try {
@@ -45,7 +49,7 @@ export function useAgentSelection() {
         }
       }
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
     setReady(true);
   }, []);
@@ -56,7 +60,7 @@ export function useAgentSelection() {
       appStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, launches }));
       setError(null);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     }
   }, [selected, launches, ready]);
 

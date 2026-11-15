@@ -6,91 +6,86 @@ import {
   FolderIcon,
   FolderPlusIcon,
 } from "@phosphor-icons/react";
+import type { ComponentProps } from "react";
+import { PanelEmpty } from "@/components/ui/panel-empty";
+import { PanelAction, PanelHeader } from "@/components/ui/panel-header";
 import { EditorErrorBoundary } from "@/features/editor/components/editor-error-boundary";
 import { useI18n } from "@/features/i18n";
+import { shortcutLabel, useKeyboardShortcuts } from "@/features/settings";
 import { type FileOperations, FileTree } from "@/features/workspace/components/file-tree";
-import { pathSync } from "@/lib/path";
 import type { FileNode } from "@/types/files";
 
 type FileSidebarPanelProps = {
   projectPath: string | null;
   files: FileNode[];
   selectedFile?: string;
+  openFiles?: readonly string[];
   highlightedFile: string | null;
   onFileSelect: (path: string) => void;
   onCreateFile: () => void;
   onCreateDirectory: () => void;
   onRefreshFiles: () => void | Promise<void>;
   fileOperations: FileOperations;
+  contextMenuItems?: ComponentProps<typeof FileTree>["contextMenuItems"];
 };
 
 export function FileSidebarPanel({
   projectPath,
   files,
   selectedFile,
+  openFiles,
   highlightedFile,
   onFileSelect,
   onCreateFile,
   onCreateDirectory,
   onRefreshFiles,
   fileOperations,
+  contextMenuItems,
 }: FileSidebarPanelProps) {
   const { t } = useI18n();
+  const { bindings } = useKeyboardShortcuts();
+  const openKeys = shortcutLabel(bindings.openProject);
+
+  const title = t("workbench.views.files");
 
   if (!projectPath) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-4 text-center text-muted">
-        <FolderIcon className="w-8 h-8 mb-2 opacity-30" />
-        <p className="text-xs">{t("files.noFolderOpen")}</p>
-      </div>
+      <>
+        <PanelHeader title={title} />
+        <PanelEmpty
+          icon={<FolderIcon className="size-7" />}
+          title={t("files.noFolderOpen")}
+          description={t("files.noProjectHint")}
+        >
+          {openKeys && <kbd className="kbd-quiet mt-1">{openKeys}</kbd>}
+        </PanelEmpty>
+      </>
     );
   }
 
   return (
     <>
-      <div
-        className="px-3 py-2 border-b border-border flex items-center justify-between gap-2"
-        title={projectPath}
-      >
-        <span className="text-xs text-muted truncate">{pathSync.basename(projectPath)}</span>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            type="button"
-            onClick={onCreateFile}
-            className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            title={t("files.newFile")}
-            aria-label={t("files.newFile")}
-          >
-            <FilePlusIcon className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onCreateDirectory}
-            className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            title={t("files.newFolder")}
-            aria-label={t("files.newFolder")}
-          >
-            <FolderPlusIcon className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onRefreshFiles}
-            className="p-1 text-muted hover:text-foreground hover:bg-accent/5 transition-colors"
-            title={t("files.refreshFiles")}
-            aria-label={t("files.refreshFiles")}
-          >
-            <ArrowClockwiseIcon className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      <PanelHeader title={title}>
+        <PanelAction label={t("files.newFile")} onClick={onCreateFile}>
+          <FilePlusIcon className="size-4" aria-hidden="true" />
+        </PanelAction>
+        <PanelAction label={t("files.newFolder")} onClick={onCreateDirectory}>
+          <FolderPlusIcon className="size-4" aria-hidden="true" />
+        </PanelAction>
+        <PanelAction label={t("files.refreshFiles")} onClick={() => void onRefreshFiles()}>
+          <ArrowClockwiseIcon className="size-4" aria-hidden="true" />
+        </PanelAction>
+      </PanelHeader>
       <EditorErrorBoundary>
         <FileTree
           files={files}
           selectedFile={selectedFile}
+          openFiles={openFiles}
           highlightedFile={highlightedFile}
           onFileSelect={onFileSelect}
           className="flex-1 min-h-0 overflow-hidden"
           fileOperations={fileOperations}
+          contextMenuItems={contextMenuItems}
           projectPath={projectPath}
           onRefresh={onRefreshFiles}
         />

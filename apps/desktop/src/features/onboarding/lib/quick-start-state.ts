@@ -1,7 +1,20 @@
 import { appStorage } from "@/lib/storage/app-storage";
 
 export const QUICK_START_KEY = "inkwell-quick-start-v1";
-export const QUICK_START_STEPS = 9;
+/** One id per step, in order. Each has a title and body under `onboarding.steps.<id>`. */
+export const QUICK_START_STEP_IDS = [
+  "project",
+  "settings",
+  "mainFile",
+  "compile",
+  "agent",
+  "layoutParser",
+  "webSearch",
+  "skills",
+  "github",
+] as const;
+export type QuickStartStepId = (typeof QUICK_START_STEP_IDS)[number];
+export const QUICK_START_STEPS = QUICK_START_STEP_IDS.length;
 export interface QuickStartState {
   step: number;
   completed: boolean;

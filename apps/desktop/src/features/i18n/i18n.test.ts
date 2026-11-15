@@ -2,14 +2,19 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { academicLabels } from "../agent/lib/academic-labels";
-import { externalAgentLabels } from "../agent/lib/external-agent-labels";
 import { localizeSkill } from "../agent/lib/skill-presentation";
+import { posterLabels } from "../poster/lib/labels";
+import { SHORTCUTS } from "../settings/lib/keyboard-shortcuts";
+import {
+  findHardcodedStrings,
+  HARDCODED_STRING_SCAN_ROOTS,
+  isTranslatableText,
+  scanHardcodedStrings,
+} from "./copy-scan";
 import { en } from "./locales/en";
 import { ko } from "./locales/ko";
 import { zh } from "./locales/zh";
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LOCALES } from "./types";
-import { posterLabels } from "../poster/lib/labels";
 
 function getLeafEntries(obj: Record<string, unknown>, prefix = ""): Record<string, string> {
   const result: Record<string, string> = {};
@@ -45,23 +50,6 @@ describe("Agent translations", () => {
     expect(translated.description).toBe("Localized description");
   });
 
-  for (const [name, dictionaries] of Object.entries({
-    academic: academicLabels,
-    external: Object.fromEntries(LOCALES.map(({ id }) => [id, externalAgentLabels(id)])),
-  })) {
-    it(`${name} labels have matching keys and placeholders in every language`, () => {
-      const baseline = getLeafEntries(dictionaries.en ?? {});
-      for (const { id } of LOCALES) {
-        const entries = getLeafEntries(dictionaries[id] ?? {});
-        expect(Object.keys(entries).sort()).toEqual(Object.keys(baseline).sort());
-        for (const [key, text] of Object.entries(entries)) {
-          expect(text.trim(), `${id}.${key}`).not.toBe("");
-          expect(extractParams(text), `${id}.${key}`).toEqual(extractParams(baseline[key] ?? ""));
-        }
-      }
-    });
-  }
-
   it("localizes shared controls instead of falling back to English", () => {
     const baseline = getLeafEntries(en.interface);
     for (const dictionary of [zh, ko]) {
@@ -77,6 +65,85 @@ describe("poster translations", () => {
     for (const key of ["help", "width", "height", "resize"] as const) {
       expect(posterLabels("ko")[key], key).not.toBe(posterLabels("en")[key]);
     }
+  });
+});
+
+describe("keyboard shortcut names", () => {
+  it("names every shortcut in every language", () => {
+    for (const [locale, dictionary] of Object.entries({ en, zh, ko })) {
+      const actions: Record<string, string | undefined> = dictionary.shortcuts.actions;
+      for (const { id } of SHORTCUTS) {
+        expect(actions[id]?.trim(), `${locale}.shortcuts.actions.${id}`).toBeTruthy();
+      }
+    }
+  });
+
+  it("names every shortcut category in every language", () => {
+    for (const [locale, dictionary] of Object.entries({ en, zh, ko })) {
+      const categories: Record<string, string | undefined> = dictionary.shortcuts.categories;
+      for (const category of new Set(SHORTCUTS.map((shortcut) => shortcut.category))) {
+        expect(
+          categories[category]?.trim(),
+          `${locale}.shortcuts.categories.${category}`,
+        ).toBeTruthy();
+      }
+    }
+  });
+});
+
+describe("hardcoded interface text", () => {
+  it("recognizes words but not symbols, numbers, key names or brand names", () => {
+    for (const text of [
+      "Save changes",
+      "保存",
+      "저장",
+      "Open in GitHub",
+      "Press Enter to send",
+      "Delete",
+    ])
+      expect(isTranslatableText(text), text).toBe(true);
+    for (const text of [
+      "",
+      " · ",
+      "12",
+      "100%",
+      "Inkwell",
+      "LaTeX / BibTeX",
+      "Ctrl+Shift+P",
+      "Ctrl+Delete",
+      "⌘K",
+    ])
+      expect(isTranslatableText(text), text).toBe(false);
+    for (const text of ["https://api.openai.com/v1", "SKILL.md", "SecretId"])
+      expect(isTranslatableText(text), text).toBe(false);
+  });
+
+  it("finds literals in JSX text, expressions and visible attributes", () => {
+    const found = findHardcodedStrings(
+      "sample.tsx",
+      [
+        "export const Sample = ({ busy, t }: { busy: boolean; t: (key: string) => string }) => (",
+        '  <button type="button" title="Remove file" aria-label={busy ? "Working" : t("a.b")}>',
+        "    Delete {busy ? `Wait $".concat("{1}` : null}"),
+        '    <input placeholder={t("a.c")} className="text-sm" data-kind="plain" />',
+        "  </button>",
+        ");",
+      ].join("\n"),
+    );
+    expect(found.map(({ kind, name, text }) => [kind, name, text])).toEqual([
+      ["attribute", "title", "Remove file"],
+      ["attribute", "aria-label", "Working"],
+      ["text", undefined, "Delete"],
+      ["text", undefined, "Wait"],
+    ]);
+  });
+
+  it("keeps migrated components free of hardcoded text", () => {
+    expect(HARDCODED_STRING_SCAN_ROOTS.length).toBeGreaterThan(0);
+    const found = scanHardcodedStrings(fileURLToPath(new URL("../../", import.meta.url)));
+    expect(
+      found.map(({ file, line, name, text }) => `${file}:${line} ${name ?? "text"} ${text}`),
+    ).toEqual([]);
   });
 });
 

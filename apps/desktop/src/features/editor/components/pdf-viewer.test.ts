@@ -14,6 +14,8 @@ const mock = vi.hoisted(() => ({
   refineSelection: vi.fn(),
   refineAnnotation: vi.fn(),
   disposeGeometry: vi.fn(),
+  outline: [] as unknown[],
+  getTextContent: vi.fn(),
   watchers: new Set<(event: { payload: { path: string; kind: string } }) => void>(),
 }));
 vi.mock("../lib/pdf-geometry", () => ({
@@ -42,16 +44,11 @@ vi.mock("next/dynamic", () => ({
     ({ text }: { text: string }) =>
       createElement("div", null, text),
 }));
-vi.mock("@phosphor-icons/react", () => ({
-  ArrowSquareOutIcon: () => null,
-  CheckIcon: () => null,
-  CaretDownIcon: () => null,
-  HighlighterIcon: () => null,
-  NoteIcon: () => null,
-  TextUnderlineIcon: () => null,
-  TranslateIcon: () => null,
-  XIcon: () => null,
-}));
+// Icons render nothing; mapping every export keeps the mock in step with the components.
+vi.mock("@phosphor-icons/react", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return Object.fromEntries(Object.keys(actual).map((name) => [name, () => null]));
+});
 vi.mock("./lazy", () => ({
   DraftEditor: ({
     content,
@@ -80,6 +77,12 @@ vi.mock("react-pdf", () => ({
         numPages: 2,
         fingerprints: ["permanent-id"],
         getData: async () => new TextEncoder().encode(`actual-pdf-revision-${mock.revision}`),
+        getOutline: async () => mock.outline,
+        getDestination: async (name: string) => (name === "second" ? [{ num: 7, gen: 0 }] : null),
+        getPageIndex: async (ref: { num: number }) => (ref.num === 7 ? 1 : 0),
+        getPage: async (number: number) => ({
+          getTextContent: () => mock.getTextContent(number),
+        }),
       });
     }, [onLoadSuccess]);
     return createElement("div", null, children);
@@ -171,7 +174,7 @@ async function pointer(selectText: boolean, moved = false, clientX = 80, clientY
   await settle();
 }
 
-async function render() {
+async function render(extra: Partial<Parameters<typeof PdfViewer>[0]> = {}) {
   await act(async () => {
     root.render(
       createElement(PdfViewer, {
@@ -180,6 +183,7 @@ async function render() {
         pdfPath,
         onSynctexClick: jump,
         onOpenNotes: openNotes,
+        ...extra,
       }),
     );
   });
@@ -209,16 +213,22 @@ beforeEach(() => {
   );
   mock.refineAnnotation.mockReset().mockImplementation(async (item: PdfAnnotation) => item);
   mock.disposeGeometry.mockReset();
+  mock.outline = [];
+  mock.getTextContent.mockReset().mockImplementation(async (number: number) => ({
+    items: [{ str: "Important finding", hasEOL: true }, { str: `on page ${number}.` }],
+  }));
   jump.mockReset();
   openNotes.mockReset();
   mock.invoke.mockImplementation(async (command: string, request: Record<string, unknown>) => {
     if (command === "pdf_notes_load")
-      return { content: mock.disk, canSyncSource: mock.source, path: `${pdfPath}.notes.md` };
+      return { content: mock.disk, revision: `revision:${mock.disk}` };
     if (command === "pdf_notes_save") {
-      if (request.expectedContent !== mock.disk) throw new Error("PDF_NOTES_CONFLICT");
+      if (request.expectedRevision !== `revision:${mock.disk}`)
+        throw new Error("PDF_NOTES_CONFLICT");
       mock.disk = String(request.content);
-      return;
+      return `revision:${mock.disk}`;
     }
+    if (command === "pdf_can_sync_source") return mock.source;
     if (command === "translation_request") return "你好，这是测试译文。";
     throw new Error("Unexpected command");
   });
@@ -343,7 +353,7 @@ describe("PDF reading interactions", () => {
     ];
     for (const label of labels) {
       const action = toolbar?.querySelector(`[aria-label="${label}"]`);
-      expect(action?.getAttribute("title")).toBe(label);
+      expect(action?.hasAttribute("title")).toBe(false);
       expect(action?.classList.contains("toolbar-icon-button")).toBe(true);
     }
     expect(
@@ -366,7 +376,7 @@ describe("PDF reading interactions", () => {
     await click(chosen);
     expect(container.querySelector('[role="dialog"][aria-label="pdfReading.color"]')).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(trigger.getAttribute("title")).toContain("pdfReading.colors.info");
+    expect(trigger.getAttribute("data-color")).toBe("info");
     expect(document.activeElement).toBe(trigger);
     await click(button("pdfReading.highlight"));
     expect(parsePdfNotes(mock.disk).annotations[0]).toMatchObject({
@@ -560,10 +570,18 @@ describe("PDF reading interactions", () => {
       );
     });
     expect(jump).toHaveBeenCalledTimes(1);
+    const notes = mock.disk;
     await click(button("pdfReading.read"));
-    expect(parsePdfNotes(mock.disk).mode).toBe("read");
     await pointer(false);
     expect(jump).toHaveBeenCalledTimes(1);
+    // The mode is a reader preference: it survives reopening without touching the notes.
+    expect(mock.disk).toBe(notes);
+    await act(async () => {
+      root.unmount();
+      root = createRoot(container);
+    });
+    await render();
+    expect(button("pdfReading.read").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("supports continuous underlining without an extra save click", async () => {
@@ -636,6 +654,451 @@ describe("PDF reading interactions", () => {
     expect(container.querySelectorAll("[data-pdf-annotation-paint]")).toHaveLength(0);
     expect(container.textContent).toContain("pdfReading.staleAnnotations");
     expect(parsePdfNotes(mock.disk).annotations).toHaveLength(1);
+  });
+});
+
+async function type(input: HTMLInputElement, text: string) {
+  await act(async () => {
+    input.focus();
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, text);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function key(target: Element, name: string, init: KeyboardEventInit = {}) {
+  await act(async () => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...init }),
+    );
+  });
+  await settle();
+}
+
+function field(label: string) {
+  const input = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+  if (!input) throw new Error(`Missing field: ${label}`);
+  return input;
+}
+
+/** Lay the two fixture pages out one below the other in a 600px-high pane. */
+function stackPages() {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const scroller = container.querySelector<HTMLElement>("[data-pdf-scroll]");
+    const scrolled = scroller?.scrollTop ?? 0;
+    const page = Number(this.getAttribute("data-pdf-page") ?? 0);
+    if (page) return new DOMRect(0, (page - 1) * 800 - scrolled, 612, 792);
+    if (!this.classList.contains("inkwell-pdf-search-hit")) return new DOMRect(0, 0, 612, 600);
+    const owner = Number(this.closest("[data-pdf-page]")?.getAttribute("data-pdf-page") ?? 1);
+    return new DOMRect(72, (owner - 1) * 800 + 100 - scrolled, 150, 20);
+  });
+}
+
+describe("PDF excerpts for writing and the agent", () => {
+  it("hides the quote and agent actions unless their callbacks are provided", async () => {
+    await render();
+    await pointer(true, true);
+    const toolbar = container.querySelector('[role="toolbar"]');
+    expect(toolbar?.querySelector('[aria-label="pdfReading.quote"]')).toBeNull();
+    expect(toolbar?.querySelector('[aria-label="pdfReading.addToAgent"]')).toBeNull();
+    await render({ onQuote: vi.fn() });
+    const labels = [...(toolbar?.querySelectorAll("button") ?? [])].map((item) =>
+      item.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual([
+      "pdfReading.highlight",
+      "pdfReading.underline",
+      "pdfReading.addNote",
+      "translation.action",
+      "pdfReading.quote",
+      "pdfReading.color",
+    ]);
+  });
+
+  it("sends the selected passage with its page and clears the selection", async () => {
+    const quote = vi.fn();
+    const agent = vi.fn();
+    await render({ onQuote: quote, onAddToAgent: agent });
+    await pointer(true, true);
+    await click(button("pdfReading.quote"));
+    expect(quote).toHaveBeenCalledWith({ text: "Important", page: 1 });
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
+    expect(window.getSelection()?.isCollapsed).toBe(true);
+    await pointer(true, true);
+    await click(button("pdfReading.addToAgent"));
+    expect(agent).toHaveBeenCalledWith({ text: "Important", page: 1 });
+    expect(agent).toHaveBeenCalledTimes(1);
+    expect(quote).toHaveBeenCalledTimes(1);
+    expect(parsePdfNotes(mock.disk).annotations).toHaveLength(0);
+  });
+
+  it("keeps both actions usable when notes cannot be written, and arrow keys reach them", async () => {
+    mock.invoke.mockImplementation(async () => {
+      throw new Error("PDF_NOTES_INVALID");
+    });
+    await render({ onQuote: vi.fn(), onAddToAgent: vi.fn() });
+    await pointer(true, true);
+    expect(button("pdfReading.highlight").disabled).toBe(true);
+    const translate = button("translation.action");
+    expect(translate.tabIndex).toBe(0);
+    expect(button("pdfReading.quote").disabled).toBe(false);
+    await act(async () => translate.focus());
+    await key(translate, "ArrowRight");
+    expect(document.activeElement).toBe(button("pdfReading.quote"));
+    await key(button("pdfReading.quote"), "ArrowRight");
+    expect(document.activeElement).toBe(button("pdfReading.addToAgent"));
+    expect(button("pdfReading.addToAgent").tabIndex).toBe(0);
+    await key(button("pdfReading.addToAgent"), "ArrowRight");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("pdfReading.color");
+    expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
+    await key(button("pdfReading.color"), "End");
+    await key(button("pdfReading.color"), "ArrowRight");
+    expect(document.activeElement).toBe(translate);
+  });
+
+  it("offers the same actions for a saved annotation without closing its popup", async () => {
+    const quote = vi.fn();
+    const agent = vi.fn();
+    await render({ onQuote: quote, onAddToAgent: agent });
+    await pointer(true, true);
+    await click(button("pdfReading.highlight"));
+    await pointer(false);
+    const dialog = container.querySelector('[role="dialog"]');
+    const send = dialog?.querySelector('[aria-label="pdfReading.addToAgent"]');
+    const cite = dialog?.querySelector('[aria-label="pdfReading.quote"]');
+    if (!send || !cite) throw new Error("Missing popup excerpt actions");
+    await click(send);
+    await click(cite);
+    expect(agent).toHaveBeenCalledWith({ text: "Important", page: 1 });
+    expect(quote).toHaveBeenCalledWith({ text: "Important", page: 1 });
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    await render();
+    expect(container.querySelector('[role="dialog"] [aria-label="pdfReading.quote"]')).toBeNull();
+  });
+});
+
+describe("PDF reading shortcuts", () => {
+  const pane = () => {
+    const scroller = container.querySelector<HTMLElement>("[data-pdf-scroll]");
+    if (!scroller) throw new Error("Missing PDF pane");
+    return scroller;
+  };
+
+  it("marks, quotes and hands off the selection with single keys", async () => {
+    const quote = vi.fn();
+    const agent = vi.fn();
+    await render({ onQuote: quote, onAddToAgent: agent });
+    await pointer(true, true);
+    await key(pane(), "h");
+    expect(parsePdfNotes(mock.disk).annotations).toMatchObject([{ kind: "highlight" }]);
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
+    await pointer(true, true);
+    await key(pane(), "U");
+    expect(parsePdfNotes(mock.disk).annotations.map((item) => item.kind)).toContain("underline");
+    await pointer(true, true);
+    await key(pane(), "q");
+    expect(quote).toHaveBeenCalledWith({ text: "Important", page: 1 });
+    await pointer(true, true);
+    await key(pane(), "a");
+    expect(agent).toHaveBeenCalledWith({ text: "Important", page: 1 });
+    await pointer(true, true);
+    await key(pane(), "n");
+    expect(container.querySelector("textarea")).not.toBeNull();
+  });
+
+  it("ignores selection keys without a selection, a callback or a modifier-free press", async () => {
+    await render();
+    await key(pane(), "h");
+    await key(pane(), "n");
+    expect(parsePdfNotes(mock.disk).annotations).toHaveLength(0);
+    expect(container.querySelector("textarea")).toBeNull();
+    await pointer(true, true);
+    await key(pane(), "q");
+    await key(pane(), "a");
+    await key(pane(), "h", { ctrlKey: true });
+    expect(container.querySelector('[role="toolbar"]')).not.toBeNull();
+    expect(parsePdfNotes(mock.disk).annotations).toHaveLength(0);
+    await key(pane(), "Escape");
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
+    expect(window.getSelection()?.isCollapsed).toBe(true);
+  });
+
+  it("opens translation with T and leaves typing in fields alone", async () => {
+    await render();
+    await pointer(true, true);
+    await key(pane(), "t");
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
+    await key(document.body, "Escape");
+    const input = field("pdfReading.pageNumber");
+    await key(input, "j");
+    await key(input, "+");
+    expect(button("editor.resetZoom").textContent).toBe("100%");
+  });
+
+  it("zooms with + - 0, turns pages with J K and arrows, and finds with /", async () => {
+    stackPages();
+    await render();
+    const input = field("pdfReading.pageNumber");
+    await key(pane(), "0");
+    expect(button("editor.resetZoom").textContent).toBe("100%");
+    expect(button("pdfReading.fitWidth").getAttribute("aria-pressed")).toBe("false");
+    await key(pane(), "+");
+    expect(button("editor.resetZoom").textContent).toBe("125%");
+    await key(pane(), "-");
+    await key(pane(), "-");
+    expect(button("editor.resetZoom").textContent).toBe("75%");
+    await key(pane(), "j");
+    expect(input.value).toBe("2");
+    await key(pane(), "j");
+    expect(input.value).toBe("2");
+    await key(pane(), "k");
+    expect(input.value).toBe("1");
+    await key(pane(), "ArrowRight");
+    expect(input.value).toBe("2");
+    await key(pane(), "ArrowLeft");
+    expect(input.value).toBe("1");
+    await key(pane(), "/");
+    expect(container.querySelector("[data-pdf-find]")).not.toBeNull();
+  });
+});
+
+describe("PDF page navigation", () => {
+  it("shows the current page, jumps on Enter or blur and restores invalid input", async () => {
+    stackPages();
+    await render();
+    const scroller = container.querySelector<HTMLElement>("[data-pdf-scroll]");
+    const input = field("pdfReading.pageNumber");
+    expect(input.value).toBe("1");
+    expect(input.parentElement?.textContent).toBe("/ 2");
+    expect(button("pdfReading.previousPage").disabled).toBe(true);
+    await type(input, "2");
+    await key(input, "Enter");
+    expect(input.value).toBe("2");
+    expect(scroller?.scrollTop).toBe(792);
+    expect(button("pdfReading.nextPage").disabled).toBe(true);
+    for (const invalid of ["9", "0", "abc", "1.5", ""]) {
+      await type(input, invalid);
+      await key(input, "Enter");
+      expect(input.value).toBe("2");
+    }
+    expect(scroller?.scrollTop).toBe(792);
+    await type(input, "1");
+    await act(async () => input.blur());
+    expect(input.value).toBe("1");
+    expect(scroller?.scrollTop).toBe(0);
+    await click(button("pdfReading.nextPage"));
+    expect(input.value).toBe("2");
+    await click(button("pdfReading.previousPage"));
+    expect(input.value).toBe("1");
+  });
+
+  it("follows the page that fills the pane while scrolling", async () => {
+    stackPages();
+    await render();
+    const scroller = container.querySelector<HTMLElement>("[data-pdf-scroll]");
+    if (!scroller) throw new Error("Missing PDF scroll pane");
+    await act(async () => {
+      scroller.scrollTop = 700;
+      scroller.dispatchEvent(new Event("scroll"));
+      await new Promise<void>((resolve) => setTimeout(resolve, 40));
+    });
+    expect(field("pdfReading.pageNumber").value).toBe("2");
+  });
+});
+
+describe("PDF reading position", () => {
+  const stored = (page: number) =>
+    JSON.stringify({ [`/project\n${pdfPath}`]: { page, scale: 1.5, fitWidth: false } });
+
+  it("reopens a PDF on its last page and zoom", async () => {
+    stackPages();
+    localStorage.setItem("inkwell-pdf-position-v1", stored(2));
+    await render();
+    expect(field("pdfReading.pageNumber").value).toBe("2");
+    expect(container.querySelector<HTMLElement>("[data-pdf-scroll]")?.scrollTop).toBe(792);
+    expect(button("editor.resetZoom").textContent).toBe("150%");
+    expect(button("pdfReading.fitWidth").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("restores only the zoom of a compiled preview", async () => {
+    stackPages();
+    localStorage.setItem("inkwell-pdf-position-v1", stored(2));
+    await render({ compiledPreview: true });
+    expect(field("pdfReading.pageNumber").value).toBe("1");
+    expect(container.querySelector<HTMLElement>("[data-pdf-scroll]")?.scrollTop).toBe(0);
+    expect(button("editor.resetZoom").textContent).toBe("150%");
+  });
+
+  it("saves the page and zoom after a 500ms pause and leaves an untouched PDF unrecorded", async () => {
+    stackPages();
+    await render();
+    await click(button("pdfReading.nextPage"));
+    await click(button("editor.zoomIn"));
+    expect(localStorage.getItem("inkwell-pdf-position-v1")).toBeNull();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 560));
+    });
+    expect(JSON.parse(localStorage.getItem("inkwell-pdf-position-v1") ?? "{}")).toEqual({
+      [`/project\n${pdfPath}`]: { page: 2, scale: 1.25, fitWidth: false },
+    });
+  });
+
+  it("writes a pending position when the viewer closes", async () => {
+    stackPages();
+    await render();
+    await click(button("pdfReading.nextPage"));
+    await act(async () => {
+      root.unmount();
+      root = createRoot(container);
+    });
+    expect(localStorage.getItem("inkwell-pdf-position-v1")).toContain('"page":2');
+  });
+});
+
+describe("PDF find", () => {
+  const status = () => container.querySelector("[data-pdf-find-status]")?.textContent;
+
+  it("opens with Ctrl/Cmd+F inside the pane, counts matches and steps through them", async () => {
+    stackPages();
+    await render();
+    expect(container.querySelector("[data-pdf-find]")).toBeNull();
+    const pane = container.firstElementChild;
+    if (!pane) throw new Error("Missing PDF pane");
+    const shortcut = new KeyboardEvent("keydown", {
+      key: "f",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      pane.dispatchEvent(shortcut);
+    });
+    expect(shortcut.defaultPrevented).toBe(true);
+    const input = field("pdfReading.find");
+    expect(document.activeElement).toBe(input);
+    expect(mock.getTextContent).not.toHaveBeenCalled();
+    await type(input, "FINDING  on");
+    await settle();
+    expect(status()).toBe("1 / 2");
+    expect(mock.getTextContent).toHaveBeenCalledTimes(2);
+    expect(container.querySelectorAll(".inkwell-pdf-search-hit").length).toBeGreaterThanOrEqual(2);
+    const current = () =>
+      container.querySelector("[data-pdf-search-current]")?.closest("[data-pdf-page]");
+    expect(current()?.getAttribute("data-pdf-page")).toBe("1");
+    await key(input, "Enter");
+    expect(status()).toBe("2 / 2");
+    expect(current()?.getAttribute("data-pdf-page")).toBe("2");
+    // The match on page 2 is centered in the 600px pane.
+    expect(container.querySelector<HTMLElement>("[data-pdf-scroll]")?.scrollTop).toBe(610);
+    await key(input, "Enter");
+    expect(status()).toBe("1 / 2");
+    await key(input, "Enter", { shiftKey: true });
+    expect(status()).toBe("2 / 2");
+    await click(button("pdfReading.findPrevious"));
+    expect(status()).toBe("1 / 2");
+    await type(input, "page 2");
+    await settle();
+    expect(status()).toBe("1 / 1");
+    expect(mock.getTextContent).toHaveBeenCalledTimes(2);
+    await type(input, "absent");
+    await settle();
+    expect(status()).toBe("pdfReading.findNoResults");
+    expect(container.querySelector(".inkwell-pdf-search-hit")).toBeNull();
+    expect(button("pdfReading.findNext").disabled).toBe(true);
+  });
+
+  it("closes on Escape, returns focus to the pane and removes the highlights", async () => {
+    await render();
+    await click(button("pdfReading.find"));
+    const input = field("pdfReading.find");
+    await type(input, "important");
+    await settle();
+    expect(container.querySelector(".inkwell-pdf-search-hit")).not.toBeNull();
+    await key(input, "Escape");
+    expect(container.querySelector("[data-pdf-find]")).toBeNull();
+    expect(container.querySelector(".inkwell-pdf-search-hit")).toBeNull();
+    expect(document.activeElement).toBe(container.firstElementChild);
+    expect(button("pdfReading.find").getAttribute("aria-pressed")).toBe("false");
+    // Reopening shows the previous query together with its matches.
+    await click(button("pdfReading.find"));
+    expect(field("pdfReading.find").value).toBe("important");
+    expect(document.activeElement).toBe(field("pdfReading.find"));
+    expect(container.querySelector(".inkwell-pdf-search-hit")).not.toBeNull();
+  });
+
+  it("reports progress while extracting and searches the new text after the PDF changes", async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mock.getTextContent.mockImplementation(async () => {
+      await gate;
+      return { items: [{ str: "Old text" }] };
+    });
+    await render();
+    await click(button("pdfReading.find"));
+    await type(field("pdfReading.find"), "text");
+    await settle();
+    expect(status()).toBe("pdfReading.findSearching");
+    mock.getTextContent.mockImplementation(async () => ({ items: [{ str: "New text text" }] }));
+    await render({ refreshKey: 1 });
+    release?.();
+    await settle();
+    await settle();
+    expect(status()).toBe("1 / 4");
+  });
+});
+
+describe("PDF outline", () => {
+  it("has no outline button for a PDF without one", async () => {
+    await render();
+    expect(container.querySelector('[aria-label="pdfReading.outline"]')).toBeNull();
+  });
+
+  it("lists nested entries and jumps to explicit and named destinations", async () => {
+    stackPages();
+    mock.outline = [
+      {
+        title: "Introduction",
+        dest: [{ num: 3, gen: 0 }, { name: "XYZ" }],
+        items: [{ title: "Method", dest: "second", items: [] }],
+      },
+      { title: "Missing", dest: "nowhere", items: [] },
+    ];
+    await render();
+    const trigger = button("pdfReading.outline");
+    await click(trigger);
+    const panel = container.querySelector('nav[aria-label="pdfReading.outline"]');
+    const entries = [...(panel?.querySelectorAll("button") ?? [])];
+    expect(entries.map((item) => item.textContent)).toEqual(["Introduction", "Method", "Missing"]);
+    expect(entries[1]?.style.paddingLeft).not.toBe(entries[0]?.style.paddingLeft);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const missing = entries[2];
+    const method = entries[1];
+    if (!missing || !method) throw new Error("Missing outline entries");
+    await click(missing);
+    expect(field("pdfReading.pageNumber").value).toBe("1");
+    expect(container.querySelector('nav[aria-label="pdfReading.outline"]')).not.toBeNull();
+    await click(method);
+    expect(field("pdfReading.pageNumber").value).toBe("2");
+    expect(container.querySelector('nav[aria-label="pdfReading.outline"]')).toBeNull();
+  });
+
+  it("closes on Escape or an outside press", async () => {
+    mock.outline = [{ title: "Introduction", dest: null, items: [] }];
+    await render();
+    const open = () => container.querySelector('nav[aria-label="pdfReading.outline"]') !== null;
+    await click(button("pdfReading.outline"));
+    expect(open()).toBe(true);
+    await key(document.body, "Escape");
+    expect(open()).toBe(false);
+    await click(button("pdfReading.outline"));
+    await act(async () => {
+      document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+    });
+    expect(open()).toBe(false);
   });
 });
 

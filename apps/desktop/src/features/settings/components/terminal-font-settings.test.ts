@@ -30,11 +30,13 @@ describe("terminal font selector", () => {
 
   it("offers terminal-appropriate presets and installed system fonts", () => {
     const markup = renderTerminalFont();
-    expect(markup).toContain('<option value="" selected="">Auto monospace (recommended)</option>');
+    expect(markup).toContain(
+      '<option value="" selected="">Automatic monospace (recommended)</option>',
+    );
     expect(markup).toContain('<option value="geist-mono">Geist Mono</option>');
     expect(markup).toContain('<option value="monospace">System monospace</option>');
     expect(markup).toContain('<option value="Consolas">Consolas</option>');
-    expect(markup).toContain("Installed system fonts");
+    expect(markup).toContain("Installed fonts");
     expect(markup).not.toContain('value="serif"');
     expect(markup).not.toContain('type="text"');
     expect(markup).not.toContain("The quick brown fox");
@@ -55,8 +57,8 @@ describe("terminal font selector", () => {
     vi.mocked(useSystemFonts).mockReturnValue({ fonts: [], status: "error", retry: vi.fn() });
     const markup = renderTerminalFont();
     expect(markup).toContain("Geist Mono");
-    expect(markup).toContain("Could not load system fonts");
-    expect(markup).toContain(">Retry</button>");
+    expect(markup).toContain("Could not load the installed fonts");
+    expect(markup).toContain(">Try again</button>");
   });
 
   it("keeps the three editor font selectors and their shared system-font list", () => {

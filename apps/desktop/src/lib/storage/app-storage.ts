@@ -14,11 +14,11 @@ const keys = new Set([
   "inkwell-translation-v1",
   "inkwell-translation-profiles-v1",
   "inkwell-pdf-color-v1",
+  "inkwell-pdf-position-v1",
+  "inkwell-library-sort-v1",
   "inkwell-quick-start-v1",
   "inkwell-keyboard-shortcuts-v1",
   "inkwell-locale",
-  "opencode-selected-agent",
-  "opencode-selected-model",
   "theme",
 ]);
 const prefixes = [

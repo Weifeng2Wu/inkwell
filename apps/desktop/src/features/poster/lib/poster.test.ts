@@ -40,7 +40,7 @@ describe("editable poster format", () => {
     expect(() => parsePoster(JSON.stringify({ ...p, version: 2 }))).toThrow();
     const legacy = parsePoster(JSON.stringify({ ...p, style: "modern" }));
     expect(legacy).not.toHaveProperty("style");
-    expect(serializePoster(legacy)).not.toContain("\"style\"");
+    expect(serializePoster(legacy)).not.toContain('"style"');
     expect(() => parsePoster(JSON.stringify({ ...p, elements: [first, first] }))).toThrow();
     expect(() =>
       parsePoster(JSON.stringify({ ...p, elements: [{ ...first, x: p.width }] })),

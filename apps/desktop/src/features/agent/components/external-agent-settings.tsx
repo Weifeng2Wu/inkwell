@@ -4,14 +4,15 @@ import {
   ArrowClockwiseIcon,
   CheckIcon,
   DownloadSimpleIcon,
+  SparkleIcon,
   SpinnerGapIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useId, useRef, useState } from "react";
-import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
-import { useI18n } from "@/features/i18n";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -19,12 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
+import { Tooltip } from "@/components/ui/tooltip";
+import { errorMessage, useI18n } from "@/features/i18n";
 import {
   EXTERNAL_AGENTS,
   type ExternalAgentId,
   isAgentSelection,
 } from "../lib/external-agent-catalog";
-import { externalAgentLabels } from "../lib/external-agent-labels";
 import type { AgentSelectionController } from "../lib/use-agent-selection";
 import { AGENT_INSTALLATION_CHANGED, useInstalledAgents } from "../lib/use-installed-agents";
 import { AgentLogo } from "./agent-logo";
@@ -36,8 +39,7 @@ export function AgentSelectionSettings({
   selection: AgentSelectionController;
   externalOnly?: boolean;
 }) {
-  const { locale } = useI18n();
-  const labels = externalAgentLabels(locale);
+  const { t } = useI18n();
   const id = useId();
   const statuses = useInstalledAgents();
   const installedAgents = EXTERNAL_AGENTS.filter((agent) =>
@@ -56,7 +58,7 @@ export function AgentSelectionSettings({
   return (
     <section className="mb-5 space-y-3 rounded-lg border border-border bg-background p-5 shadow-sm">
       <label htmlFor={id} className="block text-sm font-semibold">
-        {labels.select}
+        {t("agent.external.defaultAgent")}
       </label>
       <Select
         value={selected}
@@ -72,10 +74,10 @@ export function AgentSelectionSettings({
           {!externalOnly && (
             <SelectItem value="builtin">
               <span className="inline-flex items-center gap-2">
-                <span className="flex size-5 items-center justify-center rounded border border-border/60 bg-surface text-xs text-accent">
-                  In
+                <span className="flex size-5 items-center justify-center rounded border border-border/60 bg-surface text-accent">
+                  <SparkleIcon size={12} aria-hidden="true" />
                 </span>
-                {labels.builtin}
+                {t("agent.external.builtinOption")}
               </span>
             </SelectItem>
           )}
@@ -101,8 +103,7 @@ export function AgentSelectionSettings({
 }
 
 export function ExternalAgentSettings({ selection }: { selection: AgentSelectionController }) {
-  const { locale } = useI18n();
-  const labels = externalAgentLabels(locale);
+  const { t } = useI18n();
   const statuses = useInstalledAgents();
   const [installing, setInstalling] = useState<ExternalAgentId | null>(null);
   const [installProgress, setInstallProgress] = useState<number | null>(null);
@@ -110,6 +111,9 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
   const [output, setOutput] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [confirmAgent, setConfirmAgent] = useState<ExternalAgentId | null>(null);
+  const [removeAgent, setRemoveAgent] = useState<ExternalAgentId | null>(null);
+  const agentName = (agentId: ExternalAgentId | null) =>
+    EXTERNAL_AGENTS.find((entry) => entry.id === agentId)?.name ?? t("agent.reply");
   const installLock = useRef(false);
   const desktop = isTauri();
 
@@ -137,7 +141,7 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
       if (selection.launches[agentId]) selection.saveLaunch(agentId, null);
     } catch (caught) {
       setFailedAgent(agentId);
-      setError(String(caught));
+      setError(errorMessage(caught, t));
     } finally {
       unlisten?.();
       installLock.current = false;
@@ -149,12 +153,6 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
 
   async function uninstall(agentId: ExternalAgentId) {
     if (!desktop || installLock.current) return;
-    if (
-      !window.confirm(
-        `${EXTERNAL_AGENTS.find((entry) => entry.id === agentId)?.name ?? agentId}: ${labels.uninstallConfirm}`,
-      )
-    )
-      return;
     installLock.current = true;
     setInstalling(agentId);
     setError(null);
@@ -162,7 +160,7 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
       await invoke("external_agent_uninstall", { agentId });
     } catch (caught) {
       setFailedAgent(agentId);
-      setError(String(caught));
+      setError(errorMessage(caught, t));
     } finally {
       installLock.current = false;
       setInstalling(null);
@@ -173,21 +171,27 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
   return (
     <section
       className="overflow-hidden rounded-lg border border-border bg-background shadow-sm"
-      aria-label={labels.title}
+      aria-label={t("agent.external.heading")}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <h3 className="text-sm font-semibold">{labels.title}</h3>
-        <button
-          type="button"
-          className="toolbar-icon-button text-muted hover:text-foreground"
-          aria-label={labels.refresh}
-          title={labels.refresh}
-          disabled={!desktop || installing !== null}
-          onClick={() => window.dispatchEvent(new Event(AGENT_INSTALLATION_CHANGED))}
-        >
-          <ArrowClockwiseIcon size={16} aria-hidden="true" />
-        </button>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <h3 className="text-sm font-semibold">{t("agent.external.heading")}</h3>
+        <Tooltip label={t("agent.external.refresh")}>
+          <button
+            type="button"
+            className="toolbar-icon-button text-muted hover:text-foreground"
+            aria-label={t("agent.external.refresh")}
+            disabled={!desktop || installing !== null}
+            onClick={() => window.dispatchEvent(new Event(AGENT_INSTALLATION_CHANGED))}
+          >
+            <ArrowClockwiseIcon size={16} aria-hidden="true" />
+          </button>
+        </Tooltip>
       </div>
+      {!desktop && (
+        <p className="border-b border-border/60 px-5 py-2.5 text-xs text-muted">
+          {t("agent.external.desktopOnly")}
+        </p>
+      )}
       <ul className="divide-y divide-border/60">
         {EXTERNAL_AGENTS.map((entry) => {
           const status = statuses?.find((candidate) => candidate.id === entry.id);
@@ -198,19 +202,22 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
           const checking = desktop && !status;
           const unavailable = !desktop || Boolean(status && !status.installable);
           const disabled = ready || installing !== null || checking || unavailable;
-          const text = pending
-            ? labels.installing
-            : ready
-              ? labels.installed
-              : failed
-                ? labels.retryInstall
-                : checking
-                  ? labels.checking
-                  : unavailable
-                    ? labels.unavailable
-                    : status?.installed
-                      ? labels.finishSetup
-                      : labels.install;
+          const text = t(
+            pending
+              ? "agent.external.installing"
+              : ready
+                ? "agent.external.installed"
+                : failed
+                  ? "agent.external.retryInstall"
+                  : checking
+                    ? "agent.external.checking"
+                    : unavailable
+                      ? "agent.external.unavailable"
+                      : status?.installed
+                        ? "agent.external.finishSetup"
+                        : "agent.external.install",
+          );
+          const unsupported = desktop && Boolean(status && !status.installable) && !ready;
           const Icon =
             pending || checking
               ? SpinnerGapIcon
@@ -227,28 +234,38 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-surface text-foreground">
                 <AgentLogo id={entry.id} />
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{entry.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{entry.name}</span>
+                {unsupported && (
+                  <span className="block truncate text-xs text-muted">
+                    {t("agent.external.unsupportedInstall")}
+                  </span>
+                )}
+              </span>
               {ready ? (
                 <div className="flex shrink-0 items-center gap-2">
                   <span
                     role="status"
-                    aria-label={`${labels.installed} · ${entry.name}`}
+                    aria-label={t("agent.external.actionNamed", {
+                      action: t("agent.external.installed"),
+                      agent: entry.name,
+                    })}
                     className="inline-flex min-h-8 min-w-28 items-center justify-center gap-1.5 rounded-md border border-success/30 bg-success/15 px-3 py-1.5 text-xs font-semibold text-success"
                   >
                     <CheckIcon size={16} weight="bold" aria-hidden="true" />
-                    {labels.installed}
+                    {t("agent.external.installed")}
                   </span>
                   {removableAcp ? (
                     <button
                       type="button"
                       className="btn btn-sm min-h-8 min-w-28"
                       disabled={installing !== null}
-                      onClick={() => void uninstall(entry.id)}
+                      onClick={() => setRemoveAgent(entry.id)}
                     >
-                      {labels.uninstall}
+                      {t("agent.external.uninstall")}
                     </button>
                   ) : (
-                    <span className="text-xs text-muted">{labels.acpBundled}</span>
+                    <span className="text-xs text-muted">{t("agent.external.acpBundled")}</span>
                   )}
                 </div>
               ) : status?.installed ? (
@@ -259,29 +276,30 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
                     disabled={disabled}
                     onClick={() => void install(entry.id)}
                   >
-                    {labels.finishSetup}
+                    {t("agent.external.finishSetup")}
                   </button>
                   {removableAcp && (
                     <button
                       type="button"
                       className="btn btn-sm min-h-8 min-w-28"
                       disabled={installing !== null}
-                      onClick={() => void uninstall(entry.id)}
+                      onClick={() => setRemoveAgent(entry.id)}
                     >
-                      {labels.uninstall}
+                      {t("agent.external.uninstall")}
                     </button>
                   )}
                 </div>
               ) : (
                 <span
-                  role={pending ? "progressbar" : undefined}
-                  aria-valuemin={pending ? 0 : undefined}
-                  aria-valuemax={pending ? 100 : undefined}
-                  aria-valuenow={
-                    pending && installProgress !== null
-                      ? Math.round(installProgress * 100)
-                      : undefined
-                  }
+                  {...(pending
+                    ? {
+                        role: "progressbar",
+                        "aria-valuemin": 0,
+                        "aria-valuemax": 100,
+                        "aria-valuenow":
+                          installProgress !== null ? Math.round(installProgress * 100) : undefined,
+                      }
+                    : {})}
                   className={`inline-flex shrink-0 rounded-md p-0.5 text-accent ${pending && installProgress === null ? "animate-spin motion-reduce:animate-none" : ""}`}
                   style={
                     pending
@@ -298,16 +316,12 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
                     type="button"
                     disabled={disabled}
                     onClick={() => setConfirmAgent(entry.id)}
-                    aria-label={`${text} · ${entry.name}`}
+                    aria-label={t("agent.external.actionNamed", {
+                      action: text,
+                      agent: entry.name,
+                    })}
                     aria-busy={pending || checking}
-                    title={
-                      !desktop
-                        ? labels.desktopOnly
-                        : unavailable && !ready
-                          ? labels.unsupportedInstall
-                          : undefined
-                    }
-                    className={`inline-flex min-h-8 min-w-28 items-center justify-center gap-1.5 rounded-[5px] border px-3 py-1.5 text-xs font-medium transition-colors ${pending || checking ? "border-border bg-surface-secondary text-muted" : failed ? "border-error/30 bg-error/5 text-error hover:bg-error/10" : unavailable ? "border-border text-muted-foreground" : "border-accent bg-accent text-accent-foreground hover:bg-accent-dark shadow-sm"} ${disabled ? "cursor-default" : "cursor-pointer"}`}
+                    className={`inline-flex min-h-8 min-w-28 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${pending || checking ? "border-border bg-surface-secondary text-muted" : failed ? "border-error/30 bg-error/5 text-error hover:bg-error/10" : unavailable ? "border-border text-muted-foreground" : "border-accent bg-accent text-accent-foreground hover:bg-accent-dark shadow-sm"} ${disabled ? "cursor-default" : "cursor-pointer"}`}
                   >
                     <Icon
                       size={14}
@@ -333,7 +347,7 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
         </p>
       )}
       {output.length > 0 && (
-        <SettingsDisclosure title={labels.installDetails} className="m-3">
+        <SettingsDisclosure title={t("agent.external.installDetails")} className="m-3">
           <pre
             className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface p-3 font-mono text-xs"
             aria-live="polite"
@@ -347,7 +361,7 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
         onOpenChange={(open) => !open && setConfirmAgent(null)}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[9999] bg-black/45 backdrop-blur-[1px]" />
+          <Dialog.Overlay className="fixed inset-0 z-[9999] bg-black/45" />
           <Dialog.Content
             role="dialog"
             aria-describedby="external-agent-install-description"
@@ -359,28 +373,27 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
               </span>
               <div className="min-w-0 flex-1">
                 <Dialog.Title className="text-base font-semibold">
-                  {labels.installConfirmTitle}
+                  {t("agent.external.installTitle", { agent: agentName(confirmAgent) })}
                 </Dialog.Title>
                 <Dialog.Description
                   id="external-agent-install-description"
                   className="mt-2 text-sm leading-relaxed text-muted-foreground"
                 >
-                  {confirmAgent
-                    ? `${EXTERNAL_AGENTS.find((agent) => agent.id === confirmAgent)?.name ?? "Agent"}: ${labels.confirmInstall}${confirmAgent === "zcode" ? ` ${labels.community}` : ""}`
-                    : labels.confirmInstall}
+                  {t("agent.external.installMessage")}
+                  {confirmAgent === "zcode" ? ` ${t("agent.external.community")}` : ""}
                 </Dialog.Description>
               </div>
               <Dialog.Close
                 type="button"
                 className="toolbar-icon-button -mr-1 -mt-1 text-muted hover:text-foreground"
-                aria-label={labels.cancel}
+                aria-label={t("common.close")}
               >
-                <span aria-hidden="true">×</span>
+                <XIcon size={16} aria-hidden="true" />
               </Dialog.Close>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <Dialog.Close type="button" className="btn btn-sm">
-                {labels.cancel}
+                {t("common.cancel")}
               </Dialog.Close>
               <button
                 type="button"
@@ -390,12 +403,25 @@ export function ExternalAgentSettings({ selection }: { selection: AgentSelection
                   setConfirmAgent(null);
                 }}
               >
-                {labels.continueInstall}
+                {t("agent.external.installAction")}
               </button>
             </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      {removeAgent && (
+        <ConfirmDialog
+          title={t("agent.external.uninstallTitle", { agent: agentName(removeAgent) })}
+          message={t("agent.external.uninstallMessage", { agent: agentName(removeAgent) })}
+          confirmLabel={t("agent.external.uninstall")}
+          onConfirm={() => {
+            const agentId = removeAgent;
+            setRemoveAgent(null);
+            void uninstall(agentId);
+          }}
+          onCancel={() => setRemoveAgent(null)}
+        />
+      )}
     </section>
   );
 }

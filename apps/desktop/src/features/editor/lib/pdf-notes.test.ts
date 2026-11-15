@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addPdfAnnotations,
   createPdfNotes,
   normalizedPdfRect,
   type PdfAnnotation,
@@ -7,7 +8,6 @@ import {
   pdfNotesPath,
   pdfPathFromNotes,
   removePdfAnnotation,
-  setPdfReadingMode,
   upsertPdfAnnotation,
 } from "./pdf-notes";
 
@@ -24,7 +24,9 @@ const annotation: PdfAnnotation = {
 
 describe("PDF Markdown sidecars", () => {
   it("round-trips all annotation colors and remains compatible with uncolored anchors", () => {
-    expect(parsePdfNotes(upsertPdfAnnotation(initial, annotation, "Page 2")).annotations[0]?.color).toBeUndefined();
+    expect(
+      parsePdfNotes(upsertPdfAnnotation(initial, annotation, "Page 2")).annotations[0]?.color,
+    ).toBeUndefined();
     for (const color of ["warning", "success", "info", "accent", "error"] as const) {
       const colored = { ...annotation, color };
       const content = upsertPdfAnnotation(initial, colored, "Page 2");
@@ -32,7 +34,11 @@ describe("PDF Markdown sidecars", () => {
       expect(content).not.toContain('"note":');
       expect(content).toContain(annotation.note);
     }
-    const invalid = upsertPdfAnnotation(initial, { ...annotation, color: "info" }, "Page 2").replace('"color":"info"', '"color":"unknown"');
+    const invalid = upsertPdfAnnotation(
+      initial,
+      { ...annotation, color: "info" },
+      "Page 2",
+    ).replace('"color":"info"', '"color":"unknown"');
     expect(() => parsePdfNotes(invalid)).toThrow("PDF_NOTES_INVALID");
   });
   it("keeps the full PDF name and directory for an unambiguous association", () => {
@@ -40,11 +46,7 @@ describe("PDF Markdown sidecars", () => {
     expect(pdfNotesPath("references/example.pdf")).not.toBe(pdfNotesPath("papers/example.pdf"));
     expect(pdfPathFromNotes("papers/example.PDF.notes.md")).toBe("papers/example.PDF");
     expect(pdfPathFromNotes("ordinary.notes.md")).toBeUndefined();
-    expect(parsePdfNotes(initial)).toMatchObject({
-      pdf: "example.pdf",
-      mode: undefined,
-      annotations: [],
-    });
+    expect(parsePdfNotes(initial)).toMatchObject({ pdf: "example.pdf", annotations: [] });
   });
 
   it("round-trips highlight anchors and human-readable Markdown without rewriting the PDF", () => {
@@ -84,12 +86,27 @@ describe("PDF Markdown sidecars", () => {
     expect(removePdfAnnotation(removed, "absent")).toBe(removed);
   });
 
-  it("persists a per-document mode without changing note bodies", () => {
-    const content = upsertPdfAnnotation(initial, annotation, "Page 2");
-    const reading = setPdfReadingMode(content, "read");
-    expect(parsePdfNotes(reading).mode).toBe("read");
-    expect(parsePdfNotes(setPdfReadingMode(reading, "write")).mode).toBe("write");
-    expect(reading.slice(reading.indexOf("\n"))).toBe(content.slice(content.indexOf("\n")));
+  it("still reads sidecars whose header carries the former per-document mode", () => {
+    const legacy = upsertPdfAnnotation(initial, annotation, "Page 2").replace(
+      '"pdf":"example.pdf"}',
+      '"pdf":"example.pdf","mode":"read"}',
+    );
+    expect(legacy).toContain('"mode":"read"');
+    expect(parsePdfNotes(legacy).annotations).toHaveLength(1);
+  });
+
+  it("appends several annotations exactly as one-by-one upserts would", () => {
+    const second = { ...annotation, id: "annotation-2", page: 3 };
+    const together = addPdfAnnotations(initial, [annotation, second], ["Page 2", "Page 3"]);
+    expect(together).toBe(
+      upsertPdfAnnotation(upsertPdfAnnotation(initial, annotation, "Page 2"), second, "Page 3"),
+    );
+    expect(() => addPdfAnnotations(together, [annotation], ["Page 2"])).toThrow(
+      "PDF_NOTES_CONFLICT",
+    );
+    expect(() => addPdfAnnotations(initial, [annotation, annotation], [])).toThrow(
+      "PDF_NOTES_CONFLICT",
+    );
   });
 
   it("supports Windows CRLF notes", () => {

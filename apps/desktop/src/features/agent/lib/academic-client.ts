@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { LocalizedError } from "@/features/i18n";
 import type { ModelCapabilities } from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
 
 export type { ModelCapabilities } from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
@@ -83,7 +84,8 @@ export type AcademicEvent =
   | { type: "tool_start" | "tool_end"; tool: string; callId: string; isError?: boolean }
   | { type: "image_generated"; path: string; relativePath: string; mimeType: string }
   | { type: "status"; status: string }
-  | { type: "fatal"; error: string }
+  // `key` names the dictionary entry for errors raised on this side of the bridge.
+  | { type: "fatal"; error: string; key?: string }
   | { type: "exit" }
   | { type: "ready"; protocolVersion: number };
 type Envelope = { runtimeId: string; event: AcademicEvent };
@@ -103,18 +105,18 @@ export class AcademicClient {
 
   async connect(): Promise<AgentCatalog> {
     if (this.disposed || this.runtimeId || this.unlisten)
-      throw new Error("Disconnect before reconnecting the runtime.");
+      throw new LocalizedError("agent.errors.alreadyConnected");
     const earlyEvents: Envelope[] = [];
     this.unlisten = await listen<Envelope>("academic-agent-event", ({ payload }) => {
       if (!this.runtimeId) earlyEvents.push(payload);
       else if (payload.runtimeId === this.runtimeId) this.receive(payload.event);
     });
     try {
-      if (this.disposed) throw new Error("Runtime connection was cancelled.");
+      if (this.disposed) throw new LocalizedError("agent.errors.cancelled");
       const runtimeId = await invoke<string>("academic_agent_start");
       if (this.disposed) {
         await invoke("academic_agent_stop", { runtimeId });
-        throw new Error("Runtime connection was cancelled.");
+        throw new LocalizedError("agent.errors.cancelled");
       }
       this.runtimeId = runtimeId;
       for (const payload of earlyEvents)
@@ -122,7 +124,7 @@ export class AcademicClient {
           this.receive(payload.event);
           if (payload.event.type === "fatal") throw new Error(payload.event.error);
           if (payload.event.type === "exit")
-            throw new Error("Runtime disconnected before becoming ready.");
+            throw new LocalizedError("agent.errors.stoppedBeforeReady");
         }
       return await this.request<AgentCatalog>("catalog");
     } catch (error) {
@@ -138,13 +140,18 @@ export class AcademicClient {
         clearTimeout(pending.timer);
         this.pending.delete(event.id);
         if (event.ok) pending.resolve(event.result);
-        else pending.reject(new Error(event.error ?? "Runtime command failed."));
+        else
+          pending.reject(
+            event.error ? new Error(event.error) : new LocalizedError("agent.errors.commandFailed"),
+          );
       }
     } else if (event.type === "fatal" || event.type === "exit") {
       this.rejectPending(
-        new Error(
-          event.type === "fatal" ? event.error : "Runtime disconnected. Reconnect to resume.",
-        ),
+        event.type === "exit"
+          ? new LocalizedError("agent.errors.disconnected")
+          : event.key
+            ? new LocalizedError(event.key)
+            : new Error(event.error),
       );
       void this.disconnect();
     }
@@ -153,16 +160,16 @@ export class AcademicClient {
 
   request<Result>(type: string, payload: Record<string, unknown> = {}): Promise<Result> {
     const runtimeId = this.runtimeId;
-    if (!runtimeId || this.disposed) return Promise.reject(new Error("Runtime is not connected."));
+    if (!runtimeId || this.disposed)
+      return Promise.reject(new LocalizedError("agent.errors.notConnected"));
     const id = crypto.randomUUID();
     return new Promise<Result>((resolve, reject) => {
       const timer = setTimeout(
         () => {
           this.pending.delete(id);
-          const message =
-            "Runtime request timed out. The process was stopped; reconnect and review the saved session before retrying.";
-          reject(new Error(message));
-          this.receive({ type: "fatal", error: message });
+          const timedOut = new LocalizedError("agent.errors.timedOut");
+          reject(timedOut);
+          this.receive({ type: "fatal", error: timedOut.message, key: timedOut.key });
         },
         type === "prompt"
           ? 600_000
@@ -196,7 +203,7 @@ export class AcademicClient {
 
   async disconnect() {
     this.disposed = true;
-    this.rejectPending(new Error("Runtime connection closed."));
+    this.rejectPending(new LocalizedError("agent.errors.cancelled"));
     this.unlisten?.();
     this.unlisten = null;
     const runtimeId = this.runtimeId;

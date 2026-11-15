@@ -3,11 +3,11 @@
 import { ArrowSquareOutIcon, CircleNotchIcon } from "@phosphor-icons/react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useEffect, useId, useRef, useState } from "react";
-import { CustomHeadersInput } from "@/features/agent/components/custom-headers-input";
-import { ServiceModelInput } from "@/features/agent/components/service-model-input";
 import { SettingsDisclosure } from "@/components/ui/settings-disclosure";
 import { Switch } from "@/components/ui/switch";
-import { useI18n } from "@/features/i18n";
+import { CustomHeadersInput } from "@/features/agent/components/custom-headers-input";
+import { ServiceModelInput } from "@/features/agent/components/service-model-input";
+import { errorMessage, useI18n } from "@/features/i18n";
 import {
   DEFAULT_LAYOUT_CONFIG,
   type LayoutConfig,
@@ -89,9 +89,9 @@ export function LayoutParserSettings() {
         setStatus(t("layoutParser.testOk"));
       } else setStatus(t("layoutParser.saved"));
     } catch (caught) {
-      const message = String(caught);
+      const message = errorMessage(caught, t);
       const errorKey = layoutParserErrorKey(message);
-      setError(`${t("layoutParser.failed")} ${errorKey ? t(errorKey) : message}`);
+      setError(errorKey ? t(errorKey) : t("layoutParser.failed", { error: message }));
     } finally {
       setBusy(false);
     }
@@ -99,7 +99,7 @@ export function LayoutParserSettings() {
   const keyField = (
     <div className="space-y-2">
       <label className="text-xs font-medium" htmlFor={`${id}-key`}>
-        API Key
+        {t("layoutParser.apiKey")}
       </label>
       <input
         id={`${id}-key`}
@@ -121,7 +121,10 @@ export function LayoutParserSettings() {
       aria-label={t("layoutParser.title")}
       className="mb-5 rounded-lg border border-border bg-background p-5 shadow-sm"
     >
-      <h3 className="mb-4 text-sm font-semibold">{t("layoutParser.title")}</h3>
+      <h3 className="text-sm font-semibold">{t("layoutParser.title")}</h3>
+      <p className="mb-4 mt-1 text-xs leading-relaxed text-muted">
+        {t("layoutParser.description")}
+      </p>
       <fieldset disabled={busy} className="space-y-4">
         <legend className="sr-only">{t("layoutParser.provider")}</legend>
         <div className="space-y-3 rounded-md border border-border p-3">
@@ -139,8 +142,7 @@ export function LayoutParserSettings() {
               href="https://mineru.net/apiManage/docs"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-accent"
-              title={t("layoutParser.getKey")}
+              className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
             >
               {t("layoutParser.getKey")}
               <ArrowSquareOutIcon className="size-3.5" aria-hidden="true" />
@@ -148,7 +150,9 @@ export function LayoutParserSettings() {
           </div>
           {config.provider === "mineru" && (
             <>
-              <p className="text-xs text-muted">Base URL: https://mineru.net</p>
+              <p className="text-xs text-muted">
+                {t("layoutParser.fixedBaseUrl", { url: "https://mineru.net" })}
+              </p>
               {keyField}
               <SettingsDisclosure title={t("layoutParser.advanced")}>
                 <label

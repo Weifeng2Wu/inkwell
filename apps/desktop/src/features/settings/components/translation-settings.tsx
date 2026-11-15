@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 import {
   DEFAULT_TRANSLATION_CONFIG,
@@ -49,13 +50,14 @@ function TranslationStatusLight({ health }: { health: TranslationHealth }) {
     failed: "bg-error",
   };
   return (
-    <span
-      role="img"
-      aria-label={label}
-      title={label}
-      data-translation-status={health.status}
-      className={`inline-block size-2 shrink-0 rounded-full ${colors[health.status]}`}
-    />
+    <Tooltip label={label} side="top">
+      <span
+        role="img"
+        aria-label={label}
+        data-translation-status={health.status}
+        className={`inline-block size-2 shrink-0 rounded-full ${colors[health.status]}`}
+      />
+    </Tooltip>
   );
 }
 
@@ -147,7 +149,7 @@ function CredentialField({
             ? "SecretId"
             : config.provider === "tencent"
               ? "SecretKey"
-              : "API key"}
+              : t("translation.keyPlaceholder")}
         </label>
         <input
           id={id}
@@ -280,6 +282,7 @@ export function TranslationSettings() {
     >
       <div className="mb-4 border-b border-border pb-3">
         <h3 className="text-sm font-semibold tracking-tight">{t("translation.title")}</h3>
+        <p className="mt-0.5 text-xs text-muted">{t("settings.categories.translationDesc")}</p>
       </div>
       <div className="space-y-4">
         <TranslationRow label={t("translation.provider")}>
@@ -449,7 +452,7 @@ export function TranslationSettings() {
         )}
         {docsUrl && (
           <a
-            className="inline-block text-xs text-accent"
+            className="inline-block text-xs text-accent hover:underline"
             href={docsUrl}
             target="_blank"
             rel="noopener noreferrer"

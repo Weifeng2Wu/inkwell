@@ -11,11 +11,10 @@ import {
   restartAfterUpdate,
   subscribeUpdates,
 } from "../lib/app-updater";
-import { updateLabels } from "../lib/update-labels";
+import { updateStatusText } from "../lib/update-status";
 
 export function AutomaticUpdates() {
-  const { locale } = useI18n();
-  const labels = updateLabels[locale];
+  const { t } = useI18n();
   const state = useSyncExternalStore(subscribeUpdates, getUpdateState, getServerUpdateState);
   useEffect(() => {
     let active = true;
@@ -34,25 +33,28 @@ export function AutomaticUpdates() {
     <aside
       role="status"
       aria-live="polite"
-      aria-label={labels.title}
-      className="fixed bottom-5 right-5 z-[60] max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg"
+      aria-label={t("settings.updates.title")}
+      className="motion-rise fixed bottom-5 right-5 z-[60] max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg"
     >
       <p className="text-sm font-medium">
-        {state.phase === "downloaded" ? labels.downloaded : labels.installed}{" "}
-        {state.release?.version}
+        {updateStatusText(state.phase, state.release?.version, t)}
       </p>
-      <p className="text-xs text-muted mt-2">{labels.save}</p>
+      {state.phase === "downloaded" && (
+        <p className="mt-2 text-xs text-muted">{t("settings.updates.saveFirst")}</p>
+      )}
       {state.error && (
-        <p role="alert" className="text-xs text-error mt-2">
-          {labels.failed} {state.error}
+        <p role="alert" className="mt-2 text-xs text-error">
+          {t("settings.updates.failed", { error: state.error })}
         </p>
       )}
       <button
         type="button"
-        className="btn btn-primary mt-3"
+        className="btn btn-primary btn-sm mt-3"
         onClick={() => void (state.phase === "installed" ? restartAfterUpdate() : installUpdate())}
       >
-        {state.phase === "installed" ? labels.restart : labels.installNow}
+        {t(
+          state.phase === "installed" ? "settings.updates.restart" : "settings.updates.installNow",
+        )}
       </button>
     </aside>
   );

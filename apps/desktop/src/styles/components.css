@@ -52,6 +52,18 @@
   border-color: var(--border-dark);
 }
 
+/* Confirms something that cannot be undone. */
+.btn-danger {
+  background-color: var(--error);
+  border-color: var(--error);
+  color: var(--background);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--error) 88%, var(--foreground));
+  border-color: color-mix(in srgb, var(--error) 88%, var(--foreground));
+}
+
 .btn-sm {
   @apply px-3 py-1.5 text-xs;
 }
@@ -361,21 +373,6 @@ kbd {
    Motion
    ========================================================================== */
 
-@keyframes wizard-step-enter {
-  from {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.wizard-step-enter {
-  animation: wizard-step-enter 150ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 /* ---------- Radix UI ---------- */
 @keyframes radix-overlay-show {
   from {
@@ -464,12 +461,97 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wizard-step-enter,
   .animate-highlight {
     animation: none;
   }
 
   .animate-pulse {
     animation: none;
+  }
+}
+
+/* ==========================================================================
+   Workbench vocabulary
+   ========================================================================== */
+
+:root {
+  /* Content the user reads or writes about: paper titles, document headings. */
+  --font-family-serif:
+    "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Songti SC",
+    "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
+}
+
+.font-reading {
+  font-family: var(--font-family-serif);
+  font-feature-settings: "kern", "liga", "onum";
+}
+
+/* Group heading inside a panel. Never uppercase: it must read well in CJK. */
+.section-label {
+  @apply text-[11px] font-medium;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/* A row in a sidebar list. `data-active` marks the keyboard or current item. */
+.list-row {
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.list-row:hover {
+  background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.list-row[data-active="true"] {
+  background-color: var(--accent-hover);
+}
+
+kbd.kbd-quiet {
+  @apply px-1 py-0 text-[10px];
+  box-shadow: none;
+}
+
+/* Entrances. Motion confirms that something appeared; it never performs. */
+@keyframes motion-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes motion-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+.motion-fade {
+  animation: motion-fade 140ms ease-out both;
+}
+.motion-rise {
+  animation: motion-rise 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.motion-pop {
+  animation: motion-pop 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Stagger the first rows of a list: style="--i: index". */
+.motion-stagger {
+  animation: motion-rise 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(min(var(--i, 0), 8) * 18ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-fade,
+  .motion-rise,
+  .motion-pop,
+  .motion-stagger {
+    animation: none;
+  }
+  .list-row {
+    transition: none;
   }
 }

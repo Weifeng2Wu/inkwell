@@ -1,15 +1,29 @@
 "use client";
 
 import {
+  ArrowRightIcon,
+  BookOpenTextIcon,
   CaretLineLeftIcon,
   CaretLineRightIcon,
+  FileIcon,
+  FilePdfIcon,
+  FileTextIcon,
+  FunctionIcon,
+  type Icon,
+  ImageIcon,
+  MarkdownLogoIcon,
+  PresentationChartIcon,
   TrashIcon,
+  TreeStructureIcon,
   XCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/context-menu";
+import { useI18n } from "@/features/i18n";
+import { fileDisplayName, visualDocumentKind } from "@/lib/file-types";
 
 export interface TabItem {
   id: string;
@@ -53,7 +67,6 @@ export interface TabBarProps<T extends TabItem> {
   onCloseToLeft?: (id: string) => void;
   onCloseToRight?: (id: string) => void;
   onCloseAll?: () => void;
-  variant?: "sidebar" | "editor";
   className?: string;
 }
 
@@ -67,6 +80,33 @@ type DragState = {
 };
 
 const DRAG_THRESHOLD_PX = 6;
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "eps"]);
+const TEX_EXTENSIONS = new Set(["tex", "sty", "cls", "ltx"]);
+const MARKDOWN_EXTENSIONS = new Set(["md", "markdown", "mdown"]);
+
+/** Splits a file name so the stem can be truncated while the extension stays visible. */
+export function splitTabLabel(label: string): { stem: string; extension: string } {
+  if (visualDocumentKind(label)) return { stem: fileDisplayName(label), extension: "" };
+  const dot = label.lastIndexOf(".");
+  if (dot <= 0 || dot === label.length - 1 || label.length - dot > 12) {
+    return { stem: label, extension: "" };
+  }
+  return { stem: label.slice(0, dot), extension: label.slice(dot) };
+}
+
+/** The file-type icon for a tab, derived from its name. */
+export function tabIcon(label: string): Icon {
+  if (visualDocumentKind(label) === "mindmap") return TreeStructureIcon;
+  if (visualDocumentKind(label) === "poster") return PresentationChartIcon;
+  const extension = splitTabLabel(label).extension.slice(1).toLowerCase();
+  if (TEX_EXTENSIONS.has(extension)) return FunctionIcon;
+  if (extension === "bib") return BookOpenTextIcon;
+  if (MARKDOWN_EXTENSIONS.has(extension)) return MarkdownLogoIcon;
+  if (extension === "pdf") return FilePdfIcon;
+  if (IMAGE_EXTENSIONS.has(extension)) return ImageIcon;
+  return extension === "txt" ? FileTextIcon : FileIcon;
+}
 
 const initialDragState: DragState = {
   isDragging: false,
@@ -89,9 +129,11 @@ export function TabBar<T extends TabItem>({
   onCloseToLeft,
   onCloseToRight,
   onCloseAll,
-  variant = "editor",
   className = "",
 }: TabBarProps<T>) {
+  const { t } = useI18n();
+  const indicatorId = `tab-indicator-${useId()}`;
+  const reducedMotion = useReducedMotion();
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -139,12 +181,12 @@ export function TabBar<T extends TabItem>({
 
   const getContextMenuItems = useCallback(
     (tabId: string): ContextMenuItem[] => {
-      const tabIndex = tabs.findIndex((t) => t.id === tabId);
+      const tabIndex = tabs.findIndex((tab) => tab.id === tabId);
       const items: ContextMenuItem[] = [];
 
       if (onTabClose) {
         items.push({
-          label: "Close",
+          label: t("editor.closeTab"),
           onClick: () => onTabClose(tabId),
           icon: <XIcon className="w-4 h-4" />,
         });
@@ -152,7 +194,7 @@ export function TabBar<T extends TabItem>({
 
       if (onCloseOthers) {
         items.push({
-          label: "Close Others",
+          label: t("editor.closeOtherTabs"),
           onClick: () => onCloseOthers(tabId),
           disabled: tabs.length <= 1,
           icon: <XCircleIcon className="w-4 h-4" />,
@@ -161,7 +203,7 @@ export function TabBar<T extends TabItem>({
 
       if (onCloseToLeft) {
         items.push({
-          label: "Close to the Left",
+          label: t("editor.closeTabsToLeft"),
           onClick: () => onCloseToLeft(tabId),
           disabled: tabIndex === 0,
           icon: <CaretLineLeftIcon className="w-4 h-4" />,
@@ -170,7 +212,7 @@ export function TabBar<T extends TabItem>({
 
       if (onCloseToRight) {
         items.push({
-          label: "Close to the Right",
+          label: t("editor.closeTabsToRight"),
           onClick: () => onCloseToRight(tabId),
           disabled: tabIndex === tabs.length - 1,
           icon: <CaretLineRightIcon className="w-4 h-4" />,
@@ -179,7 +221,7 @@ export function TabBar<T extends TabItem>({
 
       if (onCloseAll) {
         items.push({
-          label: "Close All",
+          label: t("editor.closeAllTabs"),
           onClick: onCloseAll,
           danger: true,
           icon: <TrashIcon className="w-4 h-4" />,
@@ -188,7 +230,7 @@ export function TabBar<T extends TabItem>({
 
       return items;
     },
-    [tabs, onTabClose, onCloseOthers, onCloseToLeft, onCloseToRight, onCloseAll],
+    [tabs, onTabClose, onCloseOthers, onCloseToLeft, onCloseToRight, onCloseAll, t],
   );
 
   const clearDocumentDragListeners = useCallback(() => {
@@ -382,34 +424,15 @@ export function TabBar<T extends TabItem>({
     [onTabSelect],
   );
 
-  if (variant === "sidebar") {
-    return (
-      <div className={`flex items-center border-b border-border ${className}`}>
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTab;
-          return (
-            <button
-              type="button"
-              key={tab.id}
-              onClick={() => onTabSelect(tab.id)}
-              className={`flex-1 px-3 py-2 text-xs font-medium uppercase tracking-wider transition-colors ${
-                isActive
-                  ? "text-foreground border-b-2 border-accent -mb-px"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-              {tab.badge !== undefined && (
-                <span className="ml-1 text-xs bg-surface-tertiary px-1 tabular-nums">
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  // Keep the current tab in view when it is opened from elsewhere.
+  useEffect(() => {
+    tabRefs.current.get(activeTab)?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [activeTab]);
+
+  // A plain mouse wheel scrolls the strip sideways.
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaX === 0 && e.deltaY !== 0) e.currentTarget.scrollLeft += e.deltaY;
+  }, []);
 
   const dropTargetLabel = dragState.dropIndicator
     ? (tabLabelById.get(dragState.dropIndicator.tabId) ?? dragState.dropIndicator.tabId)
@@ -419,7 +442,9 @@ export function TabBar<T extends TabItem>({
     <>
       <div
         ref={containerRef}
-        className={`flex items-center border-b border-border bg-accent-hover overflow-x-auto min-h-[34px] ${className}`}
+        role="tablist"
+        onWheel={handleWheel}
+        className={`flex min-h-[34px] items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-border bg-surface-secondary ${className}`}
         style={{
           cursor: onTabReorder && dragState.isDragging ? "grabbing" : undefined,
         }}
@@ -433,33 +458,50 @@ export function TabBar<T extends TabItem>({
           const showDropAfter =
             dragState.dropIndicator?.tabId === tab.id &&
             dragState.dropIndicator.position === "after";
+          const { stem, extension } = splitTabLabel(tab.label);
+          const TypeIcon = tabIcon(tab.label);
 
           return (
             <div
               key={tab.id}
               ref={(node) => setTabRef(tab.id, node)}
               data-tab-id={tab.id}
-              className={`group relative flex items-center border-r border-border transition-colors select-none ${
+              data-active={isActive}
+              className={`group relative flex min-w-0 shrink-0 items-center border-r border-border transition-colors duration-100 select-none ${
                 isActive
                   ? "bg-background text-foreground"
-                  : "text-muted hover:text-foreground hover:bg-background/50"
+                  : "text-muted hover:bg-background/60 hover:text-foreground"
               } ${onTabReorder ? "cursor-grab" : ""} ${isDragged ? "opacity-40" : ""}`}
-              title={tab.title ?? tab.label}
             >
               {showDropBefore && (
                 <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-0.5 bg-accent z-10" />
               )}
               <button
                 type="button"
+                role="tab"
+                aria-selected={isActive}
+                title={tab.title ?? tab.label}
                 onMouseDown={(e) => {
                   handleMouseDown(e, tab.id);
                   handleTabPointerDown(e, tab.id);
                 }}
+                onAuxClick={(e) => {
+                  if (e.button === 1) e.preventDefault();
+                }}
                 onContextMenu={(e) => handleContextMenu(e, tab.id)}
                 onClick={() => handleTabClick(tab.id)}
-                className="px-3 py-1.5 text-sm truncate max-w-[120px]"
+                className={`flex h-full max-w-[200px] min-w-0 items-center gap-1.5 py-1.5 pl-3 text-[13px] ${
+                  onTabClose ? "pr-1" : "pr-3"
+                }`}
               >
-                {tab.label}
+                <TypeIcon aria-hidden className="size-3.5 shrink-0 text-muted" />
+                <span className="flex min-w-0 items-baseline">
+                  <span className="truncate">{stem}</span>
+                  {extension && <span className="shrink-0">{extension}</span>}
+                </span>
+                {tab.badge !== undefined && (
+                  <span className="shrink-0 text-[11px] text-muted">{tab.badge}</span>
+                )}
               </button>
               {onTabClose && (
                 <button
@@ -470,13 +512,24 @@ export function TabBar<T extends TabItem>({
                     onTabClose(tab.id);
                   }}
                   data-tab-close="true"
-                  className={`w-6 h-full flex items-center justify-center hover:bg-surface-tertiary ${
+                  className={`mr-1.5 flex size-5 shrink-0 items-center justify-center rounded text-muted transition-[opacity,background-color,color] duration-100 hover:bg-surface-tertiary hover:text-foreground focus-visible:opacity-100 ${
                     isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                   }`}
-                  aria-label="Close tab"
+                  aria-label={t("editor.closeTabNamed", { name: tab.label })}
                 >
-                  <XIcon className="w-3 h-3" />
+                  <XIcon aria-hidden className="size-3" />
                 </button>
+              )}
+              {isActive && (
+                <motion.span
+                  layoutId={indicatorId}
+                  transition={
+                    reducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 520, damping: 42 }
+                  }
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-accent"
+                />
               )}
               {showDropAfter && (
                 <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-0.5 bg-accent z-10" />
@@ -490,7 +543,7 @@ export function TabBar<T extends TabItem>({
         dragState.draggedTabLabel &&
         createPortal(
           <div
-            className="fixed pointer-events-none z-[9999] flex items-center gap-2 px-3 py-1 border border-border bg-background text-xs"
+            className="motion-fade fixed pointer-events-none z-[9999] flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1 text-xs shadow-lg"
             style={{
               left: dragState.mouseX + 14,
               top: dragState.mouseY + 14,
@@ -498,7 +551,10 @@ export function TabBar<T extends TabItem>({
           >
             <span className="truncate max-w-[220px]">{dragState.draggedTabLabel}</span>
             {dropTargetLabel && (
-              <span className="text-muted whitespace-nowrap">-&gt; {dropTargetLabel}</span>
+              <span className="flex items-center gap-1 whitespace-nowrap text-muted">
+                <ArrowRightIcon aria-hidden className="size-3" />
+                {dropTargetLabel}
+              </span>
             )}
           </div>,
           document.body,

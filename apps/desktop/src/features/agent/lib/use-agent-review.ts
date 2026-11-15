@@ -2,6 +2,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
+import { errorMessage, LocalizedError, useI18n } from "@/features/i18n";
 import type { ReviewChange } from "./review-changes";
 
 export type ReviewBuffer = { path: string; content: string };
@@ -15,6 +16,9 @@ export function useAgentReview({
   buffers: () => ReviewBuffer[];
   onApplied: (path: string, content: string | null) => void;
 }) {
+  const { t } = useI18n();
+  const translate = useRef(t);
+  translate.current = t;
   const [changes, setChanges] = useState<ReviewChange[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,17 +44,17 @@ export function useAgentReview({
         }
       })
       .catch((caught: unknown) => {
-        if (scope.current === directory) setError(String(caught));
+        if (scope.current === directory) setError(errorMessage(caught, translate.current));
       });
   }, [directory]);
 
   async function beforeTurn() {
     if (!directory || scope.current !== directory || pending.current)
-      throw new Error("Agent review is busy or the project changed.");
+      throw new LocalizedError("agent.errors.reviewBusy");
     pending.current = true;
     try {
       await invoke("agent_review_prepare", { buffers: latest.current.buffers() });
-      if (scope.current !== directory) throw new Error("Project changed.");
+      if (scope.current !== directory) throw new LocalizedError("agent.errors.projectChanged");
     } catch (caught) {
       pending.current = false;
       throw caught;
@@ -76,12 +80,10 @@ export function useAgentReview({
     content = change.after,
     remaining?: string,
   ) {
-    if (scope.current !== directory) throw new Error("Project changed.");
+    if (scope.current !== directory) throw new LocalizedError("agent.errors.projectChanged");
     const buffer = latest.current.buffers().find((entry) => entry.path === change.path);
     if (accept && buffer && buffer.content !== (change.before ?? ""))
-      throw new Error(
-        "The editor content changed. Original content was preserved; reject and regenerate this suggestion.",
-      );
+      throw new LocalizedError("agent.errors.editorChanged");
     await invoke("agent_review_resolve", {
       path: change.path,
       expected: change.before,
@@ -116,7 +118,7 @@ export function useAgentReview({
     try {
       await resolve(change, accept, content, remaining);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     } finally {
       deciding.current = false;
       setBusy(false);
@@ -131,7 +133,7 @@ export function useAgentReview({
     try {
       for (const change of changes) await resolve(change, accept);
     } catch (caught) {
-      setError(String(caught));
+      setError(errorMessage(caught, translate.current));
     } finally {
       deciding.current = false;
       setBusy(false);

@@ -15,10 +15,13 @@ import {
   useKeyboardShortcuts,
 } from "@/features/settings";
 import type { EditorSelection } from "@/types/editor-selection";
-import type { BibliographyEntry } from "../lib/bibliography";
+import { clearActiveEditor, reportCursor, setActiveEditor } from "../lib/active-editor";
+import { type BibliographyEntry, missingCitations } from "../lib/bibliography";
+import { unclosedEnvironment, wrapEdit } from "../lib/latex-editing";
 import { bindBibliography } from "../monaco/citation-completion";
 import { registerMarkdownLanguage } from "../monaco/markdown";
 import { monacoShortcut } from "../monaco/shortcut-keybinding";
+import { EditorSkeleton } from "./editor-skeleton";
 
 type Props = {
   content?: string;
@@ -39,6 +42,8 @@ type VimModeController = {
 };
 
 const EMPTY_BIBLIOGRAPHY: readonly BibliographyEntry[] = [];
+// Not part of the typed editor options, hence the separate record.
+const PLAIN_BRACKETS: Record<string, unknown> = { "bracketPairColorization.enabled": false };
 
 function detectLanguage(lang: string): string {
   const languageMap: Record<string, string> = {
@@ -220,39 +225,50 @@ export const MonacoEditor = memo(function MonacoEditor({
     instance.focus();
     setSelectionAnchor(null);
   }, [editorReady, goToSelection]);
-  const loadingRows = [70, 45, 60, 80, 35, 55, 40, 65].map((width) => ({
-    id: `monaco-loading-${width}`,
-    width,
-  }));
-
   const pendingGoToLineRef = useRef<number>(0);
 
+  // Bold and italic share one shortcut across Markdown and LaTeX; pressing it again on
+  // text that already carries the markup removes it.
   useEffect(() => {
     const instance = editorRef.current;
     const monaco = monacoRef.current;
     if (!editorReady || !instance || !monaco) return;
-    const actions = [
-      { id: "bold" as const, before: "**", after: "**" },
-      { id: "italic" as const, before: "*", after: "*" },
-      { id: "link" as const, before: "[", after: "](https://example.com)" },
-    ].map(({ id, before, after }) =>
+    const actions = (
+      [
+        { id: "bold", language: "markdown", before: "**", after: "**" },
+        { id: "italic", language: "markdown", before: "*", after: "*" },
+        { id: "link", language: "markdown", before: "[", after: "](https://example.com)" },
+        { id: "bold", language: "latex", before: "\\textbf{", after: "}" },
+        { id: "italic", language: "latex", before: "\\textit{", after: "}" },
+      ] as const
+    ).map(({ id, language, before, after }) =>
       instance.addAction({
-        id: `markdown-${id}`,
+        id: `${language}-${id}`,
         label: t(`markdown.${id}`),
-        precondition: "editorLangId == markdown && !editorReadonly",
+        precondition: `editorLangId == ${language} && !editorReadonly`,
         keybindings: monacoShortcut(monaco, keyboardShortcuts[id]),
         run: (activeEditor) => {
           const selection = activeEditor.getSelection();
           const model = activeEditor.getModel();
           if (!selection || !model) return;
-          const offset = model.getOffsetAt(selection.getStartPosition());
-          const selected = model.getValueInRange(selection);
+          const edit = wrapEdit(
+            model.getValue(),
+            model.getOffsetAt(selection.getStartPosition()),
+            model.getOffsetAt(selection.getEndPosition()),
+            before,
+            after,
+          );
+          const from = model.getPositionAt(edit.start);
+          const to = model.getPositionAt(edit.end);
           activeEditor.pushUndoStop();
-          activeEditor.executeEdits(`markdown-${id}`, [
-            { range: selection, text: `${before}${selected}${after}` },
+          activeEditor.executeEdits(`${language}-${id}`, [
+            {
+              range: new monaco.Range(from.lineNumber, from.column, to.lineNumber, to.column),
+              text: edit.replacement,
+            },
           ]);
-          const start = model.getPositionAt(offset + before.length);
-          const end = model.getPositionAt(offset + before.length + selected.length);
+          const start = model.getPositionAt(edit.selectionStart);
+          const end = model.getPositionAt(edit.selectionEnd);
           activeEditor.setSelection(
             new monaco.Selection(start.lineNumber, start.column, end.lineNumber, end.column),
           );
@@ -266,11 +282,115 @@ export const MonacoEditor = memo(function MonacoEditor({
     };
   }, [editorReady, t, keyboardShortcuts]);
 
+  // Enter after `\begin{name}` adds the matching `\end{name}` and leaves the caret between.
+  useEffect(() => {
+    const instance = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editorReady || !instance || !monaco) return;
+    const opensEnvironment = instance.createContextKey<boolean>("inkwellOpensEnvironment", false);
+    const lineAroundCaret = () => {
+      const model = instance.getModel();
+      const selection = instance.getSelection();
+      if (!model || !selection?.isEmpty() || model.getLanguageId() !== "latex") return null;
+      const line = model.getLineContent(selection.positionLineNumber);
+      const before = line.slice(0, selection.positionColumn - 1);
+      return line.slice(selection.positionColumn - 1).trim() ? null : { model, selection, before };
+    };
+    const update = () =>
+      opensEnvironment.set(/\\begin\s*\{[^{}]+\}[^\\]*$/.test(lineAroundCaret()?.before ?? ""));
+    const cursor = instance.onDidChangeCursorSelection(update);
+    update();
+    instance.addCommand(
+      monaco.KeyCode.Enter,
+      () => {
+        const caret = lineAroundCaret();
+        const name = caret && unclosedEnvironment(caret.model.getValue(), caret.before);
+        if (!caret || !name) {
+          instance.trigger("keyboard", "type", { text: "\n" });
+          return;
+        }
+        const { model, selection } = caret;
+        const indent = /^\s*/.exec(caret.before)?.[0] ?? "";
+        const options = model.getOptions();
+        const step = options.insertSpaces ? " ".repeat(options.indentSize) : "\t";
+        const inner = name === "document" ? indent : indent + step;
+        instance.pushUndoStop();
+        instance.executeEdits(
+          "close-environment",
+          [
+            {
+              range: new monaco.Range(
+                selection.positionLineNumber,
+                selection.positionColumn,
+                selection.positionLineNumber,
+                model.getLineMaxColumn(selection.positionLineNumber),
+              ),
+              text: `\n${inner}\n${indent}\\end{${name}}`,
+            },
+          ],
+          [
+            new monaco.Selection(
+              selection.positionLineNumber + 1,
+              inner.length + 1,
+              selection.positionLineNumber + 1,
+              inner.length + 1,
+            ),
+          ],
+        );
+        instance.pushUndoStop();
+      },
+      "editorTextFocus && !editorReadonly && !editorHasMultipleSelections && inkwellOpensEnvironment && !suggestWidgetVisible && !inSnippetMode",
+    );
+    return () => {
+      cursor.dispose();
+      opensEnvironment.set(false);
+    };
+  }, [editorReady]);
+
   useEffect(() => {
     if (!editorReady) return;
     const model = editorRef.current?.getModel();
     if (model) return bindBibliography(model, bibliography);
   }, [bibliography, editorReady]);
+
+  // Underline citations whose key is in no project bibliography.
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    const model = editorRef.current?.getModel();
+    if (!editorReady || !monaco || !model) return;
+    const known = new Set(bibliography.map((entry) => entry.key));
+    const update = () => {
+      const missing = known.size
+        ? missingCitations(model.getValue(), model.getLanguageId(), known)
+        : [];
+      monaco.editor.setModelMarkers(
+        model,
+        "citations",
+        missing.map(({ key, start, end }) => {
+          const from = model.getPositionAt(start);
+          const to = model.getPositionAt(end);
+          return {
+            severity: monaco.MarkerSeverity.Warning,
+            message: t("editor.unknownCitation", { key }),
+            startLineNumber: from.lineNumber,
+            startColumn: from.column,
+            endLineNumber: to.lineNumber,
+            endColumn: to.column,
+          };
+        }),
+      );
+    };
+    let timer = setTimeout(update, 0);
+    const subscription = model.onDidChangeContent(() => {
+      clearTimeout(timer);
+      timer = setTimeout(update, 400);
+    });
+    return () => {
+      clearTimeout(timer);
+      subscription.dispose();
+      if (!model.isDisposed()) monaco.editor.setModelMarkers(model, "citations", []);
+    };
+  }, [bibliography, editorReady, t]);
 
   const handleEditorDidMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
@@ -290,11 +410,7 @@ export const MonacoEditor = memo(function MonacoEditor({
           [
             {
               range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
-              options: {
-                isWholeLine: true,
-                className: "synctex-line-highlight",
-                overviewRuler: { color: "rgba(255, 200, 0, 0.6)", position: 1 },
-              },
+              options: { isWholeLine: true, className: "synctex-line-highlight" },
             },
           ],
         );
@@ -305,6 +421,32 @@ export const MonacoEditor = memo(function MonacoEditor({
     defineEditorThemes(monaco);
     registerLaTeXLanguage(monaco);
     registerMarkdownLanguage(monaco);
+
+    const activeEditor = {
+      language: () => editor.getModel()?.getLanguageId() ?? "",
+      insert: (text: string) => {
+        const range = editor.getSelection();
+        if (!range) return false;
+        editor.focus();
+        return editor.executeEdits("insert-text", [{ range, text, forceMoveMarkers: true }]);
+      },
+    };
+    const reportCaret = () => {
+      const selection = editor.getSelection();
+      const model = editor.getModel();
+      if (!selection || !model) return;
+      reportCursor(activeEditor, {
+        line: selection.positionLineNumber,
+        column: selection.positionColumn,
+        selected: selection.isEmpty() ? 0 : model.getValueLengthInRange(selection),
+      });
+    };
+    editor.onDidFocusEditorText(() => {
+      setActiveEditor(activeEditor);
+      reportCaret();
+    });
+    editor.onDidChangeCursorSelection(reportCaret);
+    editor.onDidDispose(() => clearActiveEditor(activeEditor));
 
     editor.focus();
   }, []);
@@ -380,6 +522,7 @@ export const MonacoEditor = memo(function MonacoEditor({
   const handleBeforeMount = useCallback((monaco: Monaco) => {
     defineEditorThemes(monaco);
     registerLaTeXLanguage(monaco);
+    registerMarkdownLanguage(monaco);
   }, []);
 
   useEffect(() => {
@@ -423,14 +566,7 @@ export const MonacoEditor = memo(function MonacoEditor({
             endLineNumber: goToLine,
             endColumn: 1,
           },
-          options: {
-            isWholeLine: true,
-            className: "synctex-line-highlight",
-            overviewRuler: {
-              color: "rgba(255, 200, 0, 0.6)",
-              position: 1,
-            },
-          },
+          options: { isWholeLine: true, className: "synctex-line-highlight" },
         },
       ],
     );
@@ -483,6 +619,9 @@ export const MonacoEditor = memo(function MonacoEditor({
     };
   }, []);
 
+  const monacoLanguage = detectLanguage(language);
+  const prose = ["latex", "markdown", "plaintext"].includes(monacoLanguage);
+
   return (
     <div ref={containerRef} className={`relative flex flex-col ${className}`}>
       {onAddSelection && selectionAnchor && (
@@ -491,7 +630,7 @@ export const MonacoEditor = memo(function MonacoEditor({
           type="button"
           onMouseDown={(event) => event.preventDefault()}
           onClick={addSelection}
-          className="absolute z-20 max-w-[calc(100%-16px)] rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground shadow-sm hover:bg-surface"
+          className="motion-fade absolute z-20 max-w-[calc(100%-16px)] rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground shadow-lg transition-colors hover:bg-surface-secondary"
         >
           {t("interface.addSelection")}
         </button>
@@ -499,12 +638,12 @@ export const MonacoEditor = memo(function MonacoEditor({
       {editorSettings?.vimMode && !readOnly && (
         <div
           ref={vimStatusRef}
-          className="pointer-events-none absolute right-3 top-3 z-10 border border-border bg-background px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider"
+          className="pointer-events-none absolute right-3 top-3 z-10 rounded-md border border-border bg-background px-2 py-0.5 font-mono text-[10px] text-muted empty:hidden"
         />
       )}
       <Editor
         height="100%"
-        language={detectLanguage(language)}
+        language={monacoLanguage}
         value={content}
         theme={editorTheme}
         beforeMount={handleBeforeMount}
@@ -513,7 +652,7 @@ export const MonacoEditor = memo(function MonacoEditor({
         options={{
           readOnly,
           fontSize: editorSettings?.fontSize ?? 14,
-          fontFamily: resolveEditorFontFamily(editorSettings, detectLanguage(language)),
+          fontFamily: resolveEditorFontFamily(editorSettings, monacoLanguage),
           fontLigatures: false,
           lineNumbers: editorSettings?.lineNumbers ?? "on",
           lineHeight: editorSettings?.lineHeight ?? 1.6,
@@ -523,7 +662,10 @@ export const MonacoEditor = memo(function MonacoEditor({
           insertSpaces: editorSettings?.insertSpaces ?? true,
           wordWrap: editorSettings?.wordWrap ?? "on",
           wordWrapColumn: editorSettings?.wordWrapColumn ?? 80,
-          wrappingIndent: "indent",
+          // A wrapped paragraph continues at its own margin; wrapped code is indented.
+          wrappingIndent: prose ? "same" : "indent",
+          // Prose would otherwise suggest every word already in the document.
+          wordBasedSuggestions: prose ? "off" : "matchingDocuments",
           automaticLayout: true,
           minimap: {
             enabled: editorSettings?.minimap?.enabled ?? false,
@@ -551,11 +693,11 @@ export const MonacoEditor = memo(function MonacoEditor({
           foldingStrategy: "auto",
           showFoldingControls: "mouseover",
           matchBrackets: "always",
-          bracketPairColorization: {
-            enabled: false,
-          },
+          // The standalone editor reads this setting only under its dotted name; the nested
+          // form is ignored and leaves every bracket coloured.
+          ...PLAIN_BRACKETS,
           guides: {
-            bracketPairs: true,
+            bracketPairs: false,
             bracketPairsHorizontal: false,
             indentation: true,
             highlightActiveIndentation: true,
@@ -608,21 +750,7 @@ export const MonacoEditor = memo(function MonacoEditor({
           colorDecorators: false,
           accessibilitySupport: "auto",
         }}
-        loading={
-          <div className="flex flex-col h-full bg-background">
-            <div className="flex-1 p-4 space-y-2">
-              {loadingRows.map(({ id, width }) => (
-                <div key={id} className="flex gap-4">
-                  <div className="w-8 h-4 bg-surface-secondary animate-pulse" />
-                  <div
-                    className="flex-1 h-4 bg-surface-secondary animate-pulse"
-                    style={{ width: `${width}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        }
+        loading={<EditorSkeleton className="h-full w-full" />}
       />
     </div>
   );

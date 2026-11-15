@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useI18n } from "@/features/i18n";
 import {
   modelCapabilityScope,
   resolveModelCapabilities,
 } from "../../../../../../packages/academic-agent/src/model-capabilities.mjs";
 import type { AcademicConfig, ModelCapabilities } from "../lib/academic-client";
-import { modelCapabilityLabels } from "../lib/model-capability-labels";
 import { ModelCapabilityIcons } from "./model-capability-icons";
 
 export function modelCapabilitiesForSelection(
@@ -48,7 +48,6 @@ export function ModelPicker({
   onChange,
   models,
   discovered,
-  locale,
   label,
   inputId,
   loading = false,
@@ -59,7 +58,6 @@ export function ModelPicker({
   onChange: (config: AcademicConfig) => void;
   models: string[] | null;
   discovered?: Record<string, ModelCapabilities>;
-  locale: "zh" | "en" | "ko";
   label: string;
   inputId: string;
   loading?: boolean;
@@ -67,7 +65,7 @@ export function ModelPicker({
   webSearchAvailable?: boolean;
 }) {
   const id = useId();
-  const labels = modelCapabilityLabels[locale];
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [query, setQuery] = useState("");
@@ -142,7 +140,6 @@ export function ModelPicker({
           />
           <ModelCapabilityIcons
             capabilities={capabilities}
-            locale={locale}
             onToggle={
               config.model.trim() && !loading && (models !== null || discoveryFailed)
                 ? (key) => {
@@ -192,11 +189,12 @@ export function ModelPicker({
                     discovered,
                     webSearchAvailable,
                   )}
-                  locale={locale}
                 />
               </div>
             ))}
-            {!options.length && <p className="p-3 text-xs text-muted-foreground">{labels.empty}</p>}
+            {!options.length && (
+              <p className="p-3 text-xs text-muted-foreground">{t("agent.capabilities.empty")}</p>
+            )}
           </div>
         )}
       </div>

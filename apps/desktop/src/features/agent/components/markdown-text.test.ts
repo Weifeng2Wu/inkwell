@@ -9,7 +9,9 @@ function render(text: string) {
 
 describe("chat Markdown rendering", () => {
   it("renders headings, emphasis, tables and task lists", () => {
-    const markup = render("# Title\n\n**Bold**\n\n- [x] Done\n\n| A | B |\n| --- | ---: |\n| One | Two |");
+    const markup = render(
+      "# Title\n\n**Bold**\n\n- [x] Done\n\n| A | B |\n| --- | ---: |\n| One | Two |",
+    );
     expect(markup).toContain("<h1");
     expect(markup).toContain("<strong");
     expect(markup).toContain('type="checkbox"');
@@ -32,7 +34,9 @@ describe("chat Markdown rendering", () => {
   });
 
   it("blocks executable links and does not execute raw HTML before hydration", () => {
-    const markup = render('[unsafe](javascript:alert)\n\n<script>alert(1)</script>\n\n<iframe src="https://example.com"></iframe>');
+    const markup = render(
+      '[unsafe](javascript:alert)\n\n<script>alert(1)</script>\n\n<iframe src="https://example.com"></iframe>',
+    );
     expect(markup).not.toContain('href="javascript:');
     expect(markup).not.toContain("<script>");
     expect(markup).not.toContain("<iframe");

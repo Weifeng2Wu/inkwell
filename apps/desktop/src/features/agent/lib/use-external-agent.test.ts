@@ -28,10 +28,15 @@ const translations = vi.hoisted(() => ({ prefix: "" }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@/features/settings", () => ({ parseLayoutImage: vi.fn(), parseLayoutPdf: vi.fn() }));
-vi.mock("@/features/i18n", () => ({
+// A scanned PDF: no local text layer, so the layout parser is used.
+vi.mock("./pdf-text", () => ({
+  extractPdfText: vi.fn(async () => ({ text: "", pages: 1, characters: 0, truncated: false })),
+}));
+vi.mock("@/features/i18n", async () => ({
+  ...(await import("@/features/i18n/localized-error")),
   useI18n: () => {
     const prefix = translations.prefix;
-    return { t: (key: string) => prefix + key };
+    return { locale: "en", t: (key: string) => prefix + key };
   },
 }));
 vi.mock("react", async (importOriginal) => ({
@@ -377,6 +382,33 @@ describe("external Agent lifecycle", () => {
     );
     expect(render().input).toBe("");
     expect(vi.mocked(invoke).mock.calls.some(([command]) => command === "read_file")).toBe(false);
+  });
+  it("expands mentioned library papers before PDF excerpts and clears the draft", async () => {
+    vi.mocked(invoke).mockResolvedValue({ skills: [] });
+    render();
+    await settle();
+    render().setInput('Cite @paper:"smith2020"');
+    const paper = {
+      key: "smith2020",
+      title: "A Study",
+      authors: ["Ann Smith"],
+      year: "2020",
+      venue: "Nature",
+      file: "papers/smith.pdf",
+      notes: "papers/smith.pdf.notes.md",
+    };
+    const excerpt = { id: "e", path: "papers/smith.pdf", text: 'See @paper:"other"', page: 3 };
+    expect(await render().send('Cite @paper:"smith2020"', [], [excerpt], [paper])).toBe(true);
+    const sent = String(transport.prompt.mock.calls.at(-1)?.[0]);
+    expect(sent).toContain("Referenced library papers");
+    expect(sent).toContain('"notes":"papers/smith.pdf.notes.md"');
+    expect(sent).toContain('"papers/smith.pdf" p.3');
+    expect(sent).not.toContain('"key":"other"');
+    expect(sent.indexOf("Referenced library papers")).toBeLessThan(sent.indexOf("p.3"));
+    expect(render().input).toBe("");
+    expect(vi.mocked(invoke).mock.calls.some(([command]) => command === "read_chat_pdf")).toBe(
+      false,
+    );
   });
   it("restores only the original draft after a failed send with excerpts", async () => {
     render();
@@ -742,13 +774,13 @@ describe("external Agent lifecycle", () => {
     const client = transport.clients[0];
     if (!client) throw new Error("Missing connected ACP client");
     client.onEvent({ type: "image_error" });
-    expect(render().error).toBe("interface.generatedImageSaveError");
+    expect(render().error).toBe("agent.generatedImageSaveError");
 
     translations.prefix = "ko:";
     render();
     await settle();
     client.onEvent({ type: "image_error" });
-    expect(render().error).toBe("ko:interface.generatedImageSaveError");
+    expect(render().error).toBe("ko:agent.generatedImageSaveError");
     expect(render().connect).toBe(agent.connect);
     expect(transport.connect).toHaveBeenCalledTimes(1);
     expect(transport.disconnect).not.toHaveBeenCalled();

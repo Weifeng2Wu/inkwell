@@ -1,10 +1,13 @@
 "use client";
 
-import { FolderIcon, TrashIcon } from "@phosphor-icons/react";
+import { FolderIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-import { formatRelativeTime } from "@/features/agent/components/utils";
-import { useI18n } from "@/features/i18n";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Tooltip } from "@/components/ui/tooltip";
+import { formatRelativeTime, useI18n } from "@/features/i18n";
 import type { RecentProject } from "@/features/workspace/lib/recent-projects";
+
+type Pending = { kind: "remove"; project: RecentProject } | { kind: "clear" };
 
 export function RecentProjects({
   projects,
@@ -17,9 +20,8 @@ export function RecentProjects({
   onRemove: (path: string) => void;
   onClearAll: () => void;
 }) {
-  const { t } = useI18n();
-  const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { t, locale } = useI18n();
+  const [pending, setPending] = useState<Pending | null>(null);
 
   if (projects.length === 0) {
     return null;
@@ -27,104 +29,75 @@ export function RecentProjects({
 
   return (
     <div className="mt-8 w-full max-w-md">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-muted">{t("welcome.recentProjects")}</h3>
+      <div className="mb-2 flex items-center justify-between px-1">
+        <h3 className="section-label">{t("recentProjects.title")}</h3>
         <button
           type="button"
-          onClick={() => setShowClearConfirm(true)}
-          className="text-xs text-muted hover:text-foreground transition-colors"
+          onClick={() => setPending({ kind: "clear" })}
+          className="rounded text-[11px] text-muted transition-colors hover:text-foreground"
         >
-          {t("welcome.clearAll")}
+          {t("recentProjects.clearAll")}
         </button>
       </div>
-      <div className="border border-border bg-background">
-        {projects.map((project) => {
-          const timeStr = formatRelativeTime(new Date(project.lastOpened));
-          return (
-            <div
-              key={project.path}
-              className="flex items-center border-b border-border last:border-b-0 hover:bg-accent-hover transition-colors"
-            >
-              <button
-                type="button"
-                onClick={() => onSelect(project.path)}
-                className="flex-1 text-left px-3 py-2.5 flex items-center gap-3 min-w-0"
-              >
-                <FolderIcon className="size-4 text-muted flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{project.name}</p>
-                  <p className="text-xs text-muted truncate">{project.path}</p>
-                </div>
-                <span className="text-xs text-muted flex-shrink-0">{timeStr}</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteConfirmPath(project.path);
-                }}
-                className="px-3 py-2 text-muted hover:text-error transition-colors"
-                title={t("common.remove")}
-              >
-                <TrashIcon className="size-4" />
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {deleteConfirmPath && (
-        <ConfirmDialog
-          message={t("welcome.removeRecentConfirm")}
-          onConfirm={() => {
-            onRemove(deleteConfirmPath);
-            setDeleteConfirmPath(null);
-          }}
-          onCancel={() => setDeleteConfirmPath(null)}
-        />
-      )}
-
-      {showClearConfirm && (
-        <ConfirmDialog
-          message={t("welcome.clearRecentConfirm")}
-          onConfirm={() => {
-            onClearAll();
-            setShowClearConfirm(false);
-          }}
-          onCancel={() => setShowClearConfirm(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function ConfirmDialog({
-  message,
-  onConfirm,
-  onCancel,
-}: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45">
-      <div className="bg-background border border-border rounded-lg p-4 max-w-xs w-full mx-4 shadow-2xl">
-        <p className="text-sm mb-4">{message}</p>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-3 py-1.5 text-sm border border-border hover:bg-surface-secondary transition-colors"
+      <ul className="overflow-hidden rounded-lg border border-border bg-background">
+        {projects.map((project, index) => (
+          <li
+            key={project.path}
+            className="list-row motion-stagger group flex items-center border-border border-b last:border-b-0"
+            style={{ "--i": index } as React.CSSProperties}
           >
-            {t("common.cancel")}
-          </button>
-          <button type="button" onClick={onConfirm} className="btn btn-sm">
-            {t("common.confirm")}
-          </button>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => onSelect(project.path)}
+              className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
+            >
+              <FolderIcon className="size-4 shrink-0 text-muted" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="font-reading block truncate text-[14px]">{project.name}</span>
+                <span
+                  className="block truncate font-mono text-[11px] text-muted"
+                  title={project.path}
+                >
+                  {project.path}
+                </span>
+              </span>
+              <span className="shrink-0 text-[12px] text-muted">
+                {formatRelativeTime(project.lastOpened, locale)}
+              </span>
+            </button>
+            <Tooltip label={t("recentProjects.remove")} side="top">
+              <button
+                type="button"
+                onClick={() => setPending({ kind: "remove", project })}
+                className="mr-1 rounded p-1.5 text-muted opacity-0 transition-[color,opacity] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+                aria-label={t("recentProjects.remove")}
+              >
+                <XIcon className="size-3.5" aria-hidden />
+              </button>
+            </Tooltip>
+          </li>
+        ))}
+      </ul>
+
+      {pending && (
+        <ConfirmDialog
+          title={
+            pending.kind === "remove"
+              ? t("recentProjects.removeTitle", { name: pending.project.name })
+              : t("recentProjects.clearTitle")
+          }
+          message={t("recentProjects.keepsFiles")}
+          confirmLabel={
+            pending.kind === "remove" ? t("common.remove") : t("recentProjects.clearAll")
+          }
+          onConfirm={() => {
+            if (pending.kind === "remove") onRemove(pending.project.path);
+            else onClearAll();
+            setPending(null);
+          }}
+          onCancel={() => setPending(null)}
+        />
+      )}
     </div>
   );
 }

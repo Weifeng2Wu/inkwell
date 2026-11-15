@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/features/i18n";
-import { GitSyncSettings, type GitSyncController } from "./git-sync-settings";
+import { type GitSyncController, GitSyncSettings } from "./git-sync-settings";
 
 const controller: GitSyncController = {
   projectPath: "/paper",
@@ -46,5 +46,41 @@ describe("manual Git sync settings", () => {
     expect(markup.match(/disabled=""/g)).toHaveLength(2);
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("Authentication failed");
+  });
+  it("hides backup controls unless the caller provides them", () => {
+    const markup = render(controller);
+    expect(markup).not.toContain("Back up now");
+    expect(markup).not.toContain("data-git-last-backup");
+  });
+  it("offers a manual backup with the time of the last one", () => {
+    const never = render({ ...controller, onBackupNow: vi.fn(), lastBackupAt: null });
+    expect(never).toContain("Back up now");
+    expect(never).toContain("No backup yet in this session.");
+    expect(never).not.toContain('disabled=""');
+
+    const at = new Date(2026, 10, 14, 23, 5).getTime();
+    const markup = render({ ...controller, onBackupNow: vi.fn(), lastBackupAt: at });
+    expect(markup).toContain("Last backup:");
+    expect(markup).toContain(`<time dateTime="${new Date(at).toISOString()}">`);
+    expect(markup).toContain("2026");
+  });
+  it("backs up projects without a remote, but not outside a repository", () => {
+    const local = render({
+      ...controller,
+      status: {
+        ...controller.status,
+        isRepo: true,
+        remote: undefined,
+      } as GitSyncController["status"],
+      onBackupNow: vi.fn(),
+    });
+    expect(local).toMatch(/<button type="button" class="btn btn-sm" data-git-backup-now="true">/);
+    const plain = render({ ...controller, status: null, onBackupNow: vi.fn() });
+    expect(plain).toMatch(/data-git-backup-now="true" disabled=""/);
+  });
+  it("disables every action while a backup is running", () => {
+    const markup = render({ ...controller, onBackupNow: vi.fn(), isBackingUp: true });
+    expect(markup.match(/disabled=""/g)).toHaveLength(3);
+    expect(markup).toContain("Backing up…");
   });
 });

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { englishMessage } from "@/features/i18n";
 import { DEFAULT_ACADEMIC_CONFIG } from "./academic-config";
 import {
   AcpClient,
@@ -178,9 +179,9 @@ describe("ACP authentication", () => {
       () => "ask",
       async () => "not-advertised",
     );
-    await expect(client.connect("antigravity", "/project")).rejects.toThrow(
-      "Invalid ACP authentication",
-    );
+    await expect(client.connect("antigravity", "/project")).rejects.toMatchObject({
+      key: "agent.external.authInvalid",
+    });
     expect(requests()).not.toContain("authenticate");
   });
 
@@ -188,9 +189,9 @@ describe("ACP authentication", () => {
     const choose = vi.fn();
     mockAuthentication([{ id: "terminal", name: "CLI login", type: "terminal" }]);
     const client = new AcpClient(vi.fn(), () => "ask", choose);
-    await expect(client.connect("antigravity", "/project")).rejects.toThrow(
-      "no supported in-app sign-in",
-    );
+    await expect(client.connect("antigravity", "/project")).rejects.toMatchObject({
+      key: "agent.external.authUnsupported",
+    });
     expect(choose).not.toHaveBeenCalled();
     expect(
       authenticationMethods([
@@ -222,7 +223,9 @@ describe("ACP authentication", () => {
         async () => "google-login",
       );
       await expect(client.connect("antigravity", "/project")).rejects.toThrow(
-        "rejectAuth" in options ? "Sign-in rejected" : "still requires authentication",
+        "rejectAuth" in options
+          ? "Sign-in rejected"
+          : englishMessage("agent.external.authStillRequired"),
       );
       expect(requests().filter((method) => method === "authenticate")).toHaveLength(1);
     }
@@ -298,6 +301,8 @@ describe("shared preferences and permissions", () => {
     expect(prompt).toContain("Preserve citations");
     expect(prompt).toContain("current authoritative versions");
     expect(prompt).toContain("never describe a required step as optional");
+    expect(prompt).toContain('@paper:"citation-key"');
+    expect(prompt.indexOf('@paper:"citation-key"')).toBeLessThan(prompt.indexOf("My task"));
     expect(prompt).toContain("Do not narrate internal script creation or cleanup");
     expect(prompt).toContain("Permission mode: ask");
     expect(prompt).toContain("My task");
@@ -315,7 +320,7 @@ describe("ACP transport isolation", () => {
     await client.connect("codex", "/project");
     await expect(
       client.prompt("Look", [{ name: "x.png", mimeType: "image/png", data: "eA==" }]),
-    ).rejects.toThrow("does not support image");
+    ).rejects.toMatchObject({ key: "agent.external.imagesUnsupported" });
     await client.disconnect();
   });
   it("sends images as ACP image blocks for vision-capable adapters", async () => {
@@ -347,7 +352,10 @@ describe("ACP transport isolation", () => {
     const onEvent = vi.fn();
     const client = new AcpClient(onEvent, () => "ask");
     const connecting = client.connect("codex", "/project");
-    const rejected = expect(connecting).rejects.toThrow("timed out");
+    const rejected = expect(connecting).rejects.toMatchObject({
+      key: "agent.external.timedOut",
+      params: { method: "initialize" },
+    });
     await vi.advanceTimersByTimeAsync(60_000);
     await rejected;
     expect(onEvent).toHaveBeenCalledWith({ type: "exit" });

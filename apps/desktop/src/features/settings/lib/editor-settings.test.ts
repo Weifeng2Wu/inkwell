@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_EDITOR_SETTINGS,
   DEFAULT_MINIMAP_SETTINGS,
+  GIT_AUTO_BACKUP_INTERVALS,
 } from "@/features/settings/lib/editor-settings";
 
 describe("DEFAULT_MINIMAP_SETTINGS", () => {
@@ -38,6 +39,13 @@ describe("DEFAULT_EDITOR_SETTINGS", () => {
 
   it("has git auto-fetch interval of 120 seconds", () => {
     expect(DEFAULT_EDITOR_SETTINGS.gitAutoFetchIntervalSeconds).toBe(120);
+  });
+
+  it("keeps automatic backup off by default, every 10 minutes with push", () => {
+    expect(DEFAULT_EDITOR_SETTINGS.gitAutoBackupEnabled).toBe(false);
+    expect(DEFAULT_EDITOR_SETTINGS.gitAutoBackupIntervalMinutes).toBe(10);
+    expect(DEFAULT_EDITOR_SETTINGS.gitAutoBackupPush).toBe(true);
+    expect([...GIT_AUTO_BACKUP_INTERVALS]).toEqual([5, 10, 15, 30, 60]);
   });
 
   it("has terminal shell mode set to auto", () => {

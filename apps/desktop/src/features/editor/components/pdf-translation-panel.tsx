@@ -73,7 +73,7 @@ export function PdfTranslationPanel({
     <section
       role="dialog"
       aria-label={t("translation.result")}
-      className="absolute bottom-3 right-3 z-30 flex w-[26rem] max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-lg"
+      className="motion-pop absolute bottom-3 right-3 z-30 flex w-[26rem] max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-lg"
       style={{ top }}
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2">
@@ -98,7 +98,7 @@ export function PdfTranslationPanel({
           <summary className="cursor-pointer text-xs font-medium text-muted">
             {t("translation.original")}
           </summary>
-          <p className="mt-2 select-text whitespace-pre-wrap text-xs leading-relaxed text-foreground-secondary">
+          <p className="font-reading mt-2 select-text whitespace-pre-wrap text-[13px] leading-relaxed text-foreground-secondary">
             {text}
           </p>
         </details>
@@ -106,7 +106,7 @@ export function PdfTranslationPanel({
           {busy ? (
             <p className="text-muted">{t("translation.translating")}</p>
           ) : (
-            <p className="select-text whitespace-pre-wrap">{result}</p>
+            <p className="font-reading select-text whitespace-pre-wrap text-[15px]">{result}</p>
           )}
         </div>
         {error && (

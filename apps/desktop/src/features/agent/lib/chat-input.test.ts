@@ -39,9 +39,14 @@ describe("chat references and attachments", () => {
         type: "directory" as const,
         children: [
           { name: "paper.tex", path: "/project/src/paper.tex", type: "file" as const },
-          { name: "figures", path: "/project/src/figures", type: "directory" as const, children: [
-            { name: "plot.png", path: "/project/src/figures/plot.png", type: "file" as const },
-          ] },
+          {
+            name: "figures",
+            path: "/project/src/figures",
+            type: "directory" as const,
+            children: [
+              { name: "plot.png", path: "/project/src/figures/plot.png", type: "file" as const },
+            ],
+          },
         ],
       },
     ];
