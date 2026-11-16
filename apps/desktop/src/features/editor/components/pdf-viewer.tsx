@@ -29,6 +29,7 @@ import {
   useState,
 } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 import { shortcutLabel } from "@/features/settings";
@@ -52,13 +53,14 @@ import {
   pdfPositionKey,
   savePdfMode,
 } from "../lib/pdf-position";
-import { collectPdfSelection, isCurrentPdfSelection } from "../lib/pdf-selection";
-import type { PdfToolbarAnchor } from "../lib/pdf-toolbar-position";
+import { type PdfSelectionPage, samePdfRange } from "../lib/pdf-selection";
+import { type PdfToolbarAnchor, pdfSelectionAnchor } from "../lib/pdf-toolbar-position";
 import { usePdfAnnotationGeometry } from "../lib/use-pdf-annotation-geometry";
 import { usePdfNotes } from "../lib/use-pdf-notes";
 import { scrollToPdfPage, usePdfPageTracking } from "../lib/use-pdf-page";
 import { usePdfPosition } from "../lib/use-pdf-position";
 import { usePdfSearch } from "../lib/use-pdf-search";
+import { usePdfSelection } from "../lib/use-pdf-selection";
 import { usePdfSource } from "../lib/use-pdf-source";
 import { PdfAnnotationLayer } from "./pdf-annotation-layer";
 import { PdfColorPicker } from "./pdf-color-picker";
@@ -126,7 +128,6 @@ export function PdfViewer({
   const [fingerprint, setFingerprint] = useState("");
   const [geometry, setGeometry] = useState<PdfGeometryClient | null>(null);
   const geometryRef = useRef<PdfGeometryClient | null>(null);
-  const selectionGeneration = useRef(0);
   // The viewer is keyed per PDF, so the saved position is read once per mount.
   const positionKey = pdfPositionKey(projectPath, pdfPath);
   const [savedPosition] = useState(() => loadPdfPosition(positionKey));
@@ -141,6 +142,8 @@ export function PdfViewer({
   } | null>(null);
   const [selected, setSelected] = useState<Selection | null>(null);
   const [popup, setPopup] = useState<NotePopup | null>(null);
+  /** A destructive popup action awaiting confirmation in the app's own dialog. */
+  const [confirming, setConfirming] = useState<"delete" | "discard" | null>(null);
   const [continuous, setContinuous] = useState<PdfAnnotationKind | null>(null);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -230,7 +233,34 @@ export function PdfViewer({
     return () => observer.disconnect();
   }, []);
   const documentGeneration = useRef({ key: documentKey, value: 0 });
-  const pressed = useRef<{ page: number; x: number; y: number } | null>(null);
+  const liveSelection = usePdfSelection({
+    rootRef,
+    geometryKey: `${documentKey}.${numPages}.${scale}`,
+    geometry,
+    onSettle: handleSelectionSettled,
+  });
+  const { dismiss: dismissSelection } = liveSelection;
+  const pressed = useRef<{ page: number; x: number; y: number; range: Range | null } | null>(null);
+  // Glyph extraction is per page and lazy. Warm the page being read and its
+  // neighbors once scrolling pauses, so the first selection there is immediate.
+  useEffect(() => {
+    if (!geometry || numPages < 1) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const warm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const current = pageStore.get();
+        for (const page of [current, current + 1, current - 1])
+          if (page >= 1 && page <= numPages) geometry.prepare(page);
+      }, 150);
+    };
+    warm();
+    const unsubscribe = pageStore.subscribe(warm);
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [geometry, numPages, pageStore]);
   const canSync = Boolean(onSynctexClick && (source.canSyncSource || compiledPreview));
   const preferredMode = chosenMode ?? (canSync ? "write" : "read");
   const mode = canSync ? preferredMode : "read";
@@ -294,7 +324,6 @@ export function PdfViewer({
 
   useLayoutEffect(() => {
     documentGeneration.current = { key: documentKey, value: documentGeneration.current.value + 1 };
-    selectionGeneration.current++;
     geometryRef.current?.dispose();
     geometryRef.current = null;
     setGeometry(null);
@@ -305,7 +334,6 @@ export function PdfViewer({
     setTranslation(null);
     return () => {
       documentGeneration.current.value += 1;
-      selectionGeneration.current++;
       geometryRef.current?.dispose();
       geometryRef.current = null;
     };
@@ -346,17 +374,18 @@ export function PdfViewer({
       (popup.text !== (popup.annotations[0]?.note ?? "") ||
         popup.annotations.some(
           (item) => notes.annotations.find((saved) => saved.id === item.id)?.color !== item.color,
-        )) &&
-      !window.confirm(t("pdfReading.discardCommentConfirm"))
-    )
+        ))
+    ) {
+      setConfirming("discard");
       return;
+    }
     setPopup(null);
-  }, [popup, t, notes.annotations]);
+  }, [popup, notes.annotations]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        selectionGeneration.current++;
+        dismissSelection();
         setSelected(null);
         closePopup();
         setTranslation(null);
@@ -365,7 +394,7 @@ export function PdfViewer({
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [closePopup]);
+  }, [closePopup, dismissSelection]);
 
   const heading = (annotation: PdfAnnotation) =>
     t("pdfReading.annotationHeading", {
@@ -382,7 +411,6 @@ export function PdfViewer({
     if (!excerpt) return;
     handler(excerpt);
     if (!clearSelection) return;
-    selectionGeneration.current++;
     setSelected(null);
     window.getSelection()?.removeAllRanges();
   }
@@ -399,72 +427,43 @@ export function PdfViewer({
     }
   }
 
-  async function captureSelection(clientX: number, clientY: number) {
-    const selection = window.getSelection();
+  /** The live selection came to rest, changed, or went away: keep its actions in step. */
+  function handleSelectionSettled(pages: PdfSelectionPage[], error?: unknown) {
     const root = rootRef.current;
-    if (!root || !selection || selection.isCollapsed || !selection.rangeCount || !fingerprint)
-      return null;
-    const range = selection.getRangeAt(0).cloneRange();
-    if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
-    let annotations: PdfAnnotation[];
-    const rootBounds = root.getBoundingClientRect();
-    const boxes: PdfToolbarAnchor[] = [];
-    const generation = documentGeneration.current.value;
-    const request = ++selectionGeneration.current;
-    try {
-      const captured = collectPdfSelection(root, range);
-      if (!captured.length) return null;
-      if (!geometry) throw new Error("PDF_GEOMETRY_FAILED");
-      const pages = await geometry.refineSelection(captured);
-      if (
-        generation !== documentGeneration.current.value ||
-        request !== selectionGeneration.current ||
-        !isCurrentPdfSelection(range)
-      )
-        return null;
-      for (const { element, rects } of pages) {
-        const bounds = element.getBoundingClientRect();
-        for (const rect of rects) {
-          const top = bounds.top - rootBounds.top + rect.y * bounds.height;
-          const bottom = top + rect.height * bounds.height;
-          if (bottom < toolbarHeight || top > rootBounds.height) continue;
-          const left = bounds.left - rootBounds.left + rect.x * bounds.width;
-          boxes.push({ left, right: left + rect.width * bounds.width, top, bottom });
-        }
-      }
-      annotations = pages.map(({ page, quote, rects }) => ({
+    if (!pages.length && error === undefined) {
+      setSelected(null);
+      return;
+    }
+    // Reading the passage being commented on must not replace the open draft.
+    if (popup?.editing || !root) return;
+    setTranslation(null);
+    setPopup(null);
+    if (error !== undefined || !fingerprint) {
+      setSelected(null);
+      if (error !== undefined) setActionError(String(error));
+      return;
+    }
+    const selection: Selection = {
+      annotations: pages.map(({ page, quote, rects }) => ({
         id: crypto.randomUUID(),
         page,
-        kind: "highlight" as const,
+        kind: "highlight",
         color,
         quote,
         fingerprint,
         rects,
         note: "",
-      }));
-    } catch (error) {
-      if (
-        generation === documentGeneration.current.value &&
-        request === selectionGeneration.current &&
-        isCurrentPdfSelection(range)
-      )
-        setActionError(String(error));
-      return null;
-    }
-    if (!annotations.length) return null;
-    const x = clientX - rootBounds.left;
-    const y = clientY - rootBounds.top;
-    return {
-      annotations,
-      anchor: boxes.length
-        ? {
-            left: Math.min(...boxes.map((box) => box.left)),
-            right: Math.max(...boxes.map((box) => box.right)),
-            top: Math.min(...boxes.map((box) => box.top)),
-            bottom: Math.max(...boxes.map((box) => box.bottom)),
-          }
-        : { left: x, right: x, top: y, bottom: y },
+      })),
+      anchor: pdfSelectionAnchor(
+        pages.map(({ element, rects }) => ({ bounds: element.getBoundingClientRect(), rects })),
+        root.getBoundingClientRect(),
+        toolbarHeight,
+      ),
     };
+    setActionError(undefined);
+    if (mode === "read" && continuous && notes.content !== undefined && !notes.error)
+      void saveSelection(selection, continuous);
+    else setSelected(selection);
   }
 
   function handlePointerUp(event: PointerEvent<HTMLDivElement>, pageNumber: number) {
@@ -473,26 +472,19 @@ export function PdfViewer({
     if (event.button !== 0 || !start) return;
     const target = event.target;
     if (target instanceof Element && target.closest("a, button, input, textarea, select")) return;
-    if (!window.getSelection()?.isCollapsed) {
-      if (popup?.editing) return;
-      setTranslation(null);
-      setPopup(null);
-      setSelected(null);
-      void captureSelection(event.clientX, event.clientY).then((selection) => {
-        if (!selection) return;
-        setActionError(undefined);
-        if (mode === "read" && continuous && notes.content !== undefined && !notes.error)
-          void saveSelection(selection, continuous);
-        else setSelected(selection);
-      });
-      return;
-    }
     // Dragging/selecting must never become a source jump, even if the selection
-    // falls outside a text layer or the PDF is scanned and has no text.
+    // falls outside a text layer or the PDF is scanned and has no text. A plain
+    // click on already selected text is still a click: the browser only collapses
+    // that selection after this event.
+    const selection = window.getSelection();
+    const selecting =
+      selection?.rangeCount && !selection.isCollapsed
+        ? !start.range || !samePdfRange(start.range, selection.getRangeAt(0))
+        : false;
     if (
+      selecting ||
       start.page !== pageNumber ||
-      Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4 ||
-      !window.getSelection()?.isCollapsed
+      Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4
     )
       return;
     setSelected(null);
@@ -695,7 +687,7 @@ export function PdfViewer({
                     disabled={unavailable}
                     className={`relative h-6 whitespace-nowrap rounded px-2.5 text-xs transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 ${mode === value ? "text-foreground" : "text-muted hover:text-foreground"}`}
                     onClick={() => {
-                      selectionGeneration.current++;
+                      dismissSelection();
                       setChosenMode(value);
                       savePdfMode(positionKey, value);
                       setSelected(null);
@@ -881,7 +873,7 @@ export function PdfViewer({
         ref={containerRef}
         data-pdf-scroll
         onScroll={() => {
-          selectionGeneration.current++;
+          dismissSelection();
           setSelected(null);
         }}
         className="flex-1 overflow-auto bg-surface-secondary p-4"
@@ -912,15 +904,23 @@ export function PdfViewer({
               data-pdf-page={pageNumber}
               className={`inkwell-pdf-page relative mx-auto mb-4 w-fit shadow-md ${mode === "write" ? "cursor-crosshair" : "cursor-text"}`}
               onPointerDown={(event) => {
-                selectionGeneration.current++;
                 const target = event.target;
+                const selection = window.getSelection();
                 pressed.current =
                   event.button === 0 &&
                   !(
                     target instanceof Element &&
                     target.closest("a, button, input, textarea, select")
                   )
-                    ? { page: pageNumber, x: event.clientX, y: event.clientY }
+                    ? {
+                        page: pageNumber,
+                        x: event.clientX,
+                        y: event.clientY,
+                        range:
+                          selection?.rangeCount && !selection.isCollapsed
+                            ? selection.getRangeAt(0).cloneRange()
+                            : null,
+                      }
                     : null;
               }}
               onPointerCancel={() => {
@@ -1000,11 +1000,7 @@ export function PdfViewer({
           ))}
         </Document>
       </div>
-      <PdfSelectionPreview
-        rootRef={rootRef}
-        geometryKey={`${documentKey}.${numPages}.${scale}`}
-        geometry={geometry}
-      />
+      <PdfSelectionPreview pages={liveSelection.pages} />
       {selected && !popup && !translation && (
         <PdfSelectionToolbar
           key={selected.annotations[0]?.id}
@@ -1165,14 +1161,7 @@ export function PdfViewer({
                   className="toolbar-icon-button hover:text-error"
                   aria-label={t("pdfReading.deleteAnnotation")}
                   disabled={notes.busy}
-                  onClick={() => {
-                    const first = popup.annotations[0];
-                    if (!first || !window.confirm(t("pdfReading.deleteConfirm"))) return;
-                    void notes.session
-                      .remove(first.id, first.note)
-                      .then(() => setPopup(null))
-                      .catch((failure: unknown) => setPopup({ ...popup, error: String(failure) }));
-                  }}
+                  onClick={() => setConfirming("delete")}
                 >
                   <TrashIcon className="size-4" aria-hidden="true" />
                 </button>
@@ -1180,6 +1169,39 @@ export function PdfViewer({
             )}
           </div>
         </section>
+      )}
+      {popup && confirming === "delete" && (
+        <ConfirmDialog
+          danger
+          title={t("pdfReading.deleteAnnotation")}
+          message={t("pdfReading.deleteConfirm")}
+          confirmLabel={t("common.delete")}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            setConfirming(null);
+            const first = popup.annotations[0];
+            if (!first) return;
+            void notes.session
+              .remove(first.id, first.note)
+              .then(() => setPopup(null))
+              .catch((failure: unknown) =>
+                setPopup((current) => (current ? { ...current, error: String(failure) } : current)),
+              );
+          }}
+        />
+      )}
+      {popup && confirming === "discard" && (
+        <ConfirmDialog
+          danger
+          title={t("pdfReading.discardCommentConfirm")}
+          message={t("pdfReading.discardCommentMessage")}
+          confirmLabel={t("pdfReading.discard")}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            setConfirming(null);
+            setPopup(null);
+          }}
+        />
       )}
       {translation && (
         <PdfTranslationPanel

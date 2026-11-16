@@ -31,6 +31,11 @@ export type PdfTextRunSelection = {
   start: number;
   end: number;
   bounds: PdfAnnotationRect;
+  /** The text node measured, so corrected offsets can be written back to the selection. */
+  node?: Text;
+  /** Normalized pointer x on this run's line: where the selection really starts or ends. */
+  snapStart?: number;
+  snapEnd?: number;
 };
 type Index = { text: string; owners: number[][] };
 const indexes = new WeakMap<PdfPageGlyphs, Index>();
@@ -345,6 +350,60 @@ function mergeGlyphFragments(fragments: GlyphFragment[], aspect: number, vertica
   );
 }
 
+/**
+ * The text layer fits a substitute font to each run's total width, so the browser's
+ * character offsets drift from the painted glyphs in the middle of a run. Where a
+ * run carries the pointer position, move its offsets to the glyph under the pointer.
+ * Runs that are not one left-to-right line keep the browser's offsets.
+ */
+export function snapPdfTextRuns(page: PdfPageGlyphs, runs: PdfTextRunSelection[]) {
+  return runs.map((run) => {
+    if (run.snapStart === undefined && run.snapEnd === undefined) return run;
+    if (page.vertical || page.reverseLines) return run;
+    const match = matchingGlyphs(page, run.text, run.bounds, false);
+    if (!match) return run;
+    const source = indexText(
+      run.text,
+      Array.from({ length: run.text.length }, (_, i) => i),
+    );
+    const characters: { first: number; last: number; center: number }[] = [];
+    source.owners.forEach((units, index) => {
+      const rect = pdfRectUnion(
+        (match.indexed.owners[match.offset + index] ?? []).flatMap((id) => {
+          const glyph = page.glyphs[id]?.rect;
+          return glyph ? [glyph] : [];
+        }),
+      );
+      if (rect && units.length)
+        characters.push({
+          first: Math.min(...units),
+          last: Math.max(...units),
+          center: rect.x + rect.width / 2,
+        });
+    });
+    const first = characters[0];
+    const last = characters.at(-1);
+    if (
+      !first ||
+      !last ||
+      (characters.length > 1 && last.center <= first.center) ||
+      characters.some((item, index) => item.center < (characters[index - 1]?.center ?? -Infinity))
+    )
+      return run;
+    let { start, end } = run;
+    if (run.snapStart !== undefined) {
+      const x = run.snapStart;
+      start = characters.find((item) => item.center >= x)?.first ?? run.text.length;
+    }
+    if (run.snapEnd !== undefined) {
+      const x = run.snapEnd;
+      end = 0;
+      for (const item of characters) if (item.center < x) end = item.last + 1;
+    }
+    return { ...run, start, end };
+  });
+}
+
 export function tightPdfTextSelection(
   page: PdfPageGlyphs,
   selections: PdfTextRunSelection[],
@@ -352,6 +411,7 @@ export function tightPdfTextSelection(
 ) {
   const ids = new Set<number>();
   for (const selection of selections) {
+    if (selection.start >= selection.end) continue;
     const match = matchingGlyphs(page, selection.text, selection.bounds, rejectAmbiguous);
     if (!match) throw new Error("PDF_GEOMETRY_FAILED");
     const source = indexText(

@@ -878,6 +878,8 @@ export const ko: TranslationDictionary = {
     deleteAnnotation: "주석 삭제",
     deleteConfirm: "이 주석과 읽기 노트에 기록된 내용을 삭제하시겠습니까?",
     discardCommentConfirm: "저장하지 않은 노트를 버리시겠습니까?",
+    discardCommentMessage: "입력한 내용과 색상 변경은 저장되지 않습니다.",
+    discard: "버리기",
     discardDraftConfirm:
       "저장하지 않은 Markdown 변경을 버리고 디스크에서 노트를 다시 불러오시겠습니까? 보관하려면 먼저 초안을 복사하세요.",
     staleAnnotations:

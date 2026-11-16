@@ -22,6 +22,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useI18n } from "@/features/i18n";
 import type { PdfAnnotationColor } from "../lib/pdf-notes";
 import { type PdfToolbarAnchor, pdfToolbarPosition } from "../lib/pdf-toolbar-position";
+import { PDF_SELECTION_ACTIONS_ATTRIBUTE } from "../lib/use-pdf-selection";
 import { PdfColorPicker } from "./pdf-color-picker";
 
 type Props = {
@@ -236,6 +237,7 @@ export function PdfSelectionToolbar({
       <div
         ref={toolbarRef}
         role="toolbar"
+        {...{ [PDF_SELECTION_ACTIONS_ATTRIBUTE]: "" }}
         aria-label={t("pdfReading.selectionActions")}
         aria-orientation="horizontal"
         className="motion-pop absolute z-20 flex max-w-[calc(100%-1rem)] select-none items-center gap-1 overflow-x-auto rounded-lg border border-border bg-background p-1 text-foreground shadow-lg"
@@ -300,6 +302,7 @@ export function PdfSelectionToolbar({
           ref={paletteRef}
           id={paletteId}
           role="dialog"
+          {...{ [PDF_SELECTION_ACTIONS_ATTRIBUTE]: "" }}
           aria-label={t("pdfReading.color")}
           className="motion-pop absolute z-30 max-w-[calc(100%-1rem)] overflow-x-auto rounded-lg border border-border bg-background p-1 text-foreground shadow-lg"
           style={palettePosition}

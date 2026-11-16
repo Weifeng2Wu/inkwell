@@ -880,6 +880,8 @@ export const en = {
     deleteAnnotation: "Delete annotation",
     deleteConfirm: "Delete this annotation and its note from the reading notes?",
     discardCommentConfirm: "Discard the unsaved note?",
+    discardCommentMessage: "What you typed and any color change will not be saved.",
+    discard: "Discard",
     discardDraftConfirm:
       "Discard your unsaved Markdown draft and reload the notes from disk? Copy the draft first if you want to keep it.",
     staleAnnotations:

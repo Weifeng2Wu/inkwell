@@ -163,6 +163,30 @@ describe("text-only PDF range capture", () => {
     ]);
   });
 
+  it("tags only the boundary runs whose line the pointer is on", () => {
+    const { nodes } = page(1, ["first line", "second line"]);
+    const first = nodeAt(nodes, 0);
+    const second = nodeAt(nodes, 1);
+    fragments.set(first, [new DOMRect(10, 10, 40, 2)]);
+    fragments.set(second, [new DOMRect(10, 20, 40, 2)]);
+    const range = document.createRange();
+    range.setStart(first, 2);
+    range.setEnd(second, 0);
+    const runs = collectPdfSelection(root, range, {
+      start: { x: 15, y: 11 },
+      end: { x: 30, y: 21 },
+    })[0]?.runs;
+    expect(runs).toMatchObject([
+      { node: first, start: 2, end: 10, snapStart: 0.15 },
+      // The browser selected nothing here yet; the pointer may still claim glyphs.
+      { node: second, start: 0, end: 0, snapEnd: 0.3 },
+    ]);
+    expect(runs?.[0]?.snapEnd).toBeUndefined();
+    const offLine = collectPdfSelection(root, range, { start: { x: 15, y: 40 } })[0]?.runs;
+    expect(offLine).toHaveLength(1);
+    expect(offLine?.[0]?.node).toBeUndefined();
+  });
+
   it("clips a cross-page selection independently without including outside controls", () => {
     const first = page(1, ["first page"]);
     const outside = document.createElement("button");

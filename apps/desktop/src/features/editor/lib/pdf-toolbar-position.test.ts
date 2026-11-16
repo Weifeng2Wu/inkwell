@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pdfToolbarPosition } from "./pdf-toolbar-position";
+import { pdfSelectionAnchor, pdfToolbarPosition } from "./pdf-toolbar-position";
 
 const panel = { width: 600, height: 800 };
 const toolbar = { width: 204, height: 42 };
@@ -45,5 +45,33 @@ describe("compact PDF toolbar placement", () => {
       left: 8,
       top: 56,
     });
+  });
+});
+
+describe("selection anchor for the PDF toolbar", () => {
+  const pane = { left: 100, top: 50, width: 600, height: 800 };
+  const bounds = { left: 120, top: 0, width: 500, height: 1000 };
+  const line = (y: number) => ({ x: 0.1, y, width: 0.4, height: 0.02 });
+
+  it("surrounds the selected lines in pane coordinates", () => {
+    expect(pdfSelectionAnchor([{ bounds, rects: [line(0.2), line(0.3)] }], pane, 48)).toEqual({
+      left: 70,
+      right: 270,
+      top: 150,
+      bottom: 270,
+    });
+  });
+  it("ignores lines under the header or below the pane while any line is visible", () => {
+    const anchor = pdfSelectionAnchor(
+      [{ bounds, rects: [line(0.05), line(0.3), line(0.95)] }],
+      pane,
+      48,
+    );
+    expect(anchor.top).toBe(250);
+    expect(anchor.bottom).toBe(270);
+  });
+  it("falls back to the whole selection when none of it is visible", () => {
+    const anchor = pdfSelectionAnchor([{ bounds, rects: [line(0.95)] }], pane, 48);
+    expect(anchor.top).toBe(900);
   });
 });

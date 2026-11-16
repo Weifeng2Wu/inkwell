@@ -2,6 +2,7 @@
 
 import { WarningIcon } from "@phosphor-icons/react";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useI18n } from "@/features/i18n";
 import type { PdfNotesSession } from "../lib/pdf-notes-session";
 import { usePdfNotes } from "../lib/use-pdf-notes";
@@ -32,6 +33,7 @@ export function PdfNotesEditor({
         baseline: props.content ?? "",
       },
   );
+  const [confirmingReload, setConfirmingReload] = useState(false);
   const draftRef = useRef(draft);
   const inFlight = useRef<Promise<void> | undefined>(undefined);
   const mounted = useRef(true);
@@ -166,22 +168,32 @@ export function PdfNotesEditor({
             <button
               type="button"
               className="btn btn-sm btn-secondary"
-              onClick={() => {
-                if (!window.confirm(t("pdfReading.discardDraftConfirm"))) return;
-                void session
-                  .reload()
-                  .then(() => {
-                    const content = session.getSnapshot().content;
-                    if (content !== undefined) update({ text: content, baseline: content });
-                  })
-                  .catch(() => {});
-              }}
+              onClick={() => setConfirmingReload(true)}
             >
               {t("pdfReading.reload")}
             </button>
           </>
         )}
       </div>
+      {confirmingReload && (
+        <ConfirmDialog
+          danger
+          title={t("pdfReading.reload")}
+          message={t("pdfReading.discardDraftConfirm")}
+          confirmLabel={t("pdfReading.reload")}
+          onCancel={() => setConfirmingReload(false)}
+          onConfirm={() => {
+            setConfirmingReload(false);
+            void session
+              .reload()
+              .then(() => {
+                const content = session.getSnapshot().content;
+                if (content !== undefined) update({ text: content, baseline: content });
+              })
+              .catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }

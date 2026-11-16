@@ -4,6 +4,7 @@ import {
   type PdfPageGlyphs,
   pdfGlyphLineFragments,
   pdfRectUnion,
+  snapPdfTextRuns,
   tightPdfTextSelection,
   tightSavedPdfQuote,
 } from "./pdf-glyph-geometry";
@@ -25,6 +26,43 @@ const page = (glyphs: PdfPageGlyphs["glyphs"]): PdfPageGlyphs => ({
   width: 600,
   height: 800,
   glyphs,
+});
+
+describe("pointer-corrected selection offsets", () => {
+  const text = "before target after";
+  const bounds = box(0.09, 0.09, 0.4, 0.04);
+  // Glyph i spans 0.1 + i * 0.012 .. + 0.009; the browser's offsets are a few characters off.
+  const at = (index: number) => 0.1 + index * 0.012;
+
+  it("moves both ends to the glyphs under the pointer, wherever the text layer put them", () => {
+    const [snapped] = snapPdfTextRuns(page(run(text)), [
+      { text, start: 9, end: 10, bounds, snapStart: at(7) - 0.001, snapEnd: at(12) + 0.008 },
+    ]);
+    expect(snapped).toMatchObject({ start: 7, end: 13 });
+    expect(tightPdfTextSelection(page(run(text)), snapped ? [snapped] : [])[0]?.x).toBeCloseTo(
+      at(7),
+    );
+  });
+
+  it("includes a character only once the pointer has passed its middle", () => {
+    const end = (x: number) =>
+      snapPdfTextRuns(page(run(text)), [{ text, start: 0, end: 3, bounds, snapEnd: x }])[0]?.end;
+    expect(end(at(4) + 0.004)).toBe(4);
+    expect(end(at(4) + 0.005)).toBe(5);
+    expect(end(0.05)).toBe(0);
+    expect(end(0.9)).toBe(text.length);
+  });
+
+  it("keeps the browser's offsets without a pointer, on rotated pages and across wrapped runs", () => {
+    const plain = { text, start: 2, end: 5, bounds };
+    expect(snapPdfTextRuns(page(run(text)), [plain])[0]).toBe(plain);
+    const snapped = { ...plain, snapEnd: 0.9 };
+    expect(snapPdfTextRuns({ ...page(run(text)), vertical: true }, [snapped])[0]).toBe(snapped);
+    const wrapped = page([...run("before "), ...run("target after", 0.1, 0.13)]);
+    expect(
+      snapPdfTextRuns(wrapped, [{ ...snapped, bounds: box(0.09, 0.09, 0.4, 0.06) }])[0]?.end,
+    ).toBe(5);
+  });
 });
 
 describe("tight PDF glyph selection", () => {

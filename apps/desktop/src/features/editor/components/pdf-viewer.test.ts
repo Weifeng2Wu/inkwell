@@ -13,6 +13,7 @@ const mock = vi.hoisted(() => ({
   invoke: vi.fn(),
   refineSelection: vi.fn(),
   refineAnnotation: vi.fn(),
+  prepare: vi.fn(),
   disposeGeometry: vi.fn(),
   outline: [] as unknown[],
   getTextContent: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("../lib/pdf-geometry", () => ({
   PdfGeometryClient: class {
     refineSelection = mock.refineSelection;
     refineAnnotation = mock.refineAnnotation;
+    prepare = mock.prepare;
     dispose = mock.disposeGeometry;
   },
 }));
@@ -116,8 +118,8 @@ async function settle() {
   });
 }
 
-function button(label: string) {
-  const target = [...container.querySelectorAll("button")].find(
+function button(label: string, scope: ParentNode = container) {
+  const target = [...scope.querySelectorAll("button")].find(
     (item) => item.textContent === label || item.getAttribute("aria-label") === label,
   );
   if (!target) throw new Error(`Missing button: ${label}`);
@@ -213,6 +215,7 @@ beforeEach(() => {
   );
   mock.refineAnnotation.mockReset().mockImplementation(async (item: PdfAnnotation) => item);
   mock.disposeGeometry.mockReset();
+  mock.prepare.mockReset();
   mock.outline = [];
   mock.getTextContent.mockReset().mockImplementation(async (number: number) => ({
     items: [{ str: "Important finding", hasEOL: true }, { str: `on page ${number}.` }],
@@ -311,6 +314,65 @@ describe("PDF reading interactions", () => {
     });
     expect(container.querySelector('[role="toolbar"]')).toBeNull();
     expect(parsePdfNotes(mock.disk).annotations).toHaveLength(0);
+  });
+
+  it("prepares the glyphs of the page being read and its neighbor before any selection", async () => {
+    await render();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 200));
+    });
+    expect(mock.prepare.mock.calls.map(([page]) => page)).toEqual([1, 2]);
+    expect(mock.refineSelection).not.toHaveBeenCalled();
+  });
+
+  it("offers the actions when the pointer is released outside the page and withdraws them with the selection", async () => {
+    await render();
+    const text = container.querySelector(".react-pdf__Page__textContent span")?.firstChild;
+    if (!text) throw new Error("Missing PDF text");
+    await act(async () => {
+      text.parentElement?.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 80, clientY: 80 }),
+      );
+      const range = document.createRange();
+      range.setStart(text, 0);
+      range.setEnd(text, 9);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+      document.body.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0 }));
+    });
+    await settle();
+    expect(container.querySelector('[role="toolbar"]')).not.toBeNull();
+    // Clearing the selection anywhere else must not leave actions for vanished text.
+    await act(async () => {
+      window.getSelection()?.removeAllRanges();
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    await settle();
+    await settle();
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
+  });
+
+  it("opens a saved highlight with one click even while its own text is still selected", async () => {
+    await render();
+    await pointer(true, true);
+    await click(button("pdfReading.highlight"));
+    const text = container.querySelector(".react-pdf__Page__textContent span");
+    if (!text?.firstChild) throw new Error("Missing PDF text");
+    const range = document.createRange();
+    range.setStart(text.firstChild, 0);
+    range.setEnd(text.firstChild, 9);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    // The browser collapses a clicked selection only after pointerup.
+    await act(async () => {
+      for (const type of ["pointerdown", "pointerup"])
+        text.dispatchEvent(
+          new MouseEvent(type, { bubbles: true, button: 0, clientX: 80, clientY: 80 }),
+        );
+      window.getSelection()?.removeAllRanges();
+    });
+    await settle();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
   it("visually realigns saved notes and their hit targets without rewriting Markdown on open", async () => {
@@ -582,6 +644,27 @@ describe("PDF reading interactions", () => {
     });
     await render();
     expect(button("pdfReading.read").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("confirms deleting an annotation in the app's own dialog, never a native prompt", async () => {
+    const native = vi.spyOn(window, "confirm");
+    await render();
+    await pointer(true, true);
+    await click(button("pdfReading.highlight"));
+    await pointer(false);
+    await click(button("pdfReading.deleteAnnotation"));
+    const dialog = document.querySelector('[role="alertdialog"]');
+    expect(dialog?.textContent).toContain("pdfReading.deleteConfirm");
+    expect(parsePdfNotes(mock.disk).annotations).toHaveLength(1);
+    await click(button("common.cancel", document.body));
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(parsePdfNotes(mock.disk).annotations).toHaveLength(1);
+    await click(button("pdfReading.deleteAnnotation"));
+    await click(button("common.delete", document.body));
+    expect(parsePdfNotes(mock.disk).annotations).toHaveLength(0);
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(native).not.toHaveBeenCalled();
   });
 
   it("supports continuous underlining without an extra save click", async () => {

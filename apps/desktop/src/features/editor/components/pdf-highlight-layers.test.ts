@@ -13,6 +13,7 @@ import {
   upsertPdfAnnotation,
 } from "../lib/pdf-notes";
 import type { PdfSelectionPage } from "../lib/pdf-selection";
+import { type PdfSelectionSettled, usePdfSelection } from "../lib/use-pdf-selection";
 import { PdfAnnotationLayer } from "./pdf-annotation-layer";
 import { PdfSelectionPreview } from "./pdf-selection-preview";
 
@@ -128,6 +129,14 @@ describe("live PDF selection preview", () => {
   let serial: number;
   const pdfRef = { current: null as HTMLDivElement | null };
   let geometry: PdfGeometry;
+  let dismiss: () => void;
+  const settled = vi.fn<PdfSelectionSettled>();
+
+  function Preview(props: { geometryKey: string; geometry: PdfGeometry | null }) {
+    const selection = usePdfSelection({ rootRef: pdfRef, ...props, onSettle: settled });
+    dismiss = selection.dismiss;
+    return createElement(PdfSelectionPreview, { pages: selection.pages });
+  }
 
   function page(number: number) {
     const element = document.createElement("div");
@@ -153,9 +162,7 @@ describe("live PDF selection preview", () => {
   }
 
   async function renderPreview(geometryKey = "original") {
-    await act(async () =>
-      root.render(createElement(PdfSelectionPreview, { rootRef: pdfRef, geometryKey, geometry })),
-    );
+    await act(async () => root.render(createElement(Preview, { geometryKey, geometry })));
     await flushFrames();
   }
 
@@ -199,6 +206,7 @@ describe("live PDF selection preview", () => {
       ),
       refineAnnotation: vi.fn(async (item) => item),
     };
+    settled.mockReset();
     frames = new Map();
     serial = 0;
     vi.stubGlobal(
@@ -464,13 +472,7 @@ describe("live PDF selection preview", () => {
     select(text);
     await flushFrames();
     await act(async () =>
-      root.render(
-        createElement(PdfSelectionPreview, {
-          rootRef: pdfRef,
-          geometryKey: "original",
-          geometry: null,
-        }),
-      ),
+      root.render(createElement(Preview, { geometryKey: "original", geometry: null })),
     );
     await flushFrames();
     expect(pdf.querySelector("[data-pdf-selection-preview]")).toBeNull();
@@ -581,6 +583,151 @@ describe("live PDF selection preview", () => {
       await pending;
     });
     expect(pdf.querySelector("[data-pdf-selection-preview]")).toBeNull();
+  });
+
+  function press(target: Node, type: "pointerdown" | "pointerup") {
+    (target.parentElement ?? pdf).dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 }));
+  }
+
+  it("announces a selection when it rests, not while it is dragged, and only once", async () => {
+    const text = page(1);
+    await renderPreview();
+    press(text, "pointerdown");
+    select(text);
+    await flushFrames();
+    expect(pdf.querySelector("[data-pdf-selection-preview]")).not.toBeNull();
+    expect(settled).not.toHaveBeenCalled();
+    // The pointer may be released anywhere, including outside every page.
+    document.body.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0 }));
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(settled.mock.calls[0]?.[0][0]?.quote).toBe("selected");
+    window.dispatchEvent(new Event("resize"));
+    await flushFrames();
+    await renderPreview("zoomed");
+    expect(settled).toHaveBeenCalledTimes(1);
+    // A keyboard extension is a different selection and needs no pointer at all.
+    select(text, text, 12);
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(2);
+    expect(settled.mock.calls[1]?.[0][0]?.quote).toBe("selected wor");
+  });
+
+  it("ends a dragged selection at the glyph under the pointer and writes it back on release", async () => {
+    const text = page(1);
+    // The geometry service moves pointer-tagged boundaries; the text layer said 8.
+    geometry.refineSelection = vi.fn(async (pages: PdfSelectionPage[]) =>
+      pages.map((item) => {
+        const runs = item.runs.map((run) =>
+          run.snapEnd === undefined ? run : { ...run, end: 12 },
+        );
+        return { ...item, runs, rects: [{ x: 0.1, y: 0.1, width: 0.12, height: 0.01 }] };
+      }),
+    );
+    await renderPreview();
+    const span = text.parentElement ?? pdf;
+    const pointer = (type: string, clientX: number) =>
+      span.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, clientX, clientY: 11 }));
+    pointer("pointerdown", 10);
+    select(text);
+    pointer("pointermove", 22);
+    await flushFrames();
+    expect(pdf.querySelector("path")?.getAttribute("d")).toBe("M0.1 0.1h0.12v0.01h-0.12Z");
+    expect(window.getSelection()?.toString()).toBe("selected"); // Untouched during the drag.
+    pointer("pointerup", 22);
+    await flushFrames();
+    await flushFrames();
+    expect(window.getSelection()?.toString()).toBe("selected wor");
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(settled.mock.calls[0]?.[0][0]?.quote).toBe("selected wor");
+  });
+
+  it("leaves double-click and Shift selections on the browser's own boundaries", async () => {
+    const text = page(1);
+    await renderPreview();
+    const span = text.parentElement ?? pdf;
+    for (const init of [{ shiftKey: true }, { detail: 2 }]) {
+      span.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          clientX: 10,
+          clientY: 11,
+          ...init,
+        }),
+      );
+      span.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, ...init }));
+      select(text);
+      span.dispatchEvent(
+        new MouseEvent("pointerup", { bubbles: true, button: 0, clientX: 40, clientY: 11 }),
+      );
+      await flushFrames();
+    }
+    const runs = vi
+      .mocked(geometry.refineSelection)
+      .mock.calls.flatMap(([pages]) => pages.flatMap((item) => item.runs));
+    expect(runs.length).toBeGreaterThan(0);
+    expect(runs.every((run) => run.snapStart === undefined && run.snapEnd === undefined)).toBe(
+      true,
+    );
+  });
+
+  it("withdraws the announced selection when it is cleared or a new press begins", async () => {
+    const text = page(1);
+    await renderPreview();
+    select(text);
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(1);
+    window.getSelection()?.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+    await flushFrames();
+    expect(settled).toHaveBeenLastCalledWith([], undefined);
+    select(text);
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(3);
+    const control = document.createElement("button");
+    pdf.querySelector("[data-pdf-page]")?.append(control);
+    control.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+    control.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, button: 0 }));
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(3); // A page control keeps the selection's actions.
+    press(text, "pointerdown");
+    expect(settled).toHaveBeenCalledTimes(4);
+    expect(settled).toHaveBeenLastCalledWith([], undefined);
+    press(text, "pointerup");
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(5); // The unchanged selection rests again.
+  });
+
+  it("does not announce a dismissed selection when its geometry resolves late", async () => {
+    const text = page(1);
+    const pending = deferredRefinement();
+    geometry.refineSelection = vi.fn(() => pending.promise);
+    await renderPreview();
+    select(text);
+    await flushFrames();
+    dismiss();
+    const captured = vi.mocked(geometry.refineSelection).mock.calls[0]?.[0] ?? [];
+    await act(async () => {
+      pending.resolve(refined(captured));
+      await pending.promise;
+    });
+    await flushFrames();
+    expect(pdf.querySelector("[data-pdf-selection-preview]")).not.toBeNull();
+    expect(settled).not.toHaveBeenCalled();
+  });
+
+  it("announces a failed selection without pages so it can never be saved loosely", async () => {
+    const text = page(1);
+    const failure = new Error("PDF_GEOMETRY_FAILED");
+    geometry.refineSelection = vi.fn(async () => {
+      throw failure;
+    });
+    await renderPreview();
+    select(text);
+    await flushFrames();
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(settled).toHaveBeenCalledWith([], failure);
   });
 
   it("keeps native selection when the glyph service fails instead of painting loose browser boxes", async () => {

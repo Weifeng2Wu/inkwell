@@ -11,17 +11,26 @@ export type PdfSelectionPage = {
   runs: PdfTextRunSelection[];
 };
 
+/** Viewport positions of the pointer at the two ends of a dragged selection. */
+export type PdfSelectionPointers = {
+  start?: { x: number; y: number };
+  end?: { x: number; y: number };
+};
+
+export function samePdfRange(first: Range, second: Range) {
+  return (
+    first.startContainer === second.startContainer &&
+    first.startOffset === second.startOffset &&
+    first.endContainer === second.endContainer &&
+    first.endOffset === second.endOffset
+  );
+}
+
 /** Async glyph results must still belong to the current native text selection. */
 export function isCurrentPdfSelection(range: Range) {
   const selection = window.getSelection();
   if (!selection?.rangeCount || selection.isCollapsed) return false;
-  const current = selection.getRangeAt(0);
-  return (
-    current.startContainer === range.startContainer &&
-    current.startOffset === range.startOffset &&
-    current.endContainer === range.endContainer &&
-    current.endOffset === range.endOffset
-  );
+  return samePdfRange(selection.getRangeAt(0), range);
 }
 
 function sameLine(first: PdfAnnotationRect, second: PdfAnnotationRect) {
@@ -91,8 +100,13 @@ function visibleTextRanges(node: Node, range: Range) {
  * Range.getClientRects() on a whole text layer includes element/container boxes.
  * Measure only selected text nodes, with exact offsets at both selection ends.
  * Native selection/copy still owns the text; this function owns its appearance.
+ * `pointers` tags the boundary runs so glyph geometry can correct their offsets.
  */
-export function collectPdfSelection(root: HTMLElement, range: Range): PdfSelectionPage[] {
+export function collectPdfSelection(
+  root: HTMLElement,
+  range: Range,
+  pointers: PdfSelectionPointers = {},
+): PdfSelectionPage[] {
   if (range.collapsed || !root.contains(range.startContainer) || !root.contains(range.endContainer))
     return [];
   const pages: PdfSelectionPage[] = [];
@@ -104,7 +118,7 @@ export function collectPdfSelection(root: HTMLElement, range: Range): PdfSelecti
     if (!layer.contains(range.startContainer)) clipped.setStart(layer, 0);
     if (!layer.contains(range.endContainer)) clipped.setEnd(layer, layer.childNodes.length);
     const quote = clipped.toString().trim();
-    if (!quote) continue;
+    if (!quote && !pointers.start && !pointers.end) continue;
     characters += quote.length;
     if (characters > 20000) throw new Error("PDF_SELECTION_TOO_LONG");
     const bounds = element.getBoundingClientRect();
@@ -126,9 +140,10 @@ export function collectPdfSelection(root: HTMLElement, range: Range): PdfSelecti
             return normalized ? [normalized] : [];
           }),
         );
+        const local: PdfTextRunSelection[] = [];
         for (const selected of visibleTextRanges(node, clipped)) {
           if (hint)
-            runs.push({
+            local.push({
               text: node.textContent ?? "",
               start: selected.startOffset,
               end: selected.endOffset,
@@ -139,12 +154,38 @@ export function collectPdfSelection(root: HTMLElement, range: Range): PdfSelecti
             if (normalized) fragments.push(normalized);
           }
         }
+        if (hint && node instanceof Text) {
+          // Only a pointer on this run's own line says where its text should end.
+          const onLine = (point?: { x: number; y: number }) => {
+            if (!point) return;
+            const y = (point.y - bounds.top) / bounds.height;
+            const slack = hint.height * 0.25;
+            return y >= hint.y - slack && y <= hint.y + hint.height + slack
+              ? (point.x - bounds.left) / bounds.width
+              : undefined;
+          };
+          const snapStart = node === range.startContainer ? onLine(pointers.start) : undefined;
+          const snapEnd = node === range.endContainer ? onLine(pointers.end) : undefined;
+          if (snapStart !== undefined || snapEnd !== undefined) {
+            // The browser may have left this boundary run empty; the pointer can refill it.
+            if (!local.length) {
+              const offset = node === range.endContainer ? range.endOffset : range.startOffset;
+              local.push({ text: node.data, start: offset, end: offset, bounds: hint });
+            }
+            const first = local[0];
+            const last = local.at(-1);
+            if (first && snapStart !== undefined) first.snapStart = snapStart;
+            if (last && snapEnd !== undefined) last.snapEnd = snapEnd;
+            for (const run of local) run.node = node;
+          }
+        }
+        runs.push(...local);
       }
       node = walker.nextNode();
     }
     const rects = mergePdfSelectionRects(fragments, bounds.height / bounds.width);
     if (rects.length > 500) throw new Error("PDF_SELECTION_TOO_LONG");
-    if (rects.length)
+    if (rects.length || runs.some((run) => run.node))
       pages.push({ element, page: Number(element.dataset.pdfPage), quote, rects, runs });
   }
   return pages;

@@ -1,6 +1,8 @@
 import {
   type PdfPageGlyphs,
   type PdfViewportGeometry,
+  pdfGlyphLines,
+  snapPdfTextRuns,
   tightPdfTextSelection,
   tightSavedPdfQuote,
 } from "./pdf-glyph-geometry";
@@ -97,12 +99,28 @@ export class PdfGeometryClient {
     return result;
   }
 
+  /**
+   * Extract a page's glyphs and row layout ahead of the first selection on it, so
+   * that selection does not wait for PDFium. Failures surface when it is selected.
+   */
+  prepare(page: number) {
+    void this.getPage(page).then(pdfGlyphLines, () => {});
+  }
+
   async refineSelection(selections: PdfSelectionPage[]): Promise<PdfSelectionPage[]> {
     const result = await Promise.all(
       selections.map(async (selection) => {
         const page = await this.getPage(selection.page);
-        const rects = tightPdfTextSelection(page, selection.runs);
-        return { ...selection, rects, highlightRects: connectedPdfHighlightRects(page, rects) };
+        const runs = snapPdfTextRuns(page, selection.runs);
+        // The pointer can leave nothing of a page selected; that is not a failure.
+        if (!runs.some((run) => run.start < run.end)) return { ...selection, runs, rects: [] };
+        const rects = tightPdfTextSelection(page, runs);
+        return {
+          ...selection,
+          runs,
+          rects,
+          highlightRects: connectedPdfHighlightRects(page, rects),
+        };
       }),
     );
     if (this.closed) throw new Error("PDF_GEOMETRY_FAILED");

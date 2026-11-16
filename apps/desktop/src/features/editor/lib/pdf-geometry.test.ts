@@ -129,6 +129,17 @@ describe("local PDF geometry worker client", () => {
     expect(worker.terminate).toHaveBeenCalledTimes(1);
   });
 
+  it("prepares a page ahead of its first selection, which then needs no worker round trip", async () => {
+    const client = new PdfGeometryClient(new Uint8Array([1]), viewport);
+    client.prepare(1);
+    worker.respond(0);
+    await vi.waitFor(() => expect(worker.requests).toHaveLength(2));
+    worker.respond(1, glyphs);
+    expect((await client.refineSelection(selection()))[0]?.rects).toEqual([glyphs.glyphs[0]?.rect]);
+    expect(worker.requests).toHaveLength(2);
+    client.dispose();
+  });
+
   it("rejects pending and cached work after disposal and ignores late responses", async () => {
     const client = new PdfGeometryClient(new Uint8Array([1]), viewport);
     const pending = client.refineSelection(selection());

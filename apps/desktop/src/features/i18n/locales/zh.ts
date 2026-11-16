@@ -846,6 +846,8 @@ export const zh: TranslationDictionary = {
     deleteAnnotation: "删除批注",
     deleteConfirm: "删除这条批注及其在阅读笔记中的内容？",
     discardCommentConfirm: "放弃尚未保存的笔记？",
+    discardCommentMessage: "已输入的内容和颜色修改都不会保存。",
+    discard: "放弃",
     discardDraftConfirm: "放弃尚未保存的 Markdown 修改并重新加载磁盘笔记？如需保留，请先复制草稿。",
     staleAnnotations:
       "PDF 内容已变化。{count} 条旧批注仍保留在 Markdown 笔记中，此处暂不显示，以免标到错误的文字。",
