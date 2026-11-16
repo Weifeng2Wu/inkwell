@@ -106,3 +106,33 @@ it("keeps virtualization and scrolling after replacing the scroll container", as
   expect(onFileSelect).toHaveBeenLastCalledWith("demo/note-100.md");
   expect(container.querySelectorAll("[data-path]").length).toBeLessThan(30);
 });
+
+it("shows recognized PDF metadata without changing the path used to open the file", async () => {
+  const onFileSelect = vi.fn();
+  const papers = [file("1706.03762.pdf"), file("unrecognized.pdf")];
+  await act(async () => root.render(createElement(FileTree, { files: papers, onFileSelect })));
+  expect(row("demo/1706.03762.pdf").textContent).toBe("1706.03762.pdf");
+  const pdfMetadata = new Map([
+    [
+      "demo/1706.03762.pdf",
+      {
+        title: "Attention Is All You Need",
+        authors: ["Ashish Vaswani", "Noam Shazeer"],
+        year: "2017",
+        venue: "NeurIPS",
+      },
+    ],
+  ]);
+  await act(async () =>
+    root.render(createElement(FileTree, { files: papers, pdfMetadata, onFileSelect })),
+  );
+  const recognized = row("demo/1706.03762.pdf");
+  expect(recognized.textContent).toBe("Attention Is All You Need");
+  const tooltip = recognized.querySelector("span")?.title;
+  expect(tooltip).toContain("Ashish Vaswani, Noam Shazeer");
+  expect(tooltip).toContain("2017 · NeurIPS");
+  expect(tooltip).toContain("1706.03762.pdf");
+  expect(row("demo/unrecognized.pdf").textContent).toBe("unrecognized.pdf");
+  await act(async () => recognized.click());
+  expect(onFileSelect).toHaveBeenLastCalledWith("demo/1706.03762.pdf");
+});

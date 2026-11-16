@@ -12,3 +12,5 @@ export type Paper = {
   /** Project-relative path of the PDF's notes sidecar, when it exists. */
   notes?: string;
 };
+
+export type PdfMetadata = Pick<Paper, "title" | "authors" | "year" | "venue">;

@@ -136,6 +136,7 @@ import { shortcutLabel } from "@/features/settings";
 import { nestPdfNotes } from "@/features/workspace/lib/pdf-notes-tree";
 import { fileDisplayName, visualDocumentKind } from "@/lib/file-types";
 import type { FileNode } from "@/types/files";
+import type { PdfMetadata } from "@/types/papers";
 
 export interface FileOperations {
   createFile: (path: string) => Promise<void>;
@@ -146,6 +147,7 @@ export interface FileOperations {
 
 type Props = {
   files: FileNode[];
+  pdfMetadata?: ReadonlyMap<string, PdfMetadata>;
   onFileSelect?: (path: string) => void;
   selectedFile?: string;
   /** Files open in a tab; a PDF's notes are listed under it only while it is open. */
@@ -379,6 +381,7 @@ interface DragState {
 
 interface FileTreeContextValue {
   selectedFile?: string;
+  pdfMetadata?: ReadonlyMap<string, PdfMetadata>;
   highlightedFile?: string | null;
   onContextMenu?: (e: React.MouseEvent, node: FileNode, parentPath: string) => void;
   onFileSelect?: (path: string) => void;
@@ -409,16 +412,39 @@ const FileTreeContext = createContext<FileTreeContextValue>({
 // --- Node renderer ---
 
 function NodeRenderer({ node, style }: NodeRendererProps<ArboristFileNode>) {
-  const { selectedFile, highlightedFile, onContextMenu, onFileSelect, dragState, onDragMouseDown } =
-    useContext(FileTreeContext);
+  const {
+    selectedFile,
+    pdfMetadata,
+    highlightedFile,
+    onContextMenu,
+    onFileSelect,
+    dragState,
+    onDragMouseDown,
+  } = useContext(FileTreeContext);
   const { t } = useI18n();
+  const paper =
+    node.data.type === "file" && /\.pdf$/i.test(node.data.name)
+      ? pdfMetadata?.get(node.data.path)
+      : undefined;
   // Under its PDF the notes file needs no name of its own.
   const label =
     node.parent?.data.type === "file"
       ? t("pdfReading.notesTitle")
       : node.data.type === "file"
-        ? fileDisplayName(node.data.name)
+        ? paper?.title || fileDisplayName(node.data.name)
         : node.data.name;
+  const tooltip = paper
+    ? [
+        paper.title,
+        paper.authors.join(", "),
+        [paper.year, paper.venue].filter(Boolean).join(" · "),
+        node.data.name,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : label === node.data.name
+      ? undefined
+      : node.data.name;
 
   const isDirectory = node.data.type === "directory";
   const isSelected = selectedFile === node.data.path;
@@ -514,7 +540,7 @@ function NodeRenderer({ node, style }: NodeRendererProps<ArboristFileNode>) {
         aria-hidden="true"
       />
       <FileIcon type={node.data.type} expanded={node.isOpen} filename={node.data.name} />
-      <span className="truncate" title={label === node.data.name ? undefined : node.data.name}>
+      <span className="truncate" title={tooltip}>
         {label}
       </span>
     </div>
@@ -555,6 +581,7 @@ const FileTreeScrollContainer = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDi
 
 function FileTreeInner({
   files,
+  pdfMetadata,
   onFileSelect,
   selectedFile,
   openFiles,
@@ -1313,6 +1340,7 @@ function FileTreeInner({
   const ctxValue = useMemo<FileTreeContextValue>(
     () => ({
       selectedFile,
+      pdfMetadata,
       highlightedFile,
       onContextMenu: handleContextMenu,
       onFileSelect,
@@ -1321,6 +1349,7 @@ function FileTreeInner({
     }),
     [
       selectedFile,
+      pdfMetadata,
       highlightedFile,
       handleContextMenu,
       onFileSelect,

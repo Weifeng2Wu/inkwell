@@ -30,7 +30,12 @@ export function useProjectBibliography({
     const paths: string[] = JSON.parse(pathsKey);
     return { paths, revision };
   }, [pathsKey, revision]);
-  const [loaded, setLoaded] = useState<{ project: string | null; sources: [string, string][] }>({
+  const [loaded, setLoaded] = useState<{
+    project: string | null;
+    sources: [string, string][];
+    request?: typeof readRequest;
+    failed?: boolean;
+  }>({
     project: null,
     sources: [],
   });
@@ -40,6 +45,7 @@ export function useProjectBibliography({
   }, [change]);
   useEffect(() => {
     let active = true;
+    let failed = false;
     if (!projectPath) {
       setLoaded({ project: null, sources: [] });
       return;
@@ -47,13 +53,16 @@ export function useProjectBibliography({
     void Promise.all(
       readRequest.paths.map(async (path): Promise<[string, string]> => {
         try {
-          return [path, (await readFile(path)) ?? ""];
+          const content = await readFile(path);
+          if (content === null) failed = true;
+          return [path, content ?? ""];
         } catch {
+          failed = true;
           return [path, ""];
         }
       }),
     ).then((sources) => {
-      if (active) setLoaded({ project: projectPath, sources });
+      if (active) setLoaded({ project: projectPath, sources, request: readRequest, failed });
     });
     return () => {
       active = false;
@@ -79,5 +88,8 @@ export function useProjectBibliography({
     return sources;
   }, [projectPath, loaded, buffers]);
   const bibliography = useMemo(() => indexBibliographies(sources), [sources]);
-  return { bibliography, sources };
+  const ready =
+    readRequest.paths.length === 0 ||
+    (loaded.project === projectPath && loaded.request === readRequest && !loaded.failed);
+  return { bibliography, sources, ready };
 }

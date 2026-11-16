@@ -289,7 +289,11 @@ export default function EditorPage() {
     ),
   });
   const bibBuffers = buffers.filter((buffer) => /\.bib$/i.test(buffer.path));
-  const { bibliography, sources: bibliographySources } = useProjectBibliography({
+  const {
+    bibliography,
+    sources: bibliographySources,
+    ready: bibliographyReady,
+  } = useProjectBibliography({
     projectPath,
     files: daemon.files,
     readFile: daemon.readFile,
@@ -303,6 +307,7 @@ export default function EditorPage() {
     projectPath,
     files: daemon.files,
     bibliographies: bibliographySources,
+    ready: bibliographyReady,
     readFile: daemon.readFile,
     writeFile: editor.writeFile,
   });
@@ -1193,6 +1198,7 @@ export default function EditorPage() {
                   <FileSidebarPanel
                     projectPath={projectPath}
                     files={daemon.files}
+                    pdfMetadata={library.pdfMetadata}
                     selectedFile={selectedFile}
                     openFiles={openTabs}
                     highlightedFile={null}

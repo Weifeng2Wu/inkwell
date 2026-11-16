@@ -54,6 +54,18 @@ describe("addReference", () => {
     expect(library().map((item) => item.key)).toEqual(["lecun2015deep", "lecun2015deepa"]);
   });
 
+  it("does not overwrite a bibliography when reading it fails", async () => {
+    const { files, disk } = project({ "references.bib": "@misc{keep, title = {Keep me}}" });
+    const error = new Error("Access denied");
+    files.readFile = vi.fn().mockRejectedValue(error);
+    files.writeFile = vi.fn();
+    await expect(addReference(files, [], ["references.bib"], { metadata: paper })).rejects.toBe(
+      error,
+    );
+    expect(files.writeFile).not.toHaveBeenCalled();
+    expect(disk.get("references.bib")).toContain("Keep me");
+  });
+
   it("links a PDF to the existing entry instead of duplicating a known DOI", async () => {
     const { files, disk, library } = project({
       "references.bib": "@article{known, title = {Deep Learning}, doi = {10.1038/NATURE14539}}\n",

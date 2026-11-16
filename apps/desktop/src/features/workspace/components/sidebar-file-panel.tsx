@@ -18,6 +18,7 @@ import type { FileNode } from "@/types/files";
 type FileSidebarPanelProps = {
   projectPath: string | null;
   files: FileNode[];
+  pdfMetadata?: ComponentProps<typeof FileTree>["pdfMetadata"];
   selectedFile?: string;
   openFiles?: readonly string[];
   highlightedFile: string | null;
@@ -32,6 +33,7 @@ type FileSidebarPanelProps = {
 export function FileSidebarPanel({
   projectPath,
   files,
+  pdfMetadata,
   selectedFile,
   openFiles,
   highlightedFile,
@@ -79,6 +81,7 @@ export function FileSidebarPanel({
       <EditorErrorBoundary>
         <FileTree
           files={files}
+          pdfMetadata={pdfMetadata}
           selectedFile={selectedFile}
           openFiles={openFiles}
           highlightedFile={highlightedFile}

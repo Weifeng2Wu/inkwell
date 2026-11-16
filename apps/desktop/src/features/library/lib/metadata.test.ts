@@ -6,6 +6,7 @@ import {
   guessTitle,
   parseIdentifier,
   parseLookupResponse,
+  pdfFilenameHints,
   titleSimilarity,
 } from "./metadata";
 
@@ -38,6 +39,21 @@ describe("identifiers", () => {
       kind: "title",
       value: "Attention is all you need",
     });
+  });
+
+  it("extracts filename hints from nested and Windows PDF paths", () => {
+    expect(pdfFilenameHints("readings/Attention_Is_All_You_Need.PDF")).toEqual({
+      title: "Attention Is All You Need",
+      doi: "",
+      arxiv: "",
+    });
+    expect(pdfFilenameHints("C:\\Research\\1706.03762v7.pdf")).toEqual({
+      title: "",
+      doi: "",
+      arxiv: "1706.03762",
+    });
+    expect(pdfFilenameHints("papers/notes.pdf")).toEqual({ title: "notes", doi: "", arxiv: "" });
+    expect(pdfFilenameHints("papers/.pdf")).toEqual({ title: "", doi: "", arxiv: "" });
   });
 });
 

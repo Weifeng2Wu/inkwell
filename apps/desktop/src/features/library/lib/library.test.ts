@@ -73,9 +73,16 @@ describe("buildLibrary", () => {
     });
   });
 
-  it("reports only unlinked PDFs inside papers/", () => {
-    expect(library.unlinked).toEqual(["papers/new.pdf"]);
-    expect(buildLibrary([], paths).unlinked).toEqual(["papers/attention.pdf", "papers/new.pdf"]);
+  it("discovers unlinked PDFs throughout the project", () => {
+    expect(library.unlinked).toEqual(["main.pdf", "papers/new.pdf"]);
+    expect(buildLibrary([], paths).unlinked).toEqual([
+      "main.pdf",
+      "papers/attention.pdf",
+      "papers/new.pdf",
+    ]);
+    expect(
+      buildLibrary([], ["Readings/nested/Paper.PDF", "draft.md", "refs.bib"]).unlinked,
+    ).toEqual(["Readings/nested/Paper.PDF"]);
   });
 
   it("searches across fields and filters by status", () => {

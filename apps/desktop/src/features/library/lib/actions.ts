@@ -20,6 +20,7 @@ import {
   type Identifier,
   type LookupSource,
   parseLookupResponse,
+  pdfFilenameHints,
   titleSimilarity,
 } from "./metadata";
 
@@ -65,6 +66,7 @@ export type PdfHints = { title: string; doi: string; arxiv: string };
 
 /** Reads identifiers and a likely title from the first pages of a project PDF. */
 export async function readPdfHints(projectPath: string, path: string): Promise<PdfHints> {
+  const filename = pdfFilenameHints(path);
   const { pdfjs } = await import("react-pdf");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -90,12 +92,12 @@ export async function readPdfHints(projectPath: string, path: string): Promise<P
       .flat()
       .map((item) => item.text)
       .join(" ");
-    const info = (await pdf.getMetadata()).info as { Title?: unknown };
+    const info = (await pdf.getMetadata().catch(() => ({ info: {} }))).info as { Title?: unknown };
     const embedded = typeof info.Title === "string" ? info.Title.trim() : "";
     return {
-      title: guessTitle(pages[0] ?? []) || embedded,
-      doi: findDoi(text),
-      arxiv: findArxivId(text),
+      title: guessTitle(pages[0] ?? []) || embedded || filename.title,
+      doi: findDoi(text) || filename.doi,
+      arxiv: findArxivId(text) || filename.arxiv,
     };
   } finally {
     await task.destroy();
@@ -132,8 +134,9 @@ export async function importPdf(projectPath: string, sourcePath: string): Promis
 async function readBibliography(files: ProjectFiles, path: string) {
   try {
     return (await files.readFile(path)) ?? "";
-  } catch {
-    return "";
+  } catch (error) {
+    if (error instanceof Error && error.message === `FILE_NOT_FOUND:${path}`) return "";
+    throw error;
   }
 }
 

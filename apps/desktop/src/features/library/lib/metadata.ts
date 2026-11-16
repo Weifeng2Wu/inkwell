@@ -39,6 +39,16 @@ export function parseIdentifier(input: string): Identifier | null {
   return { kind: "title", value: text.replace(/\s+/g, " ") };
 }
 
+export function pdfFilenameHints(path: string) {
+  const name = (path.replace(/\\/g, "/").split("/").at(-1) ?? "").replace(/\.pdf$/i, "");
+  const identifier = parseIdentifier(name.replace(/_/g, " "));
+  return {
+    title: identifier?.kind === "title" ? identifier.value : "",
+    doi: identifier?.kind === "doi" ? identifier.value : "",
+    arxiv: identifier?.kind === "arxiv" ? identifier.value : "",
+  };
+}
+
 function text(value: unknown): string {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }

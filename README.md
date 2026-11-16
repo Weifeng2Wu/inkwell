@@ -30,7 +30,7 @@ View compilation results, inspect errors, and navigate between PDF and source wi
 
 ### Read papers and manage references
 
-Import PDFs and Inkwell identifies each one by DOI, arXiv ID or title, fetches its metadata from Crossref and arXiv, and writes it to your project's `.bib` file. You can also paste a DOI, link, title or BibTeX entry.
+PDFs anywhere in your project are identified automatically in the background, without opening the library or importing them first. Inkwell looks up their DOI, arXiv ID or title on Crossref and arXiv, shows recognized paper titles in the file tree, and adds references to the project's `.bib` file. Hover for authors, year, venue and the original filename; files are not renamed. You can also import external PDFs or paste a DOI, link, title or BibTeX entry.
 
 Highlight, underline, take Markdown notes and translate selections while reading; insert citations from the library with one click while writing. References, PDFs and notes are plain project files, so they sync with Git.
 

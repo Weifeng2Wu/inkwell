@@ -67,7 +67,7 @@ function linkedFile(value: string, source: string, paths: ReadonlyMap<string, st
 
 /**
  * Builds the library from the project's bibliography. Entries come from `.bib` sources;
- * PDFs under `papers/` that no entry links to are reported as `unlinked`.
+ * Project PDFs that no entry links to are reported as `unlinked`.
  */
 export function buildLibrary(
   sources: Iterable<readonly [string, string]>,
@@ -108,12 +108,7 @@ export function buildLibrary(
   const linked = new Set([...items.values()].map((item) => item.file));
   return {
     items: [...items.values()],
-    unlinked: paths.filter(
-      (path) =>
-        /\.pdf$/i.test(path) &&
-        slashes(path).toLowerCase().startsWith(`${PAPERS_DIRECTORY}/`) &&
-        !linked.has(path),
-    ),
+    unlinked: paths.filter((path) => /\.pdf$/i.test(path) && !linked.has(path)),
   };
 }
 
