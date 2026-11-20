@@ -1,12 +1,12 @@
 [package]
-name = "inkwell"
-version = "1.0.1"
+name = "glossa"
+version = "1.0.0"
 description = "AI-native LaTeX editor"
-authors = ["Inkwell"]
+authors = ["Glossa"]
 edition = "2021"
 
 [lib]
-name = "inkwell_lib"
+name = "glossa_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

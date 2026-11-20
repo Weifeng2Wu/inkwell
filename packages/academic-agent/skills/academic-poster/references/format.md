@@ -1,4 +1,4 @@
-# Inkwell poster formats
+# Glossa poster formats
 
 ## Unified freeform canvas
 
@@ -34,7 +34,7 @@ Supported elements:
 
 - `text`: required `text`; optional `fontSize` (default 8), `color`, `bold`, `align`.
 - `rect`: optional `fill` (default white).
-- `image`: required `src`, optional `alt`. Use PNG/JPEG/WebP, either a project-local path relative to the poster file or a base64 data URI. For `posters/result.poster.json`, an image in `figures/result.png` is `../figures/result.png`. The resolved path must stay inside the project. Avoid remote or absolute paths. Keep each figure under 8 MiB and the full document under 20 MiB. The editor embeds project-local figures when exporting. Inkwell Agent proposals/review files are limited to 1 MiB, so use local paths rather than base64 for Agent-generated posters. Never embed the entire poster as an image.
+- `image`: required `src`, optional `alt`. Use PNG/JPEG/WebP, either a project-local path relative to the poster file or a base64 data URI. For `posters/result.poster.json`, an image in `figures/result.png` is `../figures/result.png`. The resolved path must stay inside the project. Avoid remote or absolute paths. Keep each figure under 8 MiB and the full document under 20 MiB. The editor embeds project-local figures when exporting. Glossa Agent proposals/review files are limited to 1 MiB, so use local paths rather than base64 for Agent-generated posters. Never embed the entire poster as an image.
 
 Text uses Arial, with system font fallback. The editor and SVG use conservative wrapping: Latin glyphs average 0.58×fontSize width, narrow glyphs/spaces 0.3×, CJK 1×; line height is 1.25×fontSize. Leave at least 10% vertical room. PPTX retains text boxes, with fonts dependent on the recipient's system; inspect final PPTX in PowerPoint before print production.
 

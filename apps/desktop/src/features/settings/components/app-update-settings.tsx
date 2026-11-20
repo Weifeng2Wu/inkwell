@@ -68,7 +68,7 @@ export function AppUpdateSettings() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
           <div className="min-w-0 space-y-1">
-            <p className="text-sm font-medium text-foreground-secondary">Inkwell</p>
+            <p className="text-sm font-medium text-foreground-secondary">Glossa</p>
             <p className="text-xs text-muted-foreground">
               {t("settings.updates.current")}{" "}
               <span className="font-mono tabular-nums">{version || "—"}</span>

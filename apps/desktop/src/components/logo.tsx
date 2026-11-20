@@ -1,13 +1,3 @@
-/**
- * Inkwell wordmark.
- *
- * Inline rather than a `next/image` asset so the droplet and the wordmark can read the
- * active theme's tokens: `fill-accent` follows `--accent`, which differs per theme. Two
- * hardcoded light/dark SVG files cannot express the six themes that ship.
- */
-
-const DROPLET_PATH = "M11 2C11 2 5 9.6 5 13.4a6 6 0 0 0 12 0C17 9.6 11 2 11 2Z";
-
 const WORDMARK_FONT =
   "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
@@ -27,11 +17,18 @@ export function Logo({ size = "small", className }: LogoProps) {
       width={isLarge ? 200 : 96}
       height={isLarge ? 48 : 28}
       role="img"
-      aria-label="Inkwell"
+      aria-label="Glossa"
       className={className}
     >
-      <g transform={isLarge ? "translate(0 4) scale(1.8182)" : "translate(1 3)"}>
-        <path d={DROPLET_PATH} className="fill-accent" />
+      <g
+        transform={isLarge ? "translate(0 5.5) scale(1.55)" : "translate(0.5 2)"}
+        fill="none"
+        strokeLinecap="round"
+        strokeWidth="2.25"
+        className="stroke-brand dark:stroke-brand-dark"
+      >
+        <path d="M4 6.5h9M4 12h6.5M4 17.5h8" />
+        <path d="M18.5 5.5v13" />
       </g>
       <text
         x={isLarge ? 48 : 27}
@@ -42,7 +39,7 @@ export function Logo({ size = "small", className }: LogoProps) {
         letterSpacing={isLarge ? -0.6 : -0.2}
         className="fill-foreground"
       >
-        Inkwell
+        Glossa
       </text>
     </svg>
   );

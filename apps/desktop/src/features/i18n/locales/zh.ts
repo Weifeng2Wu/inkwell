@@ -121,7 +121,7 @@ export const zh: TranslationDictionary = {
       "包含九个模块：稿件写作与润色、研究计划、引用核验、数据声明、统计报告、模拟审稿和审稿回复。Agent 会按任务选用合适的模块。",
     posterDescription:
       "根据经核实的论文内容和原始图表创建自由画布海报，可移动元素、调整样式并导出 PPTX、SVG、PDF 或图片。视觉参考为可选步骤。",
-    builtIn: "Inkwell 内置",
+    builtIn: "Glossa 内置",
     showDescription: "展开",
     hideDescription: "收起",
   },
@@ -156,7 +156,7 @@ export const zh: TranslationDictionary = {
     failed: "请求未完成：{error}",
     missing:
       "尚未配置版面解析。请在「设置 → 通用与编辑器」中选择服务商并填写 API Key；自定义服务商还需要填写 Base URL、模型和提示词。",
-    keyError: "无法从 Inkwell 的本地 SQLite 数据库读取版面解析的 API Key。",
+    keyError: "无法从 Glossa 的本地 SQLite 数据库读取版面解析的 API Key。",
     saveError: "无法保存版面解析设置。",
     invalidImage: "无法解析这张图片。请使用不超过 240 KB 的 PNG、JPEG 或 WebP 图片。",
     noContent: "解析服务没有得到可读的内容。",
@@ -224,7 +224,7 @@ export const zh: TranslationDictionary = {
     invalid:
       "请使用 Ctrl/Cmd 或 Alt 加字母、数字、Enter、逗号或斜杠，或单独使用功能键。系统快捷键和基本编辑快捷键不可占用。",
     conflict: "「{action}」已经使用这个快捷键。请先修改或清除它。",
-    saveFailed: "无法保存快捷键。请确认 Inkwell 可以写入本地存储，然后重试。",
+    saveFailed: "无法保存快捷键。请确认 Glossa 可以写入本地存储，然后重试。",
     categories: {
       general: "通用",
       view: "视图与面板",
@@ -634,7 +634,7 @@ export const zh: TranslationDictionary = {
     uploading: "正在上传…",
     exitPushFailed: "上传失败，应用将保持打开。",
     exitBackupTitle: "关闭前备份",
-    exitBackupRunning: "正在提交你的更改，备份完成后 Inkwell 会自动关闭。",
+    exitBackupRunning: "正在提交你的更改，备份完成后 Glossa 会自动关闭。",
     exitBackupFailedMessage: "备份未完成，最新的更改尚未提交。",
     exitBackupPushFailedMessage: "更改已提交到本机，但上传失败。",
     exitBackupRetry: "重试",
@@ -826,7 +826,7 @@ export const zh: TranslationDictionary = {
     openNotes: "打开笔记",
     notesTitle: "阅读笔记",
     notesIntroduction:
-      "可以在这里自由补充 Markdown 笔记。PDF 中的高亮和批注记录在下方，批注正文可以直接编辑；请保留隐藏的 inkwell-pdf 标记，以便定位回 PDF。",
+      "可以在这里自由补充 Markdown 笔记。PDF 中的高亮和批注记录在下方，批注正文可以直接编辑；请保留隐藏的定位标记，以便定位回 PDF。",
     continuous: "连续批注",
     continuousHighlight: "连续高亮",
     continuousHighlightHint: "连续高亮：选中文字后立即保存为高亮",
@@ -923,12 +923,12 @@ export const zh: TranslationDictionary = {
     autoShell: "默认 Shell",
     shell: "Shell：{name}",
     noProject: "打开项目后即可使用终端。",
-    desktopOnly: "终端仅在 Inkwell 桌面应用中可用。",
+    desktopOnly: "终端仅在 Glossa 桌面应用中可用。",
     processExited: "[进程已退出，退出码 {code}]",
     startFailed: "无法启动终端：{error}。请在设置中检查 Shell 路径。",
   },
   agent: {
-    title: "Inkwell Agent",
+    title: "Glossa Agent",
     you: "你",
     reply: "Agent",
     newConversation: "新建对话",
@@ -945,7 +945,7 @@ export const zh: TranslationDictionary = {
     setup: {
       title: "先连接一个模型",
       description:
-        "Inkwell Agent 使用你自己提供的模型。请在设置中选择 API 协议，填写 Base URL 和模型名称；服务商要求时再填写 API Key。",
+        "Glossa Agent 使用你自己提供的模型。请在设置中选择 API 协议，填写 Base URL 和模型名称；服务商要求时再填写 API Key。",
       action: "打开 Agent 设置",
       placeholder: "连接模型后即可开始对话",
     },
@@ -961,7 +961,7 @@ export const zh: TranslationDictionary = {
       hintSelection: "在编辑器或 PDF 中选中文字，再选择「{action}」",
     },
     composer: {
-      placeholder: "给 Inkwell Agent 发消息",
+      placeholder: "给 Glossa Agent 发消息",
       placeholderExternal: "给 {name} 发消息",
       mentionHint: "@ 引用文件或文献 · / 调用 Skill",
       send: "发送",
@@ -1021,14 +1021,14 @@ export const zh: TranslationDictionary = {
     },
     kind: {
       label: "要使用的 Agent",
-      builtin: "Inkwell Agent",
+      builtin: "Glossa Agent",
       builtinHint: "内置。用自己的 API Key 连接模型。",
       external: "外部 Agent",
       externalHint: "已安装在本机的命令行 Agent，通过 ACP 连接。",
     },
     settings: {
       sharedHeading: "所有 Agent 通用的偏好",
-      modelHeading: "Inkwell Agent 的模型",
+      modelHeading: "Glossa Agent 的模型",
       protocol: "API 协议",
       chooseProtocol: "选择协议",
       openaiCompatible: "兼容 OpenAI",
@@ -1050,9 +1050,9 @@ export const zh: TranslationDictionary = {
       modelsFailed: "无法加载模型列表。请检查 Base URL、协议和 API Key，或手动填写模型名称。",
       serviceModelsFailed: "无法加载模型列表。请手动填写模型名称。",
       keyLoadFailed:
-        "无法从 Inkwell 的本地 SQLite 数据库读取 API Key。请重新填写，或检查应用数据目录的访问权限。",
+        "无法从 Glossa 的本地 SQLite 数据库读取 API Key。请重新填写，或检查应用数据目录的访问权限。",
       keySaveFailed:
-        "无法把 API Key 保存到 Inkwell 的本地 SQLite 数据库。请检查应用数据目录的访问权限后重试。",
+        "无法把 API Key 保存到 Glossa 的本地 SQLite 数据库。请检查应用数据目录的访问权限后重试。",
       configureModel: "尚未连接模型。请在「设置 → Agent」中连接。",
       connectionFailed: "无法连接 Agent，请重试。",
       visionConfigMissing:
@@ -1066,7 +1066,7 @@ export const zh: TranslationDictionary = {
       imageTestSuccess: "图片 API 响应正常。",
       imageTestFailed: "无法连接图片 API。请检查 Base URL 和 API Key。",
       webSearch: "联网搜索",
-      webSearchDescription: "让 Inkwell Agent 通过 Tavily 联网搜索最新资料。",
+      webSearchDescription: "让 Glossa Agent 通过 Tavily 联网搜索最新资料。",
       webSearchGetKey: "获取 API Key",
       webSearchBaseUrl: "搜索 API 的 Base URL",
       webSearchKey: "搜索 API Key",
@@ -1103,7 +1103,7 @@ export const zh: TranslationDictionary = {
       installing: "正在安装…",
       removing: "正在移除…",
       empty: "没有匹配的 Skill。可以换个关键词，或导入 Skill。",
-      conflict: "这个 Skill 由 Inkwell 以外的来源管理，无法在这里修改。",
+      conflict: "这个 Skill 由 Glossa 以外的来源管理，无法在这里修改。",
       stars: "GitHub 星标：{count}",
     },
     review: {
@@ -1135,7 +1135,7 @@ export const zh: TranslationDictionary = {
     external: {
       heading: "外部 Agent",
       defaultAgent: "默认 Agent",
-      builtinOption: "Inkwell Agent（内置）",
+      builtinOption: "Glossa Agent（内置）",
       refresh: "重新检测",
       checking: "检测中…",
       unavailable: "不可用",
@@ -1158,7 +1158,7 @@ export const zh: TranslationDictionary = {
       installMessage:
         "安装时会在本机运行发布者提供的安装脚本、npm 或 uv，可能改动本地环境。请在信任发布者的前提下继续。",
       installAction: "安装",
-      connectionTitle: "将 {agent} 连接到 Inkwell",
+      connectionTitle: "将 {agent} 连接到 Glossa",
       connectionDescription: "通过 ACP 把这个 Agent 连接到当前项目。",
       connectionAction: "连接",
       accessTitle: "对项目的访问",
@@ -1166,7 +1166,7 @@ export const zh: TranslationDictionary = {
         "Agent 可以读取项目文件、提出修改并运行工具，权限以它自身 CLI 的设置为准。ACP 不会把这个进程与系统隔离。",
       dataTitle: "数据去向",
       dataDescription:
-        "消息和项目上下文可能发送给这个 Agent 的服务商，按你在那里的账号及其数据政策处理。Inkwell 的 API Key 不会提供给它。",
+        "消息和项目上下文可能发送给这个 Agent 的服务商，按你在那里的账号及其数据政策处理。Glossa 的 API Key 不会提供给它。",
       controlTitle: "由你决定",
       controlDescription:
         "工具是否需要确认，取决于所选的权限模式和 Agent 支持的能力。本机会记住你对这个 Agent 及其启动命令的授权。可以随时断开连接或更换 Agent。",
@@ -1190,14 +1190,14 @@ export const zh: TranslationDictionary = {
       sessionChanged: "发送消息时 Agent 连接发生了变化，请重新发送。",
       saveFailed: "无法保存对话。",
       unsupportedProtocol:
-        "这个 Agent 使用的 ACP 版本不受 Inkwell 支持。请更新 Agent 或它的适配器。",
+        "这个 Agent 使用的 ACP 版本不受 Glossa 支持。请更新 Agent 或它的适配器。",
       invalidSession: "Agent 没有建立有效的 ACP 会话。请重新连接，或更新 Agent。",
       restrictedUnsupported:
-        "这个 Agent 没有只读模式，无法保证「受限」模式生效。请在 Agent 设置中选择「每次询问」后重新连接，或改用 Inkwell Agent。",
+        "这个 Agent 没有只读模式，无法保证「受限」模式生效。请在 Agent 设置中选择「每次询问」后重新连接，或改用 Glossa Agent。",
       authUnsupported:
-        "ACP 适配器要求登录，但没有提供 Inkwell 可用的登录方式。CLI 的登录状态不一定能被适配器沿用：请确认两者在同一个系统账号和环境下运行，或更新适配器。",
+        "ACP 适配器要求登录，但没有提供 Glossa 可用的登录方式。CLI 的登录状态不一定能被适配器沿用：请确认两者在同一个系统账号和环境下运行，或更新适配器。",
       authCancelled: "登录已取消。",
-      authInvalid: "Agent 提供的登录方式 Inkwell 无法使用。",
+      authInvalid: "Agent 提供的登录方式 Glossa 无法使用。",
       imagesUnsupported: "这个 Agent 不支持图片附件。",
       approvalRestricted: "受限模式下不能批准工具。",
       approvalUnsupported: "只支持单次批准。",
@@ -1206,15 +1206,15 @@ export const zh: TranslationDictionary = {
       timedOut: "Agent 没有及时响应“{method}”请求。请断开并重新连接后再试。",
     },
     errors: {
-      disconnected: "Inkwell Agent 已停止。新建对话即可重新连接。",
-      stoppedBeforeReady: "Inkwell Agent 在就绪前停止了，请重试。",
-      notConnected: "Inkwell Agent 尚未连接，请新建对话。",
+      disconnected: "Glossa Agent 已停止。新建对话即可重新连接。",
+      stoppedBeforeReady: "Glossa Agent 在就绪前停止了，请重试。",
+      notConnected: "Glossa Agent 尚未连接，请新建对话。",
       timedOut:
-        "Inkwell Agent 响应超时，已被停止。请从历史对话中重新打开这个对话，确认已保存的内容后再重试。",
-      commandFailed: "Inkwell Agent 未能完成请求。",
+        "Glossa Agent 响应超时，已被停止。请从历史对话中重新打开这个对话，确认已保存的内容后再重试。",
+      commandFailed: "Glossa Agent 未能完成请求。",
       cancelled: "连接已取消。",
-      alreadyConnected: "Inkwell Agent 已经连接。请先断开，再重新连接。",
-      disabledWhileExternal: "选用外部 Agent 时，Inkwell Agent 处于停用状态。",
+      alreadyConnected: "Glossa Agent 已经连接。请先断开，再重新连接。",
+      disabledWhileExternal: "选用外部 Agent 时，Glossa Agent 处于停用状态。",
       sessionChanged: "发送消息时对话发生了变化，请重新发送。",
       parsingCancelled: "文档解析已取消。",
       contextTooLarge: "附带的文档过长：解析出的文字最多 80 KB。请减少文档数量，或选用更短的文档。",
@@ -1255,15 +1255,15 @@ export const zh: TranslationDictionary = {
       },
       mainFile: {
         title: "主文件",
-        body: "这里显示编译时使用的 .tex 文件。Inkwell 会自动识别；如果项目里有多个入口文件，可以在这里切换。",
+        body: "这里显示编译时使用的 .tex 文件。Glossa 会自动识别；如果项目里有多个入口文件，可以在这里切换。",
       },
       compile: {
         title: "编译",
-        body: "「编译」会生成 PDF 并打开预览。Inkwell 会检测已安装的编译器，并按文档选用合适的引擎。如果没有找到 TeX 发行版，会提示安装或下载；确认之前不会安装任何东西。",
+        body: "「编译」会生成 PDF 并打开预览。Glossa 会检测已安装的编译器，并按文档选用合适的引擎。如果没有找到 TeX 发行版，会提示安装或下载；确认之前不会安装任何东西。",
       },
       agent: {
         title: "连接 Agent",
-        body: "可以让 Inkwell Agent 使用你自己的模型，也可以使用本机已安装的外部 Agent。选择一种，再在下方填写对应的设置。",
+        body: "可以让 Glossa Agent 使用你自己的模型，也可以使用本机已安装的外部 Agent。选择一种，再在下方填写对应的设置。",
       },
       layoutParser: {
         title: "版面解析（可选）",
@@ -1271,7 +1271,7 @@ export const zh: TranslationDictionary = {
       },
       webSearch: {
         title: "联网搜索（可选）",
-        body: "填写 Tavily API Key 后，Inkwell Agent 可以联网搜索最新资料。搜索结果属于外部材料，请核对它引用的来源。",
+        body: "填写 Tavily API Key 后，Glossa Agent 可以联网搜索最新资料。搜索结果属于外部材料，请核对它引用的来源。",
       },
       skills: {
         title: "Skills（可选）",
@@ -1476,7 +1476,7 @@ export const zh: TranslationDictionary = {
       current: "当前版本",
       check: "检查更新",
       checking: "正在检查更新…",
-      latest: "Inkwell 已是最新版本。",
+      latest: "Glossa 已是最新版本。",
       available: "有新版本可用。",
       availableVersion: "有新版本 {version} 可用。",
       install: "下载并安装",
@@ -1485,8 +1485,8 @@ export const zh: TranslationDictionary = {
       downloaded: "更新已下载，可以安装。",
       downloadedVersion: "版本 {version} 已下载，可以安装。",
       installing: "正在安装更新…",
-      installed: "更新已安装。重启 Inkwell 后生效。",
-      installedVersion: "版本 {version} 已安装。重启 Inkwell 后生效。",
+      installed: "更新已安装。重启 Glossa 后生效。",
+      installedVersion: "版本 {version} 已安装。重启 Glossa 后生效。",
       restart: "立即重启",
       saveFirst: "安装前请先保存正在编辑的内容。",
       automatic: "自动更新",

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Generate the macOS DMG installer background for Inkwell.
+Generate the macOS DMG installer background for Glossa.
 
-Style: modern minimal. Flat surface, hairline dot texture, a single accent-coloured
+Style: modern minimal. Flat surface, hairline dot texture, a single brand-coloured
 arrow, and sans-serif type. Colours mirror the `light` theme in
 `apps/desktop/src/styles/themes.css`.
 
@@ -24,7 +24,7 @@ SURFACE = (248, 250, 252)  # --surface
 FOREGROUND = (15, 23, 42)  # --foreground
 FOREGROUND_SECONDARY = (51, 65, 85)  # --foreground-secondary
 MUTED_FOREGROUND = (148, 163, 184)  # --muted-foreground
-ACCENT = (79, 70, 229)  # --accent
+BRAND = (168, 95, 28)  # --brand
 DOT = (238, 242, 247)  # hairline texture
 
 # Icon positions — must match appPosition / applicationFolderPosition in tauri.conf.json
@@ -78,7 +78,7 @@ def draw_arrow(draw):
 
     draw.rectangle(
         [start_x, arrow_y - shaft // 2, end_x - head, arrow_y + shaft // 2],
-        fill=ACCENT,
+        fill=BRAND,
     )
     draw.polygon(
         [
@@ -86,25 +86,24 @@ def draw_arrow(draw):
             (end_x - head, arrow_y - head),
             (end_x - head, arrow_y + head),
         ],
-        fill=ACCENT,
+        fill=BRAND,
     )
 
 
-def draw_droplet(draw, cx, cy, radius):
-    """Inkwell mark: a teardrop built from a circle plus tangent lines to an apex."""
-    apex_y = cy - radius * 1.9
-    # Tangent points for an apex 1.9r above the circle centre.
-    tangent_dx = radius * 0.851
-    tangent_y = cy - radius * 0.526
-
-    draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=ACCENT)
-    draw.polygon(
-        [
-            (cx, apex_y),
-            (cx - tangent_dx, tangent_y),
-            (cx + tangent_dx, tangent_y),
-        ],
-        fill=ACCENT,
+def draw_glossa_mark(draw, cx, cy, size):
+    """Draw the text lines and margin bar from the Glossa wordmark."""
+    scale = size / 24
+    stroke = max(1, round(size * 2.25 / 24))
+    for y, end_x in ((6.5, 13), (12, 10.5), (17.5, 12)):
+        draw.line(
+            (cx - 8 * scale, cy + (y - 12) * scale, cx + (end_x - 12) * scale, cy + (y - 12) * scale),
+            fill=BRAND,
+            width=stroke,
+        )
+    draw.line(
+        (cx + 6.5 * scale, cy - 6.5 * scale, cx + 6.5 * scale, cy + 6.5 * scale),
+        fill=BRAND,
+        width=stroke,
     )
 
 
@@ -129,19 +128,19 @@ def generate_dmg_background(output_path):
 
     # Brand lockup: mark plus wordmark, centred near the bottom edge.
     brand_font = load_font(16)
-    bbox = draw.textbbox((0, 0), "Inkwell", font=brand_font)
+    bbox = draw.textbbox((0, 0), "Glossa", font=brand_font)
     text_width = bbox[2] - bbox[0]
-    mark_radius = 5
-    mark_width = mark_radius * 2.6
+    mark_size = 18
+    mark_width = mark_size * 0.7
     gap = 9
     total = mark_width + gap + text_width
     start_x = (WIDTH - total) // 2
     brand_y = HEIGHT - 54
 
-    draw_droplet(draw, int(start_x + mark_width / 2), brand_y + 9, mark_radius)
+    draw_glossa_mark(draw, int(start_x + mark_width / 2), brand_y + 9, mark_size)
     draw.text(
         (start_x + mark_width + gap - bbox[0], brand_y),
-        "Inkwell",
+        "Glossa",
         fill=MUTED_FOREGROUND,
         font=brand_font,
     )

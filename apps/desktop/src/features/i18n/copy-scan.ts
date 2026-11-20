@@ -32,7 +32,7 @@ export const VISIBLE_ATTRIBUTES: readonly string[] = [
 
 /** Names that read the same in every language. */
 export const BRAND_TERMS: readonly string[] = [
-  "Inkwell",
+  "Glossa",
   "GitHub",
   "Git",
   "LaTeX",

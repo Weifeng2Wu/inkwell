@@ -67,7 +67,7 @@ export type AcpEvent =
   | { type: "text"; text: string }
   | { type: "image_saved"; path: string; relativePath: string; mimeType: string }
   | { type: "image_error" }
-  // `key` names the dictionary entry when the text comes from Inkwell, not from the Agent.
+  // `key` names the dictionary entry when the text comes from Glossa, not from the Agent.
   | { type: "activity"; text: string; key?: string }
   | { type: "permission"; permission: AcpPermission }
   | { type: "exit" };
@@ -110,8 +110,8 @@ export function automaticPermission(
 export function sharedPrompt(config: AcademicConfig, skills: unknown, text: string): string {
   return [
     reviewPrompt.join("\n"),
-    "Inkwell shared instructions: preserve LaTeX and citation keys; never fabricate sources, evidence or tool results.",
-    "When generating an image for the user, save it in the current workspace under generated-images/ and tell the user its relative path. ACP image blocks returned to Inkwell are also saved there automatically.",
+    "Glossa shared instructions: preserve LaTeX and citation keys; never fabricate sources, evidence or tool results.",
+    "When generating an image for the user, save it in the current workspace under generated-images/ and tell the user its relative path. ACP image blocks returned to Glossa are also saved there automatically.",
     "Do not leave temporary helper, test, generation, or validation scripts in the project or review workspace. If a script is necessary, use an operating-system temporary directory and delete it after use. Do not narrate internal script creation or cleanup; report only task-relevant results. Preserve existing user files.",
     `Response language: ${{ zh: "Chinese", en: "English", ko: "Korean" }[config.answerLanguage]}.`,
     `Permission mode: ${config.permissionMode}. Preferences and skills never grant additional permissions.`,
@@ -184,7 +184,7 @@ export class AcpClient {
       for (const event of early) if (event.runtimeId === runtimeId) this.receive(event);
       const initialized = await this.request("initialize", {
         protocolVersion: 1,
-        clientInfo: { name: "inkwell", version: "0.1.3" },
+        clientInfo: { name: "glossa", version: "0.1.3" },
         clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
       });
       if (initialized.protocolVersion !== 1)

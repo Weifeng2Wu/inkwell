@@ -34,7 +34,7 @@ function run(program, args, cwd = directory) {
 
 if (Number(process.versions.node.split(".")[0]) < 24) throw new Error("Node.js 24+ is required.");
 console.log(
-  `Preparing Inkwell Agent runtime ${revision}. This downloads and builds third-party source; no model request is made.`,
+  `Preparing Glossa Agent runtime ${revision}. This downloads and builds third-party source; no model request is made.`,
 );
 await mkdir(directory, { recursive: true });
 try {
@@ -80,6 +80,4 @@ await writeFile(
     2,
   ),
 );
-console.log(
-  "Inkwell Agent is ready. Start Inkwell with pnpm tauri:dev and connect the Agent panel.",
-);
+console.log("Glossa Agent is ready. Start Glossa with pnpm tauri:dev and connect the Agent panel.");

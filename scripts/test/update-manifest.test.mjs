@@ -9,9 +9,9 @@ import { generateUpdateManifest } from "../generate-update-manifest.mjs";
 async function fixture(run) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "inkwell-updates-test-"));
   const names = [
-    "Inkwell_aarch64.app.tar.gz",
-    "Inkwell_0.2.0_x64-setup.exe",
-    "Inkwell_0.2.0_amd64.AppImage",
+    "Glossa_aarch64.app.tar.gz",
+    "Glossa_0.2.0_x64-setup.exe",
+    "Glossa_0.2.0_amd64.AppImage",
   ];
   try {
     for (const name of names) {
@@ -27,7 +27,7 @@ async function fixture(run) {
 }
 const options = {
   version: "0.2.0",
-  repository: "EvolvingLMMs-Lab/inkwell",
+  repository: "Weifeng2Wu/glossa",
   pubDate: "2026-10-22T00:00:00Z",
 };
 test("generates platform-specific signed update URLs from downloaded CI artifacts", async () => {
@@ -42,7 +42,7 @@ test("generates platform-specific signed update URLs from downloaded CI artifact
     assert.equal(manifest.platforms["darwin-aarch64"].signature, "signed-package");
     assert.equal(
       manifest.platforms["darwin-aarch64"].url,
-      "https://github.com/EvolvingLMMs-Lab/inkwell/releases/download/v0.2.0/Inkwell_aarch64.app.tar.gz",
+      "https://github.com/Weifeng2Wu/glossa/releases/download/v0.2.0/Glossa_aarch64.app.tar.gz",
     );
   });
 });

@@ -16,7 +16,7 @@ the app icon and the Applications folder appear, and shows the drag direction be
 | --- | --- | --- |
 | Surface | `--surface` | `#f8fafc` |
 | Instruction text | `--foreground-secondary` | `#334155` |
-| Arrow and mark | `--accent` | `#4f46e5` |
+| Arrow and mark | `--brand` | `#a85f1c` |
 | Wordmark | `--muted-foreground` | `#94a3b8` |
 | Dot texture, icon guides | derived | `#eef2f7` |
 
@@ -28,7 +28,7 @@ the app icon and the Applications folder appear, and shows the drag direction be
 3. **Arrow** — 5px accent shaft with a 16px triangular head, from the app icon to the
    Applications folder.
 4. **Instruction** — "Drag to Applications" in sentence case, sans-serif, centred.
-5. **Brand lockup** — the Inkwell teardrop mark plus the "Inkwell" wordmark, centred near
+5. **Brand lockup** — the Glossa margin-note mark plus the "Glossa" wordmark, centred near
    the bottom edge.
 
 ## Icon Positions

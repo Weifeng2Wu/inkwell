@@ -39,7 +39,7 @@ async fn execute(app: &AppHandle, state: &StorageState, request: Value) -> Resul
     command.creation_flags(0x08000000);
     let mut child = command.arg(directory.join("storage.mjs")).arg(directory.join("inkwell.sqlite"))
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true)
-        .spawn().map_err(|_| "Could not start SQLite storage. Inkwell requires Node.js 24 or newer.")?;
+        .spawn().map_err(|_| "Could not start SQLite storage. Glossa requires Node.js 24 or newer.")?;
     let mut stdin = child.stdin.take().ok_or("Database service unavailable.")?;
     tokio::time::timeout(Duration::from_secs(30), stdin.write_all(&bytes)).await
         .map_err(|_| "Database write timed out.")?.map_err(|_| "Could not send database request.")?;

@@ -1928,8 +1928,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "inkwell"
-version = "1.0.1"
+name = "glossa"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "encoding_rs",

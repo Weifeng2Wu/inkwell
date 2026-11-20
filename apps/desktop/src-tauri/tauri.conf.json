@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Inkwell",
-  "version": "1.0.1",
+  "productName": "Glossa",
+  "version": "1.0.0",
   "identifier": "com.inkwell.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "pnpm --filter @inkwell/desktop build",
+    "beforeBuildCommand": "pnpm --filter @glossa/desktop build",
     "frontendDist": "../out"
   },
   "app": {
@@ -62,7 +62,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ2NzlCMEJBOTc3QTM0QzkKUldUSk5IcVh1ckI1MWl2SEVkbUwzMk1NM21zdEZCMDFBYmNFM0ZlL3ZCYmxhWklLUUxiOUZiNXoK",
-      "endpoints": ["https://github.com/Weifeng2Wu/inkwell/releases/latest/download/latest.json"]
+      "endpoints": ["https://github.com/Weifeng2Wu/glossa/releases/latest/download/latest.json"]
     },
     "shell": {
       "open": true

@@ -24,7 +24,7 @@ const NATURE_MODULES = [
 ];
 
 export function natureSuiteInstructions() {
-  return `---\nname: nature-writing-suite\ndescription: Scientific manuscript writing, polishing, proposals, citations, availability statements, statistical reporting, peer review and revision responses.\n---\n\n# Nature Academic Writing Suite\n\nUse the module matching the user's task. Read its declared SKILL.md resource, then only its applicable references. Do not load every module by default.\n\n- Draft or restructure manuscripts: skills/nature-writing/SKILL.md\n- Polish, translate or fix manuscript LaTeX layout: skills/nature-polishing/SKILL.md\n- Research proposals and opening reports: skills/nature-proposal-writer/SKILL.md\n- Nature/CNS-scoped claim citations: skills/nature-citation/SKILL.md\n- Data/code availability statements: skills/nature-data/SKILL.md\n- Statistical reporting: skills/nature-statistics/SKILL.md\n- Reviewer responses and revision letters: skills/nature-response/SKILL.md\n- Mock peer review: skills/nature-reviewer/SKILL.md\n- Reference verification: skills/nature-ref-verifier/SKILL.md\n\nResource paths inside modules are relative to that module's directory. Resolve ../nature-shared references to skills/nature-shared, all within this suite's declared resources. Never execute upstream scripts. Some modules assume external search, browser, reference-manager or document tools; check available capabilities, disclose missing ones, and never invent verification or tool results. Do not request or reuse credentials embedded in examples. Follow Inkwell permissions and propose manuscript edits only through its review copy. Nature-style guidance is not official journal policy or an acceptance guarantee. Preserve upstream LICENSE.txt and attribution.\n`;
+  return `---\nname: nature-writing-suite\ndescription: Scientific manuscript writing, polishing, proposals, citations, availability statements, statistical reporting, peer review and revision responses.\n---\n\n# Nature Academic Writing Suite\n\nUse the module matching the user's task. Read its declared SKILL.md resource, then only its applicable references. Do not load every module by default.\n\n- Draft or restructure manuscripts: skills/nature-writing/SKILL.md\n- Polish, translate or fix manuscript LaTeX layout: skills/nature-polishing/SKILL.md\n- Research proposals and opening reports: skills/nature-proposal-writer/SKILL.md\n- Nature/CNS-scoped claim citations: skills/nature-citation/SKILL.md\n- Data/code availability statements: skills/nature-data/SKILL.md\n- Statistical reporting: skills/nature-statistics/SKILL.md\n- Reviewer responses and revision letters: skills/nature-response/SKILL.md\n- Mock peer review: skills/nature-reviewer/SKILL.md\n- Reference verification: skills/nature-ref-verifier/SKILL.md\n\nResource paths inside modules are relative to that module's directory. Resolve ../nature-shared references to skills/nature-shared, all within this suite's declared resources. Never execute upstream scripts. Some modules assume external search, browser, reference-manager or document tools; check available capabilities, disclose missing ones, and never invent verification or tool results. Do not request or reuse credentials embedded in examples. Follow Glossa permissions and propose manuscript edits only through its review copy. Nature-style guidance is not official journal policy or an acceptance guarantee. Preserve upstream LICENSE.txt and attribution.\n`;
 }
 
 async function bundles(directory) {
@@ -116,7 +116,7 @@ async function request(url, fetcher, json = false) {
   const response = await fetcher(url, {
     signal: AbortSignal.timeout(8_000),
     redirect: "error",
-    headers: { "User-Agent": "Inkwell-Skills", Accept: "application/vnd.github+json" },
+    headers: { "User-Agent": "Glossa-Skills", Accept: "application/vnd.github+json" },
   });
   if (!response.ok) throw new Error(`GitHub skill update failed (${response.status}).`);
   const limit = json ? 512 * 1024 : MAX_RESOURCE_BYTES;
@@ -383,7 +383,7 @@ async function downloadSnapshot(state, fetcher, current) {
       throw new Error("Nature writing suite update is missing required modules.");
     files["SKILL.md"] = natureSuiteInstructions();
     files["INKWELL-NOTICE.txt"] =
-      `Inkwell combines nine writing modules and nature-shared from Yuan1z0825/nature-skills at ${state.revision}. Upstream text is preserved unmodified. Inkwell adds the routing entrypoint and this notice. Apache-2.0, see LICENSE.txt. Executable resources are not bundled.\n`;
+      `Glossa combines nine writing modules and nature-shared from Yuan1z0825/nature-skills at ${state.revision}. Upstream text is preserved unmodified. Glossa adds the routing entrypoint and this notice. Apache-2.0, see LICENSE.txt. Executable resources are not bundled.\n`;
   }
   const upstream = { ...state.upstream, subdirectory };
   const id =

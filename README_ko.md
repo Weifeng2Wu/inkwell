@@ -1,24 +1,24 @@
 <div align="center">
 
-# Inkwell
+# Glossa
 
 **연구 논문 작성을 위한 로컬 우선 LaTeX 워크스페이스.**
 
-Inkwell은 논문 편집, PDF 미리보기, Agent 협업, Git 버전 관리를 하나의 데스크톱 앱에 모았습니다. 초안 작성부터 수정 검토, 컴파일, 동기화까지 논문 작성의 각 단계를 연결합니다.
+Glossa는 논문 편집, PDF 미리보기, Agent 협업, Git 버전 관리를 하나의 데스크톱 앱에 모았습니다. 초안 작성부터 수정 검토, 컴파일, 동기화까지 논문 작성의 각 단계를 연결합니다.
 
 논문은 로컬의 일반 파일로 보관됩니다. 기존 도구를 계속 사용하면서 모델 서비스와 Agent를 직접 선택할 수 있습니다.
 
-[![Desktop build](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml/badge.svg)](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)
+[![Desktop build](https://github.com/Weifeng2Wu/glossa/actions/workflows/desktop-build.yml/badge.svg)](https://github.com/Weifeng2Wu/glossa/actions/workflows/desktop-build.yml)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/Weifeng2Wu/inkwell?style=flat)](https://github.com/Weifeng2Wu/inkwell)
+[![GitHub Stars](https://img.shields.io/github/stars/Weifeng2Wu/glossa?style=flat)](https://github.com/Weifeng2Wu/glossa)
 
-[다운로드](https://github.com/Weifeng2Wu/inkwell/releases/latest) · [핵심 기능](#핵심-기능) · [시작하기](#시작하기)
+[다운로드](https://github.com/Weifeng2Wu/glossa/releases/latest) · [핵심 기능](#핵심-기능) · [시작하기](#시작하기)
 
 [English](README.md) | [简体中文](README_zh.md) | **한국어**
 
 </div>
 
-![Inkwell의 밝은 테마와 어두운 테마 및 Agent 인라인 수정 검토](assets/readme/theme-preview.jpg)
+![새 Glossa 로고, 밝은 테마와 어두운 테마 및 Agent 인라인 수정 검토](assets/readme/theme-preview.jpg)
 
 ## 핵심 기능
 
@@ -56,7 +56,7 @@ Inkwell은 논문 편집, PDF 미리보기, Agent 협업, Git 버전 관리를 �
 
 ### 내장 Agent 사용 또는 로컬 Agent 연결
 
-내장 **Inkwell Agent**에 OpenAI·Anthropic·Gemini 호환 API를 설정하면 논문 워크스페이스에서 바로 대화하고 수정을 요청할 수 있습니다.
+내장 **Glossa Agent**에 OpenAI·Anthropic·Gemini 호환 API를 설정하면 논문 워크스페이스에서 바로 대화하고 수정을 요청할 수 있습니다.
 
 **ACP(Agent Client Protocol)**를 통해 Claude Code, Codex, OpenCode, Antigravity 등의 로컬 Agent를 연결하고 해당 도구의 계정과 설정을 그대로 사용할 수도 있습니다.
 
@@ -86,24 +86,24 @@ Skills로 논문 구성, 문장 다듬기, 투고 서식, 심사 답변 등의 �
 
 ### 1. 다운로드 및 설치
 
-[GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest)에서 운영체제에 맞는 설치 파일을 다운로드하세요.
+[GitHub Releases](https://github.com/Weifeng2Wu/glossa/releases/latest)에서 운영체제에 맞는 설치 파일을 다운로드하세요.
 
 **macOS 첫 실행**
 
-DMG를 열고 Inkwell을 응용 프로그램 폴더로 드래그하세요.
+DMG를 열고 Glossa를 응용 프로그램 폴더로 드래그하세요.
 
 현재 버전은 Apple 개발자 인증서 서명과 공증이 없어 macOS에서 앱이 손상되었다는 메시지가 나타날 수 있습니다. 공식 Release에서 다운로드한 파일인지 확인한 뒤 터미널에서 실행하세요:
 
 ```sh
-sudo xattr -dr com.apple.quarantine "/Applications/Inkwell.app"
-open "/Applications/Inkwell.app"
+sudo xattr -dr com.apple.quarantine "/Applications/Glossa.app"
+open "/Applications/Glossa.app"
 ```
 
 요청 시 Mac 로그인 암호를 입력하세요. 입력하는 동안 터미널에는 문자가 표시되지 않습니다.
 
 ### 2. 논문 프로젝트 열기
 
-기존 LaTeX 프로젝트 폴더를 여세요. Inkwell이 컴파일 환경을 감지하며, 필요한 도구가 없으면 앱의 안내에 따라 설치할 수 있습니다.
+기존 LaTeX 프로젝트 폴더를 여세요. Glossa가 컴파일 환경을 감지하며, 필요한 도구가 없으면 앱의 안내에 따라 설치할 수 있습니다.
 
 ### 3. Agent 설정
 

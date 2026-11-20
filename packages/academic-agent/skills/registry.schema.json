@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Inkwell Agent Skill Registry",
+  "title": "Glossa Agent Skill Registry",
   "type": "object",
   "required": ["schemaVersion", "skills"],
   "additionalProperties": false,

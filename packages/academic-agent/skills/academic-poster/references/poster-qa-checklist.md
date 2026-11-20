@@ -27,7 +27,7 @@ Run these checks before presenting a poster proposal. Use the actual `.poster.js
 - Explanations sit next to the evidence they interpret.
 - There is no duplicated result, generic filler, unexplained icon, decorative metric, or accidental empty region.
 
-## Inkwell document validity
+## Glossa document validity
 
 - The delivered file ends in `.poster.json`, parses as JSON, and uses version `1` with independently editable elements.
 - Legacy version 2 input is laid out once and converted to version 1 before delivery. Keep existing freeform element IDs and unrelated geometry stable.
@@ -40,13 +40,13 @@ Run these checks before presenting a poster proposal. Use the actual `.poster.js
 
 ## Readability and preview
 
-- Text boxes have enough height for Inkwell's approximate wrapping and at least 10% vertical slack.
+- Text boxes have enough height for Glossa's approximate wrapping and at least 10% vertical slack.
 - Contrast, line length, typography hierarchy, margins, spacing, and reading order work at the target page size.
 - Body text, captions, and interpretive notes use consistent readable sizes, moderate weight, and zero letter spacing.
 - Comparable plots use comparable sizes; method and mechanism figures have enough width for their labels and flow.
 - The lowest content edges are intentionally balanced, and blank space has not been filled with generic copy.
 - No text, captions, table-like groups, or figure labels are clipped or overlapped.
-- If the actual Inkwell canvas is available, inspect it and correct visible problems before delivery. If it is not available, say that canvas inspection was not performed.
+- If the actual Glossa canvas is available, inspect it and correct visible problems before delivery. If it is not available, say that canvas inspection was not performed.
 - Create and inspect an export only when requested. Do not claim that a PPTX, SVG, PDF, PNG, or JPEG exists unless it was actually generated.
 
 ## Visual-reference QA

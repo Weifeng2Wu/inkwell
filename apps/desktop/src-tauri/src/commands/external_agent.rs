@@ -863,7 +863,7 @@ pub async fn external_agent_start(
     }
     let mut guard = state.runtimes.lock().await;
     if state.shutting_down.load(Ordering::SeqCst) {
-        return Err("Inkwell is shutting down.".into());
+        return Err("Glossa is shutting down.".into());
     }
     if !guard.is_empty() {
         if replace_existing.unwrap_or(false) {

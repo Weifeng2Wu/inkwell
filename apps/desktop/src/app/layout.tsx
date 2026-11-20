@@ -24,7 +24,7 @@ const modernMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Inkwell",
+  title: "Glossa",
   description: "AI-native LaTeX editor",
 };
 

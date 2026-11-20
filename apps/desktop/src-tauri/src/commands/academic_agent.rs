@@ -257,7 +257,7 @@ pub async fn academic_agent_start(
         .kill_on_drop(true)
         .spawn()
         .map_err(|_| {
-            "Could not start the Agent runtime. Check the Node.js override or reinstall Inkwell.".to_string()
+            "Could not start the Agent runtime. Check the Node.js override or reinstall Glossa.".to_string()
         })?;
     let stdin = child
         .stdin

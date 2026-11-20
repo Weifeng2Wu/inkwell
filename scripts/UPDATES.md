@@ -24,7 +24,7 @@ Configure the GitHub repository:
 
 This checkout now has a public key in `apps/desktop/src-tauri/tauri.conf.json` and a local private key at `.inkwell-signing/updater.key` (ignored by Git, owner access only). Back up this directory securely: future releases must use the same key. The local build wrapper loads these credentials automatically; CI uses the repository public key by default and still requires the private key in Actions secrets. Do not print the private key in logs. Pull-request builds omit updater signing.
 
-The configured update channel is `Weifeng2Wu/inkwell`, matching this checkout's Git remote. Change the endpoint when distributing from another repository, and publish the manifest and signed artifacts to that same repository. A locally configured build alone does not publish a new update.
+The configured update channel is `Weifeng2Wu/glossa`, matching this checkout's Git remote. Change the endpoint when distributing from another repository, and publish the manifest and signed artifacts to that same repository. A locally configured build alone does not publish a new update.
 
 macOS signed builds must select both `app` and `dmg` bundle targets. A `dmg`-only build creates an installer but no `.app.tar.gz` updater artifact, even with `createUpdaterArtifacts` enabled.
 

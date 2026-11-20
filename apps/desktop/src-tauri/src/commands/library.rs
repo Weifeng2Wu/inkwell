@@ -183,7 +183,7 @@ pub async fn library_lookup(source: String, query: String) -> Result<String, Str
     let url = lookup_url(&source, &query)?;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
-        .user_agent(concat!("Inkwell/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("Glossa/", env!("CARGO_PKG_VERSION")))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
             if attempt.previous().len() < 3 && trusted_lookup_url(attempt.url()) {
                 attempt.follow()

@@ -33,13 +33,13 @@ Use the language of the supplied requirements. Maximum 60 rules. Include only ex
 ${
   factory
     ? `INKWELL VENUE FACTORY CONTRACT (takes precedence over the factory's environment-specific commands):
-Use the factory workflow below and its rules.json schema. This is the extraction/preview stage inside Inkwell, without tools. The application packages the trusted engine and official style files after user confirmation. Do not claim compilation or calibration took place.
+Use the factory workflow below and its rules.json schema. This is the extraction/preview stage inside Glossa, without tools. The application packages the trusted engine and official style files after user confirmation. Do not claim compilation or calibration took place.
 If venue/year, track or phase is ambiguous, or the kit leaves a consequential choice open, return ONLY {"questions":["question with concrete options"]}, at most 3 questions. Read answers from sources labelled User decisions. Do not silently choose a track, phase, threshold, or severity.
 Otherwise return {"rules":[...the preview rules defined above...],"checkerRules":{...rules.json using the schema below...},"kitNotes":"source conflicts, derivations, unsupported checks and unresolved details"}.
 Each preview rule is identified by its 1-based position R1, R2, etc. In checkerRules, ALL _sources values and checklist source values MUST be exactly one preview rule ID, e.g. "R1". The application replaces IDs with verified source quotes. Every machine-check field requires its own _sources entry, including option fields such as layout_hacks_severity. Every preview rule must appear in the engine rules or manual checklist. Only required rules may become machine-check fields; recommendations must be manual checklist items with severity warn. Do not infer requirements from another venue or from engine defaults. Preserve review/final differences in phases; use separate skills for distinct tracks. Omit null fields.
 Checklist items MUST have id, title, source (R1 etc.), severity (error/warn), description and fix. All checklist items in this preview are manual: omit detect; set needs_judgement true. Use this for semantic requirements and rules that cannot be encoded faithfully. Do not drop a rule just because it cannot be automated.
 official_files may reference ONLY unique .sty/.cls/.bst/.bbx/.cbx/.def/.cfg filenames actually supplied as sources. Values are empty objects; the app fills hashes from the supplied text. Do not invent official files or hashes.
-FACTORY WORKFLOW:\n${factory.instructions}\nRULES SCHEMA:\n${factory.schema}\nEND FACTORY. Return the Inkwell JSON contract, not a packaged file or prose.
+FACTORY WORKFLOW:\n${factory.instructions}\nRULES SCHEMA:\n${factory.schema}\nEND FACTORY. Return the Glossa JSON contract, not a packaged file or prose.
 `
     : ""
 }

@@ -198,7 +198,7 @@ export async function translate(request, dependencies = {}) {
       headers: {
         "Content-Type": "application/json",
         Referer: "https://transmart.qq.com/zh-CN/index",
-        "User-Agent": "Inkwell Translation",
+        "User-Agent": "Glossa Translation",
       },
       body: JSON.stringify({
         header: { fn: "auto_translation", client_key: `inkwell-${randomUUID()}` },

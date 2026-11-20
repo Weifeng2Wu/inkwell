@@ -1,8 +1,8 @@
 #!/bin/bash
-# Post-install script for Inkwell
+# Post-install script for Glossa
 # Removes quarantine attribute to prevent "damaged app" error on unsigned apps
 
-APP_PATH="/Applications/Inkwell.app"
+APP_PATH="/Applications/Glossa.app"
 
 if [ -d "$APP_PATH" ]; then
     /usr/bin/xattr -cr "$APP_PATH"

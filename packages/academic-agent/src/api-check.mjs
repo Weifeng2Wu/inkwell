@@ -23,7 +23,7 @@ async function main() {
   if (request.type === "test_web_search") {
     const tool = createWebSearchTool(request.webSearch, request.webSearchApiKey);
     if (!tool) throw new Error("A web search API key is required.");
-    await tool.execute("test", { query: "Inkwell academic writing", maxResults: 1 }, signal);
+    await tool.execute("test", { query: "Glossa academic writing", maxResults: 1 }, signal);
     return { ok: true };
   }
   const sdk = await import(pathToFileURL(process.argv[2]).href);

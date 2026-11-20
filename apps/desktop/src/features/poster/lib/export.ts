@@ -54,7 +54,7 @@ export async function posterPptx(p: PosterDocument): Promise<Uint8Array> {
   pptx.defineLayout({ name: "POSTER", width: inch(p.width), height: inch(p.height) });
   pptx.layout = "POSTER";
   pptx.title = p.title;
-  pptx.author = "Inkwell";
+  pptx.author = "Glossa";
   const slide = pptx.addSlide();
   slide.background = { color: p.background.slice(1) };
   for (const e of p.elements) {

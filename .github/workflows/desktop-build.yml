@@ -73,15 +73,15 @@ jobs:
       - name: Agent tests
         run: pnpm agent:test
       - name: Frontend checks
-        run: pnpm --filter @inkwell/desktop typecheck
+        run: pnpm --filter @glossa/desktop typecheck
       - name: Frontend tests
-        run: pnpm --filter @inkwell/desktop test
+        run: pnpm --filter @glossa/desktop test
       - name: Rust tests
         working-directory: apps/desktop/src-tauri
         run: cargo test --locked
       - name: Build and verify frontend export
         run: |
-          pnpm --filter @inkwell/desktop build
+          pnpm --filter @glossa/desktop build
           node --input-type=module -e "import { access } from 'node:fs/promises'; await access('apps/desktop/out/index.html'); await access('apps/desktop/out/_next'); console.log('Verified apps/desktop/out frontend export.');"
       - name: Configure short Windows runtime staging
         if: runner.os == 'Windows'
@@ -99,30 +99,30 @@ jobs:
         shell: bash
         run: |
           bundle="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos"
-          if [ -d "$bundle/Inkwell.app" ]; then
-            ditto -c -k --sequesterRsrc --keepParent "$bundle/Inkwell.app" "$RUNNER_TEMP/Inkwell-${{ matrix.name }}.app.zip"
+          if [ -d "$bundle/Glossa.app" ]; then
+            ditto -c -k --sequesterRsrc --keepParent "$bundle/Glossa.app" "$RUNNER_TEMP/Glossa-${{ matrix.name }}.app.zip"
           fi
       - name: Upload macOS packaging diagnostics and fallback application
         if: failure() && runner.os == 'macOS'
         uses: actions/upload-artifact@v6
         with:
-          name: Inkwell-${{ matrix.name }}-packaging-diagnostics
+          name: Glossa-${{ matrix.name }}-packaging-diagnostics
           if-no-files-found: warn
           retention-days: 14
           path: |
-            ${{ runner.temp }}/Inkwell-${{ matrix.name }}.app.zip
+            ${{ runner.temp }}/Glossa-${{ matrix.name }}.app.zip
             apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.sh
       - name: Include architecture in macOS update package name
         if: runner.os == 'macOS' && steps.updates.outputs.enabled == 'true'
         shell: bash
         run: |
           bundle="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos"
-          mv "$bundle/Inkwell.app.tar.gz" "$bundle/Inkwell_aarch64.app.tar.gz"
-          mv "$bundle/Inkwell.app.tar.gz.sig" "$bundle/Inkwell_aarch64.app.tar.gz.sig"
+          mv "$bundle/Glossa.app.tar.gz" "$bundle/Glossa_aarch64.app.tar.gz"
+          mv "$bundle/Glossa.app.tar.gz.sig" "$bundle/Glossa_aarch64.app.tar.gz.sig"
       - name: Upload installers
         uses: actions/upload-artifact@v6
         with:
-          name: Inkwell-${{ matrix.name }}
+          name: Glossa-${{ matrix.name }}
           if-no-files-found: error
           retention-days: 14
           path: |
@@ -155,7 +155,7 @@ jobs:
       - name: Download installers from all platforms
         uses: actions/download-artifact@v6
         with:
-          pattern: Inkwell-*
+          pattern: Glossa-*
           path: installers
           merge-multiple: true
       - name: Generate signed update manifest
@@ -175,7 +175,7 @@ jobs:
             fi
           done
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            flags=(--verify-tag --draft --title "Inkwell $RELEASE_TAG" --generate-notes)
+            flags=(--verify-tag --draft --title "Glossa $RELEASE_TAG" --generate-notes)
             if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
             gh release create "$RELEASE_TAG" "${flags[@]}"
           fi

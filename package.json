@@ -1,9 +1,9 @@
 {
-  "name": "inkwell",
-  "version": "1.0.1",
+  "name": "glossa",
+  "version": "1.0.0",
   "private": true,
   "description": "AI-native LaTeX editor - Tauri desktop application",
-  "author": "Inkwell",
+  "author": "Glossa",
   "license": "MIT",
   "packageManager": "pnpm@11.5.0+sha512.dbfcc4f81cf48597afd4bc391ffdf12c11f1a9fb83a395bfa6b0a2d9cc2fd8ffebafdb1ccbd529632153f793904c2615b7f09fe1a345473fd1c35845172a8eb1",
   "engines": {
@@ -23,8 +23,8 @@
     "typecheck": "turbo typecheck",
     "version:sync": "node scripts/sync-version.mjs",
     "version:set": "node scripts/sync-version.mjs --version",
-    "tauri:dev": "pnpm --filter @inkwell/desktop tauri:dev",
-    "tauri:build": "pnpm --filter @inkwell/desktop tauri:build",
+    "tauri:dev": "pnpm --filter @glossa/desktop tauri:dev",
+    "tauri:build": "pnpm --filter @glossa/desktop tauri:build",
     "tauri:pkg": "pnpm tauri:build && ./scripts/build-pkg.sh"
   },
   "devDependencies": {

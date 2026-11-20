@@ -1263,7 +1263,7 @@ pub async fn gh_auth_switch(username: String) -> Result<GhStatus, String> {
         return Err("Invalid GitHub username".to_string());
     }
     if std::env::var_os("GH_TOKEN").is_some() || std::env::var_os("GITHUB_TOKEN").is_some() {
-        return Err("GH_TOKEN or GITHUB_TOKEN overrides saved accounts. Remove the environment override and restart Inkwell before switching accounts.".to_string());
+        return Err("GH_TOKEN or GITHUB_TOKEN overrides saved accounts. Remove the environment override and restart Glossa before switching accounts.".to_string());
     }
     run_gh(&[
         "auth",

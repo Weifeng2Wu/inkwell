@@ -444,6 +444,6 @@ test("newer schema versions are rejected without resetting user data", async (co
   const { database, filename } = await fixture(context);
   database.set("theme", "nord");
   database.db.exec("PRAGMA user_version=999");
-  assert.throws(() => new AppDatabase(filename), /newer Inkwell version/);
+  assert.throws(() => new AppDatabase(filename), /newer Glossa version/);
   assert.equal(database.settings().theme, "nord");
 });

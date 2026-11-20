@@ -200,7 +200,7 @@ export class AppDatabase {
         "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
       );
       const version = this.db.prepare("PRAGMA user_version").get().user_version;
-      if (version > 2) throw new Error("Database was created by a newer Inkwell version.");
+      if (version > 2) throw new Error("Database was created by a newer Glossa version.");
       this.transaction(() => {
         this.db.exec(`
           CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL) STRICT;

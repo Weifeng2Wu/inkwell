@@ -1,13 +1,13 @@
 # Third-party runtime attribution
 
-Inkwell Agent uses an adapter around **NanoPi**, a fork of Pi Coding Agent,
+Glossa Agent uses an adapter around **NanoPi**, a fork of Pi Coding Agent,
 from `NekoSekaiMoe/nanopi`. The exact source URL and revision are recorded in
 `runtime-source.json`. The upstream runtime is distributed under the MIT license;
 its license attributes copyright to Mario Zechner (2025).
 
 The setup script downloads that source without renaming its internal package
 identifiers or removing its license. Preserve the upstream `LICENSE` and applicable
-dependency notices with any redistributed runtime artifacts. Inkwell Agent is this
+dependency notices with any redistributed runtime artifacts. Glossa Agent is this
 project's product name, not a claim of independent authorship of the upstream core.
 
 The runtime's transitive dependencies have their own licenses. Shipping a bundled
@@ -26,7 +26,7 @@ modules, plus their nature-shared text references, from
 https://github.com/Yuan1z0825/nature-skills at revision
 `6827ae57b62b201acd06b401619050411c0d82f6`. These upstream texts are distributed
 under Apache-2.0; their original license is retained as `LICENSE.txt` in the snapshot.
-Inkwell adds a routing entrypoint and an integration notice; upstream text resources
+Glossa adds a routing entrypoint and an integration notice; upstream text resources
 are otherwise unmodified. Executable scripts and binary artifacts are not bundled.
 External tool-dependent operations require separately available capabilities.
 All bundled library entries require explicit installation and project activation.

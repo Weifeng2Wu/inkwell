@@ -155,7 +155,7 @@ pub fn run() {
             };
 
             let mut builder = WebviewWindowBuilder::new(app, "main", webview_url)
-                .title("Inkwell")
+                .title("Glossa")
                 .inner_size(1400.0, 900.0)
                 .min_inner_size(960.0, 640.0)
                 .resizable(true)

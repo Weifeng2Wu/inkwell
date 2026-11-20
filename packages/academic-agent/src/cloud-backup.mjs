@@ -248,7 +248,7 @@ export class CloudBackup {
   async test() {
     const store = this.store();
     const key = `${store.config.prefix}/checks/${randomUUID()}`;
-    const body = Buffer.from("Inkwell connection check");
+    const body = Buffer.from("Glossa connection check");
     await store.put(key, body);
     try {
       if (!(await store.get(key, 1024)).equals(body)) throw new Error("CLOUD_INTEGRITY");

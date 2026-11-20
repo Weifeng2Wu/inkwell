@@ -1,12 +1,12 @@
 #!/bin/bash
-# Build DMG installer for Inkwell from the built .app bundle.
+# Build DMG installer for Glossa from the built .app bundle.
 # The app is ad-hoc signed to avoid broken-signature errors.
 
 set -euo pipefail
 
 [ "$(uname -s)" = "Darwin" ] || { echo "DMG packaging requires macOS."; exit 1; }
 
-APP_NAME="Inkwell"
+APP_NAME="Glossa"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TAURI_DIR="$PROJECT_ROOT/apps/desktop/src-tauri"
@@ -44,7 +44,7 @@ fi
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" >/dev/null
 echo "[OK] App signature verified"
 
-STAGE_DIR="$(mktemp -d /tmp/inkwell-dmg.XXXXXX)"
+STAGE_DIR="$(mktemp -d /tmp/glossa-dmg.XXXXXX)"
 MOUNT_DIR=""
 cleanup() {
   if [ -n "$MOUNT_DIR" ] && [ -d "$MOUNT_DIR" ]; then
@@ -68,7 +68,7 @@ hdiutil create \
   "$DMG_PATH" >/dev/null
 
 echo "Verifying DMG content..."
-MOUNT_DIR="$(mktemp -d /tmp/inkwell-mount.XXXXXX)"
+MOUNT_DIR="$(mktemp -d /tmp/glossa-mount.XXXXXX)"
 hdiutil attach "$DMG_PATH" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
 APP_IN_DMG="$(find "$MOUNT_DIR" -maxdepth 1 -name "*.app" -print -quit)"
 if [ -z "$APP_IN_DMG" ]; then

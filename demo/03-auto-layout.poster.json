@@ -20,7 +20,7 @@
     {
       "id": "authors",
       "type": "text",
-      "text": "Inkwell 功能演示 · 画板 / 思维导图 / 自由画布海报",
+      "text": "Glossa 功能演示 · 画板 / 思维导图 / 自由画布海报",
       "x": 24,
       "y": 59.6,
       "width": 793,
@@ -56,7 +56,7 @@
     {
       "id": "footer",
       "type": "text",
-      "text": "Inkwell Demo · 文字与图片仅供功能演示，不代表真实研究结果。配图来自本文件夹的 assets/workflow.png。",
+      "text": "Glossa Demo · 文字与图片仅供功能演示，不代表真实研究结果。配图来自本文件夹的 assets/workflow.png。",
       "x": 24,
       "y": 1157.4,
       "width": 793,

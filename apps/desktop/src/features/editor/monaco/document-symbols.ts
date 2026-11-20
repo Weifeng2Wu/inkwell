@@ -53,7 +53,7 @@ export function registerDocumentSymbols(monaco: Monaco) {
   registered.add(monaco);
   for (const language of LANGUAGES) {
     monaco.languages.registerDocumentSymbolProvider(language, {
-      displayName: "Inkwell",
+      displayName: "Glossa",
       provideDocumentSymbols: (model: editor.ITextModel) =>
         outlineSymbols(
           documentOutline(model.getValue(), language),

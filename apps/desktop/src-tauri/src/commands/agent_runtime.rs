@@ -26,7 +26,7 @@ pub async fn sdk_path(app: &AppHandle, development_root: PathBuf) -> Result<Path
         if cfg!(debug_assertions) {
             "Agent runtime is unavailable. Run `pnpm agent:setup` for this platform.".into()
         } else {
-            "Bundled Agent runtime is missing. Reinstall Inkwell from a complete desktop installer.".into()
+            "Bundled Agent runtime is missing. Reinstall Glossa from a complete desktop installer.".into()
         }
     })
 }

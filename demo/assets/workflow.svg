@@ -3,7 +3,7 @@
   <desc>功能演示：画板探索关系，导图整理层次，海报形成展示。文件之间不会自动同步。</desc>
   <rect width="600" height="800" rx="28" fill="#ffffff"/>
   <g font-family="Arial, 'Microsoft YaHei', 'Droid Sans Fallback', sans-serif">
-    <text x="300" y="37" text-anchor="middle" font-size="17" fill="#174a7e">INKWELL / LOCAL WORKSPACE</text>
+    <text x="300" y="37" text-anchor="middle" font-size="17" fill="#174a7e">GLOSSA / LOCAL WORKSPACE</text>
     <text x="300" y="81" text-anchor="middle" font-size="32" font-weight="bold" fill="#14253d">从一个研究问题出发</text>
     <text x="300" y="116" text-anchor="middle" font-size="20" fill="#14253d">选择当前最适合的表达方式</text>
     <path d="M300 129 V149 M291 139 L300 150 L309 139" fill="none" stroke="#174a7e" stroke-width="3"/>

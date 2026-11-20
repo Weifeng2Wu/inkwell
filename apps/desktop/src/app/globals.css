@@ -42,6 +42,8 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-muted: var(--accent-muted);
   --color-accent-dark: var(--accent-dark);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
   --color-surface: var(--surface);
   --color-surface-text: var(--surface-text);
   --color-surface-secondary: var(--surface-secondary);

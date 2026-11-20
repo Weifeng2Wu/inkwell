@@ -107,7 +107,7 @@ describe("hardcoded interface text", () => {
       " · ",
       "12",
       "100%",
-      "Inkwell",
+      "Glossa",
       "LaTeX / BibTeX",
       "Ctrl+Shift+P",
       "Ctrl+Delete",

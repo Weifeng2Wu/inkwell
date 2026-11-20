@@ -41,7 +41,7 @@ importers:
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0
-      '@inkwell/academic-agent':
+      '@glossa/academic-agent':
         specifier: workspace:*
         version: link:../../packages/academic-agent
       '@monaco-editor/react':

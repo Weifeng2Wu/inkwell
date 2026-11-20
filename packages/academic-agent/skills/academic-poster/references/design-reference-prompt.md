@@ -1,6 +1,6 @@
 # Design-reference prompt workflow
 
-Use this optional workflow when a visual reference will help. A text-only model may prepare and refine the prompt; image generation is needed only to produce the optional bitmap. In Inkwell, use `purpose: "poster_reference"` to keep it in memory. Without an image tool, arrange version 1 freeform elements from the verified brief. The reference never replaces verified content or the editable `.poster.json`.
+Use this optional workflow when a visual reference will help. A text-only model may prepare and refine the prompt; image generation is needed only to produce the optional bitmap. In Glossa, use `purpose: "poster_reference"` to keep it in memory. Without an image tool, arrange version 1 freeform elements from the verified brief. The reference never replaces verified content or the editable `.poster.json`.
 
 Before prompting, collect:
 
@@ -14,7 +14,7 @@ Before prompting, collect:
 Do not make up missing content. Use clearly labeled neutral placeholders. For a new portrait poster, use three body columns with a wider center, roughly 0.9:1.3:0.9. Change this grid only for a concrete venue constraint or an essential source figure that cannot fit; record the reason. Section architecture, palette, and header arrangement should fit the actual paper and user direction.
 
 ```text
-Create a high-fidelity academic conference poster visual reference for an Inkwell poster. This image will be reviewed for layout, then rebuilt as an editable `.poster.json` from verified paper text and original project assets. Default to A0 portrait only when no venue or user size is given. Target readable conference-poster density, balanced sections, a clear reading order, and a restrained professional style. Treat all generated text, data, charts, logos, and marks as placeholders, never as source content.
+Create a high-fidelity academic conference poster visual reference for a Glossa poster. This image will be reviewed for layout, then rebuilt as an editable `.poster.json` from verified paper text and original project assets. Default to A0 portrait only when no venue or user size is given. Target readable conference-poster density, balanced sections, a clear reading order, and a restrained professional style. Treat all generated text, data, charts, logos, and marks as placeholders, never as source content.
 
 Visual direction: [user direction or the default: white/light-blue panels, deep navy headers, restrained green/red result accents]. Use moderate-weight sans-serif typography, consistent gutters, strong contrast, zero letter spacing, and a clear top-to-bottom, left-to-right path. Use three columns with a wider center in roughly 0.9:1.3:0.9 proportions. Do not use two columns or three equal columns unless a concrete venue constraint or essential source figure requires it; state that reason and the alternate proportions.
 

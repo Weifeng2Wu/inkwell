@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Inkwell — theme tokens
+   Glossa — theme tokens
    --------------------------------------------------------------------------
    Every theme defines the same token set, so components never branch on the
    active theme. next-themes applies the theme name as a class on <html>.
@@ -27,6 +27,8 @@
 :root,
 .light {
   color-scheme: light;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #ffffff;
   --foreground: #0f172a;
@@ -61,6 +63,8 @@
 /* ---------- Neutral dark ---------- */
 .dark {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #0b0f19;
   --foreground: #e6e8ec;
@@ -95,6 +99,8 @@
 /* ---------- Caffeine — warm, low-contrast, amber accent ---------- */
 .caffeine {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #1c1714;
   --foreground: #ece2d8;
@@ -129,6 +135,8 @@
 /* ---------- Tokyo Night ---------- */
 .tokyo-night {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #1a1b26;
   --foreground: #c0caf5;
@@ -163,6 +171,8 @@
 /* ---------- Catppuccin Mocha ---------- */
 .catppuccin {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #1e1e2e;
   --foreground: #cdd6f4;
@@ -197,6 +207,8 @@
 /* ---------- Nord ---------- */
 .nord {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #2e3440;
   --foreground: #eceff4;
@@ -230,6 +242,8 @@
 
 .caffeine-light {
   color-scheme: light;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #fbf7f2;
   --foreground: #34271f;
@@ -263,6 +277,8 @@
 
 .tokyo-day {
   color-scheme: light;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #f3f4fa;
   --foreground: #343b58;
@@ -296,6 +312,8 @@
 
 .catppuccin-latte {
   color-scheme: light;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #eff1f5;
   --foreground: #4c4f69;
@@ -329,6 +347,8 @@
 
 .nord-light {
   color-scheme: light;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #f4f6f9;
   --foreground: #2e3440;
@@ -362,6 +382,8 @@
 
 .dracula {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #282a36;
   --foreground: #f8f8f2;
@@ -391,6 +413,8 @@
 
 .gruvbox-dark {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #282828;
   --foreground: #fbf1c7;
@@ -420,6 +444,8 @@
 
 .rose-pine {
   color-scheme: dark;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #191724;
   --foreground: #e0def4;
@@ -449,6 +475,8 @@
 
 .rose-pine-dawn {
   color-scheme: light;
+  --brand: #a85f1c;
+  --brand-dark: #e7a45f;
 
   --background: #faf4ed;
   --foreground: #403a51;

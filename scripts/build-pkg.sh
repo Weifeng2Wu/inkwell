@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build PKG installer for Inkwell
+# Build PKG installer for Glossa
 # Creates a PKG with post-install script that removes quarantine attribute
 
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 [ "$(uname -s)" = "Darwin" ] || { echo "PKG packaging requires macOS."; exit 1; }
 
 # Configuration
-APP_NAME="Inkwell"
+APP_NAME="Glossa"
 BUNDLE_ID="com.inkwell.app"
 
 # Paths

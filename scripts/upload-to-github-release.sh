@@ -1,11 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO="${GITHUB_RELEASE_REPO:-EvolvingLMMs-Lab/inkwell}"
+REPO="${GITHUB_RELEASE_REPO:-Weifeng2Wu/glossa}"
 TAURI_DIR="apps/desktop/src-tauri"
 VERSION="$(node -p "require('./$TAURI_DIR/tauri.conf.json').version")"
 TAG="${GITHUB_RELEASE_TAG:-v$VERSION}"
-TITLE="${GITHUB_RELEASE_TITLE:-Inkwell v$VERSION}"
+TITLE="${GITHUB_RELEASE_TITLE:-Glossa v$VERSION}"
 CREATE_RELEASE=0
 PRERELEASE=0
 NOTES_FILE=""
@@ -79,10 +79,10 @@ else
   ARCH_SUFFIX="x64"
 fi
 
-DMG_PATH="$TAURI_DIR/target/release/bundle/dmg/Inkwell_${VERSION}_${ARCH_SUFFIX}.dmg"
-PKG_PATH="$TAURI_DIR/target/release/bundle/pkg/Inkwell_${VERSION}_${ARCH_SUFFIX}.pkg"
-DMG_ASSET_NAME="Inkwell_${VERSION}_${ARCH_SUFFIX}.dmg"
-PKG_ASSET_NAME="Inkwell_${VERSION}_${ARCH_SUFFIX}.pkg"
+DMG_PATH="$TAURI_DIR/target/release/bundle/dmg/Glossa_${VERSION}_${ARCH_SUFFIX}.dmg"
+PKG_PATH="$TAURI_DIR/target/release/bundle/pkg/Glossa_${VERSION}_${ARCH_SUFFIX}.pkg"
+DMG_ASSET_NAME="Glossa_${VERSION}_${ARCH_SUFFIX}.dmg"
+PKG_ASSET_NAME="Glossa_${VERSION}_${ARCH_SUFFIX}.pkg"
 
 for file in "$DMG_PATH" "$PKG_PATH"; do
   if [ ! -f "$file" ]; then

@@ -1,4 +1,4 @@
-# Inkwell integration
+# Glossa integration
 
 Source: the user-supplied `venue-checker-factory.skill` archive (2026-10-18).
 Rebuild its offline snapshot with `node scripts/bundle-venue-factory.mjs`.
@@ -6,7 +6,7 @@ Rebuild its offline snapshot with `node scripts/bundle-venue-factory.mjs`.
 The format builder supplies SKILL.md and the rules schema to the selected model.
 It collects clarification answers, verifies literal source quotes, previews the
 rules and packages the generic engine after confirmation. Machine-rule sources
-use preview rule IDs during generation; Inkwell resolves them to original quotes.
+use preview rule IDs during generation; Glossa resolves them to original quotes.
 Recommendations and checks that cannot be encoded faithfully remain manual items.
 Official style copies keep the uploaded text; their hashes normalize CRLF exactly
 as the Python engine does. Importing scripts stores text and never executes them.

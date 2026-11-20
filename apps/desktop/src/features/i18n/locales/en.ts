@@ -128,7 +128,7 @@ export const en = {
       "Nine modules for manuscript writing and polishing, research proposals, citation checks, data statements, statistical reporting, mock peer review and response letters. The Agent uses the ones that fit the task.",
     posterDescription:
       "Create a freeform poster from verified paper content and original figures. Move and style individual elements, then export to PPTX, SVG, PDF or images. Visual references are optional.",
-    builtIn: "Built into Inkwell",
+    builtIn: "Built into Glossa",
     showDescription: "Show more",
     hideDescription: "Show less",
   },
@@ -166,7 +166,7 @@ export const en = {
     failed: "The request did not complete: {error}",
     missing:
       "Document layout parsing is not set up. In Settings → General and editor, choose a provider and enter an API key. A custom provider also needs a Base URL, model and prompt.",
-    keyError: "Could not read the parsing API key from Inkwell’s local SQLite database.",
+    keyError: "Could not read the parsing API key from Glossa’s local SQLite database.",
     saveError: "Could not save the parsing settings.",
     invalidImage: "This image cannot be parsed. Use a PNG, JPEG or WebP image of at most 240 KB.",
     noContent: "The parsing service found no readable content.",
@@ -239,7 +239,7 @@ export const en = {
       "Use Ctrl/Cmd or Alt with a letter, digit, Enter, comma or slash, or a function key by itself. System and basic editing shortcuts are reserved.",
     conflict: "“{action}” already uses this shortcut. Change or clear that one first.",
     saveFailed:
-      "Could not save the shortcuts. Check that Inkwell can write to its local storage, then try again.",
+      "Could not save the shortcuts. Check that Glossa can write to its local storage, then try again.",
     categories: {
       general: "General",
       view: "Views and panels",
@@ -490,7 +490,7 @@ export const en = {
     digest: "Create reading digest",
     emptyTitle: "No references yet",
     emptyDescription:
-      "Import PDFs and Inkwell identifies them, or add a reference by DOI, arXiv ID, title or BibTeX.",
+      "Import PDFs and Glossa identifies them, or add a reference by DOI, arXiv ID, title or BibTeX.",
     emptyDrop: "You can also drop PDFs onto the window.",
     noProject: "Open a project to see its references.",
     noMatch: "No references match these filters.",
@@ -656,7 +656,7 @@ export const en = {
     uploading: "Uploading…",
     exitPushFailed: "Upload failed. The app will stay open.",
     exitBackupTitle: "Backing up before closing",
-    exitBackupRunning: "Committing your changes. Inkwell closes when the backup is done.",
+    exitBackupRunning: "Committing your changes. Glossa closes when the backup is done.",
     exitBackupFailedMessage:
       "The backup did not complete, so your latest changes are not committed.",
     exitBackupPushFailedMessage:
@@ -860,7 +860,7 @@ export const en = {
     openNotes: "Open notes",
     notesTitle: "Reading notes",
     notesIntroduction:
-      "Add your own Markdown notes here. PDF highlights and comments appear below. Edit comment text freely; keep the hidden inkwell-pdf markers to preserve PDF positions.",
+      "Add your own Markdown notes here. PDF highlights and comments appear below. Edit comment text freely; keep the hidden position markers to preserve PDF locations.",
     continuous: "Continuous annotation",
     continuousHighlight: "Continuous highlight",
     continuousHighlightHint: "Continuous highlight: every selection is saved as a highlight",
@@ -964,12 +964,12 @@ export const en = {
     autoShell: "Default shell",
     shell: "Shell: {name}",
     noProject: "Open a project to use the terminal.",
-    desktopOnly: "The terminal is only available in the Inkwell desktop app.",
+    desktopOnly: "The terminal is only available in the Glossa desktop app.",
     processExited: "[Process exited with code {code}]",
     startFailed: "Couldn't start the terminal: {error}. Check the shell path in Settings.",
   },
   agent: {
-    title: "Inkwell Agent",
+    title: "Glossa Agent",
     you: "You",
     reply: "Agent",
     newConversation: "New conversation",
@@ -986,7 +986,7 @@ export const en = {
     setup: {
       title: "Connect a model first",
       description:
-        "Inkwell Agent works with a model you provide. In settings, choose the API protocol and enter the Base URL and model name. Add an API key if the provider needs one.",
+        "Glossa Agent works with a model you provide. In settings, choose the API protocol and enter the Base URL and model name. Add an API key if the provider needs one.",
       action: "Open Agent settings",
       placeholder: "Connect a model to start",
     },
@@ -1002,7 +1002,7 @@ export const en = {
       hintSelection: "Select text in the editor or a PDF, then choose “{action}”",
     },
     composer: {
-      placeholder: "Message Inkwell Agent",
+      placeholder: "Message Glossa Agent",
       placeholderExternal: "Message {name}",
       mentionHint: "@ files and papers · / Skills",
       send: "Send",
@@ -1063,14 +1063,14 @@ export const en = {
     },
     kind: {
       label: "Agent to use",
-      builtin: "Inkwell Agent",
+      builtin: "Glossa Agent",
       builtinHint: "Built in. Connect a model with your own API key.",
       external: "External Agent",
       externalHint: "A command-line Agent installed on this computer, connected over ACP.",
     },
     settings: {
       sharedHeading: "Preferences for every Agent",
-      modelHeading: "Model for Inkwell Agent",
+      modelHeading: "Model for Glossa Agent",
       protocol: "API protocol",
       chooseProtocol: "Choose a protocol",
       openaiCompatible: "OpenAI-compatible",
@@ -1093,9 +1093,9 @@ export const en = {
         "Could not load the model list. Check the Base URL, protocol and API key, or enter a model name by hand.",
       serviceModelsFailed: "Could not load the model list. Enter a model name by hand.",
       keyLoadFailed:
-        "Could not read the API key from Inkwell’s local SQLite database. Enter the key again, or check access to the app data folder.",
+        "Could not read the API key from Glossa’s local SQLite database. Enter the key again, or check access to the app data folder.",
       keySaveFailed:
-        "Could not save the API key to Inkwell’s local SQLite database. Check access to the app data folder, then try again.",
+        "Could not save the API key to Glossa’s local SQLite database. Check access to the app data folder, then try again.",
       configureModel: "No model is connected. Open Settings → Agent and connect one.",
       connectionFailed: "Could not connect to the Agent. Try again.",
       visionConfigMissing:
@@ -1109,7 +1109,7 @@ export const en = {
       imageTestSuccess: "The image API responded.",
       imageTestFailed: "Could not reach the image API. Check the Base URL and API key.",
       webSearch: "Web search",
-      webSearchDescription: "Lets Inkwell Agent search the web with Tavily for current sources.",
+      webSearchDescription: "Lets Glossa Agent search the web with Tavily for current sources.",
       webSearchGetKey: "Get an API key",
       webSearchBaseUrl: "Search API Base URL",
       webSearchKey: "Search API key",
@@ -1147,7 +1147,7 @@ export const en = {
       installing: "Installing…",
       removing: "Removing…",
       empty: "No Skills match. Try another search, or import a Skill.",
-      conflict: "This Skill is managed outside Inkwell and cannot be changed here.",
+      conflict: "This Skill is managed outside Glossa and cannot be changed here.",
       stars: "GitHub stars: {count}",
     },
     review: {
@@ -1179,7 +1179,7 @@ export const en = {
     external: {
       heading: "External Agents",
       defaultAgent: "Default Agent",
-      builtinOption: "Inkwell Agent (built in)",
+      builtinOption: "Glossa Agent (built in)",
       refresh: "Check again",
       checking: "Checking…",
       unavailable: "Unavailable",
@@ -1202,7 +1202,7 @@ export const en = {
       installMessage:
         "This runs the publisher’s installer script, npm or uv on this computer and may change your local environment. Continue only if you trust the publisher.",
       installAction: "Install",
-      connectionTitle: "Connect {agent} to Inkwell",
+      connectionTitle: "Connect {agent} to Glossa",
       connectionDescription: "Connects this Agent to the current project over ACP.",
       connectionAction: "Connect",
       accessTitle: "Access to your project",
@@ -1210,7 +1210,7 @@ export const en = {
         "The Agent can read project files, propose edits and run tools with the permissions of its own CLI. ACP does not isolate the process from your system.",
       dataTitle: "Where your data goes",
       dataDescription:
-        "Messages and project context may be sent to the Agent’s provider, under your account there and its data policy. Inkwell’s API keys are not shared with it.",
+        "Messages and project context may be sent to the Agent’s provider, under your account there and its data policy. Glossa’s API keys are not shared with it.",
       controlTitle: "You stay in control",
       controlDescription:
         "Tool approvals follow the permission mode you chose and what the Agent supports. This computer remembers your consent for this Agent and launch command. You can disconnect or switch Agents at any time.",
@@ -1235,15 +1235,15 @@ export const en = {
         "The Agent connection changed while the message was being sent. Send it again.",
       saveFailed: "The conversation could not be saved.",
       unsupportedProtocol:
-        "This Agent uses an ACP version that Inkwell does not support. Update the Agent or its adapter.",
+        "This Agent uses an ACP version that Glossa does not support. Update the Agent or its adapter.",
       invalidSession:
         "The Agent did not start a valid ACP session. Reconnect, or update the Agent.",
       restrictedUnsupported:
-        "This Agent has no read-only mode, so Restricted mode cannot be enforced. Choose “Ask every time” in Agent settings and reconnect, or use Inkwell Agent.",
+        "This Agent has no read-only mode, so Restricted mode cannot be enforced. Choose “Ask every time” in Agent settings and reconnect, or use Glossa Agent.",
       authUnsupported:
-        "The ACP adapter needs you to sign in but offers no sign-in method Inkwell can use. A CLI login may not carry over to the adapter: check that both run under the same OS account and environment, or update the adapter.",
+        "The ACP adapter needs you to sign in but offers no sign-in method Glossa can use. A CLI login may not carry over to the adapter: check that both run under the same OS account and environment, or update the adapter.",
       authCancelled: "Sign-in was cancelled.",
-      authInvalid: "The Agent offered a sign-in method Inkwell cannot use.",
+      authInvalid: "The Agent offered a sign-in method Glossa cannot use.",
       imagesUnsupported: "This Agent cannot accept image attachments.",
       approvalRestricted: "Restricted mode does not allow approving tools.",
       approvalUnsupported: "Only one-time approvals are supported.",
@@ -1254,15 +1254,15 @@ export const en = {
         "The Agent did not answer the “{method}” request in time. Disconnect, reconnect, then try again.",
     },
     errors: {
-      disconnected: "Inkwell Agent stopped. Start a new conversation to reconnect.",
-      stoppedBeforeReady: "Inkwell Agent stopped before it was ready. Try again.",
-      notConnected: "Inkwell Agent is not connected. Start a new conversation.",
+      disconnected: "Glossa Agent stopped. Start a new conversation to reconnect.",
+      stoppedBeforeReady: "Glossa Agent stopped before it was ready. Try again.",
+      notConnected: "Glossa Agent is not connected. Start a new conversation.",
       timedOut:
-        "Inkwell Agent did not respond in time and was stopped. Reopen the conversation from history and check what was saved before you try again.",
-      commandFailed: "Inkwell Agent could not complete the request.",
+        "Glossa Agent did not respond in time and was stopped. Reopen the conversation from history and check what was saved before you try again.",
+      commandFailed: "Glossa Agent could not complete the request.",
       cancelled: "The connection was cancelled.",
-      alreadyConnected: "Inkwell Agent is already connected. Disconnect it before reconnecting.",
-      disabledWhileExternal: "Inkwell Agent is off while an external Agent is selected.",
+      alreadyConnected: "Glossa Agent is already connected. Disconnect it before reconnecting.",
+      disabledWhileExternal: "Glossa Agent is off while an external Agent is selected.",
       sessionChanged: "The conversation changed while the message was being sent. Send it again.",
       parsingCancelled: "Document parsing was cancelled.",
       contextTooLarge:
@@ -1305,15 +1305,15 @@ export const en = {
       },
       mainFile: {
         title: "Main file",
-        body: "This control shows which .tex file is compiled. Inkwell detects it automatically. Switch it here when a project has more than one entry file.",
+        body: "This control shows which .tex file is compiled. Glossa detects it automatically. Switch it here when a project has more than one entry file.",
       },
       compile: {
         title: "Compile",
-        body: "Compile builds the PDF and opens its preview. Inkwell detects the installed compilers and picks an engine that suits the document. If no TeX distribution is found, it offers to install or download one, and installs nothing until you confirm.",
+        body: "Compile builds the PDF and opens its preview. Glossa detects the installed compilers and picks an engine that suits the document. If no TeX distribution is found, it offers to install or download one, and installs nothing until you confirm.",
       },
       agent: {
         title: "Connect an Agent",
-        body: "Use Inkwell Agent with a model of your own, or an external Agent installed on this computer. Choose one, then fill in its settings below.",
+        body: "Use Glossa Agent with a model of your own, or an external Agent installed on this computer. Choose one, then fill in its settings below.",
       },
       layoutParser: {
         title: "Document layout parsing (optional)",
@@ -1321,7 +1321,7 @@ export const en = {
       },
       webSearch: {
         title: "Web search (optional)",
-        body: "With a Tavily API key, Inkwell Agent can search the web for current sources. Search results are outside material: check the sources it cites.",
+        body: "With a Tavily API key, Glossa Agent can search the web for current sources. Search results are outside material: check the sources it cites.",
       },
       skills: {
         title: "Skills (optional)",
@@ -1530,7 +1530,7 @@ export const en = {
       current: "Current version",
       check: "Check for updates",
       checking: "Checking for updates…",
-      latest: "Inkwell is up to date.",
+      latest: "Glossa is up to date.",
       available: "A new version is available.",
       availableVersion: "Version {version} is available.",
       install: "Download and install",
@@ -1539,8 +1539,8 @@ export const en = {
       downloaded: "The update is downloaded and ready to install.",
       downloadedVersion: "Version {version} is ready to install.",
       installing: "Installing the update…",
-      installed: "The update is installed. Restart Inkwell to finish.",
-      installedVersion: "Version {version} is installed. Restart Inkwell to finish.",
+      installed: "The update is installed. Restart Glossa to finish.",
+      installedVersion: "Version {version} is installed. Restart Glossa to finish.",
       restart: "Restart now",
       saveFirst: "Save your work before installing.",
       automatic: "Automatic updates",

@@ -1,16 +1,16 @@
-# Inkwell 新功能体验
+# Glossa 新功能体验
 
 这里放的是本次新增的画板、思维导图，以及 A0、A1 两种尺寸的自由画布海报。每个示例都有完整内容，可以直接打开、修改和导出。
 
 ## 打开方式
 
-在 Inkwell 中选择「打开项目」，打开这个文件夹：
+在 Glossa 中选择「打开项目」，打开这个文件夹：
 
 ```text
-C:\Users\user\Desktop\inkwell-main\demo
+demo/ in the repository checkout
 ```
 
-如果已经打开了 `inkwell-main` 项目，也可以直接展开文件树中的 `demo`，按下面的顺序打开文件。不需要重新安装依赖、配置模型或连接 Agent。
+如果已经打开了 Glossa 项目，也可以直接展开文件树中的 `demo`，按下面的顺序打开文件。不需要重新安装依赖、配置模型或连接 Agent。
 
 ## 建议体验顺序
 

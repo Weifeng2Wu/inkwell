@@ -81,7 +81,7 @@ describe("external Agent settings", () => {
     expect(markup).toContain("Antigravity needs you to sign in");
     expect(markup).toContain("Sign in with Google");
     expect(markup).not.toContain(">Disconnect<");
-    expect(markup).not.toContain("Inkwell API keys are not forwarded");
+    expect(markup).not.toContain("Glossa API keys are not forwarded");
     expect(markup).not.toContain("ACP is not an OS sandbox");
     expect(markup).toContain(
       "Choose a sign-in method. The connection continues once you are signed in.",

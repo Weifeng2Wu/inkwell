@@ -1,24 +1,24 @@
 <div align="center">
 
-# Inkwell
+# Glossa
 
 **为科研写作打造的本地优先 LaTeX 工作区。**
 
-Inkwell 将论文编辑、PDF 预览、Agent 协作和 Git 版本管理放在同一个桌面应用中。从撰写初稿、审阅修改到编译与同步，让论文写作的各个环节保持连贯。
+Glossa 将论文编辑、PDF 预览、Agent 协作和 Git 版本管理放在同一个桌面应用中。从撰写初稿、审阅修改到编译与同步，让论文写作的各个环节保持连贯。
 
 论文以普通文件保存在本地，你可以继续使用熟悉的工具，也可以选择自己的模型服务和 Agent。
 
-[![Desktop build](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml/badge.svg)](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)
+[![Desktop build](https://github.com/Weifeng2Wu/glossa/actions/workflows/desktop-build.yml/badge.svg)](https://github.com/Weifeng2Wu/glossa/actions/workflows/desktop-build.yml)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/Weifeng2Wu/inkwell?style=flat)](https://github.com/Weifeng2Wu/inkwell)
+[![GitHub Stars](https://img.shields.io/github/stars/Weifeng2Wu/glossa?style=flat)](https://github.com/Weifeng2Wu/glossa)
 
-[下载安装](https://github.com/Weifeng2Wu/inkwell/releases/latest) · [核心功能](#核心功能) · [快速开始](#快速开始)
+[下载安装](https://github.com/Weifeng2Wu/glossa/releases/latest) · [核心功能](#核心功能) · [快速开始](#快速开始)
 
 [English](README.md) | **简体中文** | [한국어](README_ko.md)
 
 </div>
 
-![Inkwell 浅色与深色主题，以及 Agent 原位修改审阅](assets/readme/theme-preview.jpg)
+![Glossa 新标志、浅色与深色主题，以及 Agent 原位修改审阅](assets/readme/theme-preview.jpg)
 
 ## 核心功能
 
@@ -30,7 +30,7 @@ Inkwell 将论文编辑、PDF 预览、Agent 协作和 Git 版本管理放在同
 
 ### 阅读论文并管理文献
 
-项目任意目录中的 PDF 都会在后台自动识别，无需先打开文献库或手动导入。Inkwell 根据 DOI、arXiv 编号或标题从 Crossref 与 arXiv 获取元数据，在文件目录中显示论文标题，并将文献写入项目的 `.bib` 文件。悬停可查看作者、年份、刊物与原文件名，磁盘文件不会被重命名。也可以导入外部 PDF，或粘贴 DOI、链接、标题和 BibTeX 添加文献。
+项目任意目录中的 PDF 都会在后台自动识别，无需先打开文献库或手动导入。Glossa 根据 DOI、arXiv 编号或标题从 Crossref 与 arXiv 获取元数据，在文件目录中显示论文标题，并将文献写入项目的 `.bib` 文件。悬停可查看作者、年份、刊物与原文件名，磁盘文件不会被重命名。也可以导入外部 PDF，或粘贴 DOI、链接、标题和 BibTeX 添加文献。
 
 阅读时可高亮、下划线、写 Markdown 笔记和划词翻译；写作时在文献列表中一键插入引用。文献、PDF 与笔记都是项目内的普通文件，随 Git 一起同步。
 
@@ -48,7 +48,7 @@ Inkwell 将论文编辑、PDF 预览、Agent 协作和 Git 版本管理放在同
 
 直接在工作区查看文件修改、比较差异、暂存与提交，并通过推送和拉取同步远程仓库。
 
-为论文保留修改历史，在不同设备间继续工作，也可以与合作者通过 Git 共享项目。支持将项目发布到 GitHub，包括私有仓库。在设置中开启自动备份后，Inkwell 会定时并在关闭应用时提交你的更改，不必惦记提交也不会丢稿；超过 50 MB 的文件会被跳过。
+为论文保留修改历史，在不同设备间继续工作，也可以与合作者通过 Git 共享项目。支持将项目发布到 GitHub，包括私有仓库。在设置中开启自动备份后，Glossa 会定时并在关闭应用时提交你的更改，不必惦记提交也不会丢稿；超过 50 MB 的文件会被跳过。
 
 ### 通过 R2 / S3 备份项目
 
@@ -56,7 +56,7 @@ Inkwell 将论文编辑、PDF 预览、Agent 协作和 Git 版本管理放在同
 
 ### 使用内置 Agent，或连接本地 Agent
 
-为内置 **Inkwell Agent** 配置 OpenAI、Anthropic 或 Gemini 兼容接口，即可在论文工作区中开展对话与修改。
+为内置 **Glossa Agent** 配置 OpenAI、Anthropic 或 Gemini 兼容接口，即可在论文工作区中开展对话与修改。
 
 也可以通过 **ACP（Agent Client Protocol）** 连接本机的 Agent，例如 Claude Code、Codex、OpenCode 和 Antigravity，沿用对应工具的账户与配置。
 
@@ -86,24 +86,24 @@ Agent 提出的修改以原位差异显示：红色标记原文，绿色标记�
 
 ### 1. 下载并安装
 
-从 [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest) 下载适合你系统的安装包。
+从 [GitHub Releases](https://github.com/Weifeng2Wu/glossa/releases/latest) 下载适合你系统的安装包。
 
 **macOS 首次运行**
 
-打开 DMG，将 Inkwell 拖入“应用程序”。
+打开 DMG，将 Glossa 拖入“应用程序”。
 
 当前版本尚未完成 Apple 开发者签名与公证，macOS 可能提示“应用已损坏”。确认安装包来自官方 Release 后，在终端执行：
 
 ```sh
-sudo xattr -dr com.apple.quarantine "/Applications/Inkwell.app"
-open "/Applications/Inkwell.app"
+sudo xattr -dr com.apple.quarantine "/Applications/Glossa.app"
+open "/Applications/Glossa.app"
 ```
 
 按提示输入 Mac 登录密码；输入时终端不会显示字符。
 
 ### 2. 打开论文项目
 
-打开已有的 LaTeX 项目文件夹。Inkwell 会检测编译环境；如果缺少编译工具，可按应用内提示安装。
+打开已有的 LaTeX 项目文件夹。Glossa 会检测编译环境；如果缺少编译工具，可按应用内提示安装。
 
 ### 3. 配置 Agent
 

@@ -38,7 +38,7 @@ describe("format review skill generation", () => {
     expect(() => parseFormatRules('{"rules":[]}', sources)).toThrow();
     expect(() => parseFormatRules(" ".repeat(512001), sources)).toThrow("exceed limits");
   });
-  it("uses the factory and schema while keeping Inkwell's response contract", () => {
+  it("uses the factory and schema while keeping Glossa's response contract", () => {
     const prompt = formatReviewPrompt("Example 2027", sources, {
       instructions: "FACTORY TEST",
       schema: "SCHEMA TEST",

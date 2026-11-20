@@ -1,36 +1,36 @@
 <div align="center">
 
-# Inkwell
+# Glossa
 
 **A local-first LaTeX workspace for research writing.**
 
-Inkwell brings paper editing, PDF preview, Agent collaboration, and Git version control into one desktop app. Keep your workflow connected, from the first draft through reviewing edits, compiling, and syncing your paper.
+Glossa brings paper editing, PDF preview, Agent collaboration, and Git version control into one desktop app. Keep your workflow connected, from the first draft through reviewing edits, compiling, and syncing your paper.
 
 Your papers stay in ordinary local files. Continue using your existing tools and choose your own model provider or Agent.
 
-[![Desktop build](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml/badge.svg)](https://github.com/Weifeng2Wu/inkwell/actions/workflows/desktop-build.yml)
+[![Desktop build](https://github.com/Weifeng2Wu/glossa/actions/workflows/desktop-build.yml/badge.svg)](https://github.com/Weifeng2Wu/glossa/actions/workflows/desktop-build.yml)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/Weifeng2Wu/inkwell?style=flat)](https://github.com/Weifeng2Wu/inkwell)
+[![GitHub Stars](https://img.shields.io/github/stars/Weifeng2Wu/glossa?style=flat)](https://github.com/Weifeng2Wu/glossa)
 
-[Download](https://github.com/Weifeng2Wu/inkwell/releases/latest) · [Features](#core-features) · [Quick Start](#quick-start)
+[Download](https://github.com/Weifeng2Wu/glossa/releases/latest) · [Features](#core-features) · [Quick Start](#quick-start)
 
 **English** | [简体中文](README_zh.md) | [한국어](README_ko.md)
 
 </div>
 
-![Inkwell in light and dark themes with inline Agent edit review](assets/readme/theme-preview.jpg)
+![Glossa with its new logo in light and dark themes and inline Agent edit review](assets/readme/theme-preview.jpg)
 
 ## Core Features
 
 ### Automatic engine selection, less setup
 
-Inkwell inspects your project source and installed compilers to select a suitable LaTeX engine. Compiler detection and installation helpers reduce manual setup.
+Glossa inspects your project source and installed compilers to select a suitable LaTeX engine. Compiler detection and installation helpers reduce manual setup.
 
 View compilation results, inspect errors, and navigate between PDF and source with SyncTeX in the same workspace. Multilingual documents can use XeLaTeX or LuaLaTeX; required fonts and packages depend on the project.
 
 ### Read papers and manage references
 
-PDFs anywhere in your project are identified automatically in the background, without opening the library or importing them first. Inkwell looks up their DOI, arXiv ID or title on Crossref and arXiv, shows recognized paper titles in the file tree, and adds references to the project's `.bib` file. Hover for authors, year, venue and the original filename; files are not renamed. You can also import external PDFs or paste a DOI, link, title or BibTeX entry.
+PDFs anywhere in your project are identified automatically in the background, without opening the library or importing them first. Glossa looks up their DOI, arXiv ID or title on Crossref and arXiv, shows recognized paper titles in the file tree, and adds references to the project's `.bib` file. Hover for authors, year, venue and the original filename; files are not renamed. You can also import external PDFs or paste a DOI, link, title or BibTeX entry.
 
 Highlight, underline, take Markdown notes and translate selections while reading; insert citations from the library with one click while writing. References, PDFs and notes are plain project files, so they sync with Git.
 
@@ -56,11 +56,11 @@ Settings → Sync and backup supports your own Cloudflare R2 or S3-compatible bu
 
 ### Use the built-in Agent or connect a local Agent
 
-Configure **Inkwell Agent** with an OpenAI-, Anthropic-, or Gemini-compatible API to discuss and revise your paper directly in the workspace.
+Configure **Glossa Agent** with an OpenAI-, Anthropic-, or Gemini-compatible API to discuss and revise your paper directly in the workspace.
 
 You can also connect local Agents through **ACP (Agent Client Protocol)**, including Claude Code, Codex, OpenCode, and Antigravity, using their own accounts and configurations.
 
-Before connecting, Inkwell explains project access and data use so you can decide whether to proceed.
+Before connecting, Glossa explains project access and data use so you can decide whether to proceed.
 
 ![Confirmation before connecting a local Agent through ACP](assets/readme/acp-connection.jpg)
 
@@ -86,24 +86,24 @@ Arrange source, PDF, Agent, and terminal panels to suit the task, whether you ar
 
 ### 1. Download and install
 
-Download the installer for your operating system from [GitHub Releases](https://github.com/Weifeng2Wu/inkwell/releases/latest).
+Download the installer for your operating system from [GitHub Releases](https://github.com/Weifeng2Wu/glossa/releases/latest).
 
 **First launch on macOS**
 
-Open the DMG and drag Inkwell into Applications.
+Open the DMG and drag Glossa into Applications.
 
 The current version is not signed with an Apple Developer certificate or notarized, so macOS may report that the app is damaged. After confirming that you downloaded it from the official release, run these commands in Terminal:
 
 ```sh
-sudo xattr -dr com.apple.quarantine "/Applications/Inkwell.app"
-open "/Applications/Inkwell.app"
+sudo xattr -dr com.apple.quarantine "/Applications/Glossa.app"
+open "/Applications/Glossa.app"
 ```
 
 Enter your Mac login password when prompted. Terminal will not display characters as you type.
 
 ### 2. Open your paper project
 
-Open an existing LaTeX project folder. Inkwell detects your compilation environment; if tools are missing, follow the installation prompts in the app.
+Open an existing LaTeX project folder. Glossa detects your compilation environment; if tools are missing, follow the installation prompts in the app.
 
 ### 3. Configure your Agent
 

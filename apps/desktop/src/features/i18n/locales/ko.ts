@@ -127,7 +127,7 @@ export const ko: TranslationDictionary = {
       "원고 작성과 교정, 연구 계획서, 인용 검증, 데이터 명세, 통계 보고, 모의 심사, 심사 답변을 위한 9개 모듈입니다. Agent가 작업에 맞는 모듈을 사용합니다.",
     posterDescription:
       "검증된 논문 내용과 원본 그림으로 자유 캔버스 포스터를 만듭니다. 요소의 위치와 스타일을 편집하고 PPTX, SVG, PDF 또는 이미지로 내보냅니다. 시각 참고 이미지는 선택 사항입니다.",
-    builtIn: "Inkwell 기본 제공",
+    builtIn: "Glossa 기본 제공",
     showDescription: "더 보기",
     hideDescription: "접기",
   },
@@ -164,7 +164,7 @@ export const ko: TranslationDictionary = {
     failed: "요청을 완료하지 못했습니다: {error}",
     missing:
       "문서 레이아웃 분석이 설정되지 않았습니다. 설정 → 일반 및 편집기에서 공급자를 선택하고 API 키를 입력하세요. 사용자 지정 공급자는 Base URL, 모델, 프롬프트도 필요합니다.",
-    keyError: "Inkwell의 로컬 SQLite 데이터베이스에서 분석 API 키를 읽지 못했습니다.",
+    keyError: "Glossa의 로컬 SQLite 데이터베이스에서 분석 API 키를 읽지 못했습니다.",
     saveError: "분석 설정을 저장하지 못했습니다.",
     invalidImage:
       "이 이미지는 분석할 수 없습니다. 240 KB 이하의 PNG, JPEG 또는 WebP 이미지를 사용하세요.",
@@ -238,7 +238,7 @@ export const ko: TranslationDictionary = {
       "Ctrl/Cmd 또는 Alt와 문자, 숫자, Enter, 쉼표, 슬래시를 조합하거나 기능 키를 단독으로 사용하세요. 시스템 단축키와 기본 편집 단축키는 사용할 수 없습니다.",
     conflict: "“{action}”에서 이미 사용 중인 단축키입니다. 먼저 해당 단축키를 변경하거나 지우세요.",
     saveFailed:
-      "단축키를 저장하지 못했습니다. Inkwell이 로컬 저장소에 쓸 수 있는지 확인한 후 다시 시도하세요.",
+      "단축키를 저장하지 못했습니다. Glossa가 로컬 저장소에 쓸 수 있는지 확인한 후 다시 시도하세요.",
     categories: {
       general: "일반",
       view: "보기 및 패널",
@@ -656,7 +656,7 @@ export const ko: TranslationDictionary = {
     uploading: "업로드 중…",
     exitPushFailed: "업로드에 실패했습니다. 앱을 계속 엽니다.",
     exitBackupTitle: "닫기 전 백업",
-    exitBackupRunning: "변경사항을 커밋하는 중입니다. 백업이 끝나면 Inkwell이 닫힙니다.",
+    exitBackupRunning: "변경사항을 커밋하는 중입니다. 백업이 끝나면 Glossa가 닫힙니다.",
     exitBackupFailedMessage: "백업이 완료되지 않아 최근 변경사항이 커밋되지 않았습니다.",
     exitBackupPushFailedMessage: "변경사항은 이 컴퓨터에 커밋되었지만 업로드에 실패했습니다.",
     exitBackupRetry: "다시 시도",
@@ -858,7 +858,7 @@ export const ko: TranslationDictionary = {
     openNotes: "노트 열기",
     notesTitle: "읽기 노트",
     notesIntroduction:
-      "여기에 Markdown 노트를 추가하세요. PDF 강조 표시와 주석은 아래에 기록됩니다. 주석 내용은 편집할 수 있지만 PDF 위치를 유지하려면 숨겨진 inkwell-pdf 마커를 보존하세요.",
+      "여기에 Markdown 노트를 추가하세요. PDF 강조 표시와 주석은 아래에 기록됩니다. 주석 내용은 편집할 수 있지만 PDF 위치를 유지하려면 숨겨진 위치 정보를 보존하세요.",
     continuous: "연속 주석",
     continuousHighlight: "연속 강조",
     continuousHighlightHint: "연속 강조: 선택한 텍스트를 바로 강조 표시로 저장합니다",
@@ -963,12 +963,12 @@ export const ko: TranslationDictionary = {
     autoShell: "기본 셸",
     shell: "셸: {name}",
     noProject: "터미널을 사용하려면 프로젝트를 열어 주세요.",
-    desktopOnly: "터미널은 Inkwell 데스크톱 앱에서만 사용할 수 있습니다.",
+    desktopOnly: "터미널은 Glossa 데스크톱 앱에서만 사용할 수 있습니다.",
     processExited: "[프로세스가 종료되었습니다. 종료 코드 {code}]",
     startFailed: "터미널을 시작하지 못했습니다: {error}. 설정에서 셸 경로를 확인해 주세요.",
   },
   agent: {
-    title: "Inkwell Agent",
+    title: "Glossa Agent",
     you: "나",
     reply: "Agent",
     newConversation: "새 대화",
@@ -985,7 +985,7 @@ export const ko: TranslationDictionary = {
     setup: {
       title: "먼저 모델을 연결하세요",
       description:
-        "Inkwell Agent는 사용자가 제공하는 모델로 동작합니다. 설정에서 API 프로토콜을 선택하고 Base URL과 모델 이름을 입력하세요. 공급자가 요구하면 API 키도 입력하세요.",
+        "Glossa Agent는 사용자가 제공하는 모델로 동작합니다. 설정에서 API 프로토콜을 선택하고 Base URL과 모델 이름을 입력하세요. 공급자가 요구하면 API 키도 입력하세요.",
       action: "Agent 설정 열기",
       placeholder: "모델을 연결하면 대화를 시작할 수 있습니다",
     },
@@ -1001,7 +1001,7 @@ export const ko: TranslationDictionary = {
       hintSelection: "편집기나 PDF에서 텍스트를 선택한 다음 “{action}”를 선택하세요",
     },
     composer: {
-      placeholder: "Inkwell Agent에게 메시지 보내기",
+      placeholder: "Glossa Agent에게 메시지 보내기",
       placeholderExternal: "{name}에게 메시지 보내기",
       mentionHint: "@ 파일·문헌 참조 · / Skill 사용",
       send: "보내기",
@@ -1062,14 +1062,14 @@ export const ko: TranslationDictionary = {
     },
     kind: {
       label: "사용할 Agent",
-      builtin: "Inkwell Agent",
+      builtin: "Glossa Agent",
       builtinHint: "기본 제공됩니다. 본인의 API 키로 모델을 연결합니다.",
       external: "외부 Agent",
       externalHint: "이 컴퓨터에 설치된 명령줄 Agent를 ACP로 연결합니다.",
     },
     settings: {
       sharedHeading: "모든 Agent에 적용되는 설정",
-      modelHeading: "Inkwell Agent 모델",
+      modelHeading: "Glossa Agent 모델",
       protocol: "API 프로토콜",
       chooseProtocol: "프로토콜 선택",
       openaiCompatible: "OpenAI 호환",
@@ -1092,9 +1092,9 @@ export const ko: TranslationDictionary = {
         "모델 목록을 불러오지 못했습니다. Base URL, 프로토콜, API 키를 확인하거나 모델 이름을 직접 입력하세요.",
       serviceModelsFailed: "모델 목록을 불러오지 못했습니다. 모델 이름을 직접 입력하세요.",
       keyLoadFailed:
-        "Inkwell의 로컬 SQLite 데이터베이스에서 API 키를 읽지 못했습니다. 키를 다시 입력하거나 앱 데이터 폴더의 접근 권한을 확인하세요.",
+        "Glossa의 로컬 SQLite 데이터베이스에서 API 키를 읽지 못했습니다. 키를 다시 입력하거나 앱 데이터 폴더의 접근 권한을 확인하세요.",
       keySaveFailed:
-        "Inkwell의 로컬 SQLite 데이터베이스에 API 키를 저장하지 못했습니다. 앱 데이터 폴더의 접근 권한을 확인한 후 다시 시도하세요.",
+        "Glossa의 로컬 SQLite 데이터베이스에 API 키를 저장하지 못했습니다. 앱 데이터 폴더의 접근 권한을 확인한 후 다시 시도하세요.",
       configureModel: "연결된 모델이 없습니다. 설정 → Agent에서 모델을 연결하세요.",
       connectionFailed: "Agent에 연결하지 못했습니다. 다시 시도하세요.",
       visionConfigMissing:
@@ -1108,7 +1108,7 @@ export const ko: TranslationDictionary = {
       imageTestSuccess: "이미지 API가 정상적으로 응답했습니다.",
       imageTestFailed: "이미지 API에 연결하지 못했습니다. Base URL과 API 키를 확인하세요.",
       webSearch: "웹 검색",
-      webSearchDescription: "Inkwell Agent가 Tavily로 웹에서 최신 자료를 검색할 수 있게 합니다.",
+      webSearchDescription: "Glossa Agent가 Tavily로 웹에서 최신 자료를 검색할 수 있게 합니다.",
       webSearchGetKey: "API 키 발급",
       webSearchBaseUrl: "검색 API Base URL",
       webSearchKey: "검색 API 키",
@@ -1146,7 +1146,7 @@ export const ko: TranslationDictionary = {
       installing: "설치 중…",
       removing: "제거 중…",
       empty: "일치하는 Skill이 없습니다. 다른 검색어를 입력하거나 Skill을 가져오세요.",
-      conflict: "이 Skill은 Inkwell 외부에서 관리되므로 여기서 변경할 수 없습니다.",
+      conflict: "이 Skill은 Glossa 외부에서 관리되므로 여기서 변경할 수 없습니다.",
       stars: "GitHub 스타: {count}",
     },
     review: {
@@ -1178,7 +1178,7 @@ export const ko: TranslationDictionary = {
     external: {
       heading: "외부 Agent",
       defaultAgent: "기본 Agent",
-      builtinOption: "Inkwell Agent(기본 제공)",
+      builtinOption: "Glossa Agent(기본 제공)",
       refresh: "다시 확인",
       checking: "확인 중…",
       unavailable: "사용할 수 없음",
@@ -1202,7 +1202,7 @@ export const ko: TranslationDictionary = {
       installMessage:
         "이 컴퓨터에서 배포자의 설치 스크립트, npm 또는 uv가 실행되며 로컬 환경이 변경될 수 있습니다. 배포자를 신뢰하는 경우에만 계속하세요.",
       installAction: "설치",
-      connectionTitle: "Inkwell에 {agent} 연결",
+      connectionTitle: "Glossa에 {agent} 연결",
       connectionDescription: "ACP를 통해 이 Agent를 현재 프로젝트에 연결합니다.",
       connectionAction: "연결",
       accessTitle: "프로젝트 접근",
@@ -1210,7 +1210,7 @@ export const ko: TranslationDictionary = {
         "Agent는 자체 CLI의 권한으로 프로젝트 파일을 읽고, 수정을 제안하고, 도구를 실행할 수 있습니다. ACP는 이 프로세스를 시스템에서 격리하지 않습니다.",
       dataTitle: "데이터가 전송되는 곳",
       dataDescription:
-        "메시지와 프로젝트 컨텍스트는 Agent의 공급자에게 전송될 수 있으며, 해당 서비스의 계정과 데이터 정책에 따라 처리됩니다. Inkwell의 API 키는 공유되지 않습니다.",
+        "메시지와 프로젝트 컨텍스트는 Agent의 공급자에게 전송될 수 있으며, 해당 서비스의 계정과 데이터 정책에 따라 처리됩니다. Glossa의 API 키는 공유되지 않습니다.",
       controlTitle: "제어 권한은 사용자에게 있습니다",
       controlDescription:
         "도구 승인은 선택한 권한 모드와 Agent가 지원하는 기능을 따릅니다. 이 컴퓨터는 이 Agent와 실행 명령에 대한 동의를 기억합니다. 언제든지 연결을 해제하거나 Agent를 바꿀 수 있습니다.",
@@ -1234,15 +1234,15 @@ export const ko: TranslationDictionary = {
       sessionChanged: "메시지를 보내는 동안 Agent 연결이 바뀌었습니다. 다시 보내세요.",
       saveFailed: "대화를 저장하지 못했습니다.",
       unsupportedProtocol:
-        "이 Agent는 Inkwell이 지원하지 않는 ACP 버전을 사용합니다. Agent 또는 어댑터를 업데이트하세요.",
+        "이 Agent는 Glossa가 지원하지 않는 ACP 버전을 사용합니다. Agent 또는 어댑터를 업데이트하세요.",
       invalidSession:
         "Agent가 유효한 ACP 세션을 시작하지 못했습니다. 다시 연결하거나 Agent를 업데이트하세요.",
       restrictedUnsupported:
-        "이 Agent에는 읽기 전용 모드가 없어 제한 모드를 보장할 수 없습니다. Agent 설정에서 “매번 확인”을 선택한 후 다시 연결하거나 Inkwell Agent를 사용하세요.",
+        "이 Agent에는 읽기 전용 모드가 없어 제한 모드를 보장할 수 없습니다. Agent 설정에서 “매번 확인”을 선택한 후 다시 연결하거나 Glossa Agent를 사용하세요.",
       authUnsupported:
-        "ACP 어댑터가 로그인을 요구하지만 Inkwell에서 사용할 수 있는 로그인 방법을 제공하지 않습니다. CLI 로그인이 어댑터에 적용되지 않을 수 있습니다. 둘 다 같은 OS 계정과 환경에서 실행되는지 확인하거나 어댑터를 업데이트하세요.",
+        "ACP 어댑터가 로그인을 요구하지만 Glossa에서 사용할 수 있는 로그인 방법을 제공하지 않습니다. CLI 로그인이 어댑터에 적용되지 않을 수 있습니다. 둘 다 같은 OS 계정과 환경에서 실행되는지 확인하거나 어댑터를 업데이트하세요.",
       authCancelled: "로그인이 취소되었습니다.",
-      authInvalid: "Agent가 제공한 로그인 방법을 Inkwell에서 사용할 수 없습니다.",
+      authInvalid: "Agent가 제공한 로그인 방법을 Glossa에서 사용할 수 없습니다.",
       imagesUnsupported: "이 Agent는 이미지 첨부를 지원하지 않습니다.",
       approvalRestricted: "제한 모드에서는 도구를 승인할 수 없습니다.",
       approvalUnsupported: "일회성 승인만 지원합니다.",
@@ -1253,15 +1253,15 @@ export const ko: TranslationDictionary = {
         "Agent가 “{method}” 요청에 제한 시간 안에 응답하지 않았습니다. 연결을 해제하고 다시 연결한 후 시도하세요.",
     },
     errors: {
-      disconnected: "Inkwell Agent가 중지되었습니다. 새 대화를 시작하면 다시 연결됩니다.",
-      stoppedBeforeReady: "Inkwell Agent가 준비되기 전에 중지되었습니다. 다시 시도하세요.",
-      notConnected: "Inkwell Agent가 연결되지 않았습니다. 새 대화를 시작하세요.",
+      disconnected: "Glossa Agent가 중지되었습니다. 새 대화를 시작하면 다시 연결됩니다.",
+      stoppedBeforeReady: "Glossa Agent가 준비되기 전에 중지되었습니다. 다시 시도하세요.",
+      notConnected: "Glossa Agent가 연결되지 않았습니다. 새 대화를 시작하세요.",
       timedOut:
-        "Inkwell Agent가 제한 시간 안에 응답하지 않아 중지되었습니다. 기록에서 대화를 다시 열어 저장된 내용을 확인한 후 다시 시도하세요.",
-      commandFailed: "Inkwell Agent가 요청을 완료하지 못했습니다.",
+        "Glossa Agent가 제한 시간 안에 응답하지 않아 중지되었습니다. 기록에서 대화를 다시 열어 저장된 내용을 확인한 후 다시 시도하세요.",
+      commandFailed: "Glossa Agent가 요청을 완료하지 못했습니다.",
       cancelled: "연결이 취소되었습니다.",
-      alreadyConnected: "Inkwell Agent가 이미 연결되어 있습니다. 연결을 해제한 후 다시 연결하세요.",
-      disabledWhileExternal: "외부 Agent를 선택한 동안에는 Inkwell Agent가 꺼져 있습니다.",
+      alreadyConnected: "Glossa Agent가 이미 연결되어 있습니다. 연결을 해제한 후 다시 연결하세요.",
+      disabledWhileExternal: "외부 Agent를 선택한 동안에는 Glossa Agent가 꺼져 있습니다.",
       sessionChanged: "메시지를 보내는 동안 대화가 바뀌었습니다. 다시 보내세요.",
       parsingCancelled: "문서 분석이 취소되었습니다.",
       contextTooLarge:
@@ -1304,15 +1304,15 @@ export const ko: TranslationDictionary = {
       },
       mainFile: {
         title: "메인 파일",
-        body: "컴파일할 .tex 파일을 보여 줍니다. Inkwell이 자동으로 감지하며, 진입 파일이 여러 개인 프로젝트에서는 여기서 바꿀 수 있습니다.",
+        body: "컴파일할 .tex 파일을 보여 줍니다. Glossa가 자동으로 감지하며, 진입 파일이 여러 개인 프로젝트에서는 여기서 바꿀 수 있습니다.",
       },
       compile: {
         title: "컴파일",
-        body: "컴파일하면 PDF를 만들고 미리보기를 엽니다. Inkwell은 설치된 컴파일러를 감지하고 문서에 맞는 엔진을 선택합니다. TeX 배포판이 없으면 설치 또는 다운로드를 안내하며, 사용자가 확인하기 전에는 아무것도 설치하지 않습니다.",
+        body: "컴파일하면 PDF를 만들고 미리보기를 엽니다. Glossa는 설치된 컴파일러를 감지하고 문서에 맞는 엔진을 선택합니다. TeX 배포판이 없으면 설치 또는 다운로드를 안내하며, 사용자가 확인하기 전에는 아무것도 설치하지 않습니다.",
       },
       agent: {
         title: "Agent 연결",
-        body: "본인의 모델로 Inkwell Agent를 사용하거나, 이 컴퓨터에 설치된 외부 Agent를 사용할 수 있습니다. 하나를 선택한 후 아래에서 설정을 입력하세요.",
+        body: "본인의 모델로 Glossa Agent를 사용하거나, 이 컴퓨터에 설치된 외부 Agent를 사용할 수 있습니다. 하나를 선택한 후 아래에서 설정을 입력하세요.",
       },
       layoutParser: {
         title: "문서 레이아웃 분석(선택)",
@@ -1320,7 +1320,7 @@ export const ko: TranslationDictionary = {
       },
       webSearch: {
         title: "웹 검색(선택)",
-        body: "Tavily API 키를 입력하면 Inkwell Agent가 웹에서 최신 자료를 검색할 수 있습니다. 검색 결과는 외부 자료이므로 Agent가 인용한 출처를 확인하세요.",
+        body: "Tavily API 키를 입력하면 Glossa Agent가 웹에서 최신 자료를 검색할 수 있습니다. 검색 결과는 외부 자료이므로 Agent가 인용한 출처를 확인하세요.",
       },
       skills: {
         title: "Skills(선택)",
@@ -1531,7 +1531,7 @@ export const ko: TranslationDictionary = {
       current: "현재 버전",
       check: "업데이트 확인",
       checking: "업데이트 확인 중…",
-      latest: "Inkwell이 최신 버전입니다.",
+      latest: "Glossa가 최신 버전입니다.",
       available: "새 버전을 사용할 수 있습니다.",
       availableVersion: "새 버전 사용 가능: {version}",
       install: "다운로드 및 설치",
@@ -1540,8 +1540,8 @@ export const ko: TranslationDictionary = {
       downloaded: "업데이트를 다운로드했습니다. 설치할 수 있습니다.",
       downloadedVersion: "설치 준비 완료: 버전 {version}",
       installing: "업데이트 설치 중…",
-      installed: "업데이트를 설치했습니다. Inkwell을 다시 시작하면 적용됩니다.",
-      installedVersion: "버전 {version} 설치 완료. Inkwell을 다시 시작하면 적용됩니다.",
+      installed: "업데이트를 설치했습니다. Glossa를 다시 시작하면 적용됩니다.",
+      installedVersion: "버전 {version} 설치 완료. Glossa를 다시 시작하면 적용됩니다.",
       restart: "지금 다시 시작",
       saveFirst: "설치하기 전에 작업을 저장하세요.",
       automatic: "자동 업데이트",

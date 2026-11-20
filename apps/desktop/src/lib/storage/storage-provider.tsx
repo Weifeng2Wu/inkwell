@@ -94,7 +94,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background text-foreground"
           role="status"
         >
-          <p>{error ?? "Inkwell…"}</p>
+          <p>{error ?? "Glossa…"}</p>
           {error && (
             <button
               type="button"

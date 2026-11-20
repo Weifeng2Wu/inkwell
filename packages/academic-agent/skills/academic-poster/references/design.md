@@ -29,7 +29,7 @@ Build sections around the paper's actual evidence. Use a header for the conferen
 
 ## Set readable type and density
 
-For A0, start with 20–28 mm page margins, 15–20 mm column gaps, an 18–24 mm title, 10–13 mm section headings, and 7–9 mm body text. Scale up for smaller sheets where needed. In Inkwell, these lengths and `fontSize` values are millimetres. Leave at least 10% extra height in text boxes after estimating line wraps. Keep captions and short interpretive notes close to body size; do not quietly demote robustness, sensitivity, or mechanism explanations to tiny footnotes. Use stable fixed sizes, moderate font weight, and zero letter spacing.
+For A0, start with 20–28 mm page margins, 15–20 mm column gaps, an 18–24 mm title, 10–13 mm section headings, and 7–9 mm body text. Scale up for smaller sheets where needed. In Glossa, these lengths and `fontSize` values are millimetres. Leave at least 10% extra height in text boxes after estimating line wraps. Keep captions and short interpretive notes close to body size; do not quietly demote robustness, sensitivity, or mechanism explanations to tiny footnotes. Use stable fixed sizes, moderate font weight, and zero letter spacing.
 
 An A0 poster often works with roughly 350–650 words, but evidence and venue needs decide the final count. Prefer removing repetition over shrinking type. Keep body text and captions consistent; explanatory notes for key results should not become footnotes. Use moderate weight and stable sizes. Balance title, subtitle, and author sizes rather than letting one overpower the others. When no visual direction is given, use a white background with navy text, blue accents, and pale blue panels; preserve existing colors when revising unless the user requests a redesign.
 
@@ -39,11 +39,11 @@ An A0 poster often works with roughly 350–650 words, but evidence and venue ne
 - Recreate a simple diagram or data graphic only when its relationships and values are explicit in the paper. Cite the source in a nearby caption or note.
 - Never estimate numeric chart data from pixels. Do not invent comparisons, uncertainty, significance, or baselines. Simplify tables only when every reported comparison and result remains faithful; avoid duplicating a full result table elsewhere.
 - Generated mockups may guide overall hierarchy, density, spacing, and palette. Replace every generated word, number, chart, equation, QR code, and logo with verified content or an explicit placeholder before the final poster.
-- Inkwell text is plain text: Markdown and LaTeX are not rendered as formulas. Use Unicode for simple symbols. For complex equations, use an attributed project-local image and explain that it is not editable text.
+- Glossa text is plain text: Markdown and LaTeX are not rendered as formulas. Use Unicode for simple symbols. For complex equations, use an attributed project-local image and explain that it is not editable text.
 
-## Account for Inkwell's element model
+## Account for Glossa's element model
 
-Inkwell posters contain `text`, `rect`, and `image` elements. Objects are separate and editable, but there is no native table, arbitrary vector path, HTML, or script element. Use text and rectangles for simple metric strips, section bands, or small diagrams. Keep complex plots and diagrams as original project-local image assets. Build a layout that fits this model instead of targeting CSS features the editor cannot represent.
+Glossa posters contain `text`, `rect`, and `image` elements. Objects are separate and editable, but there is no native table, arbitrary vector path, HTML, or script element. Use text and rectangles for simple metric strips, section bands, or small diagrams. Keep complex plots and diagrams as original project-local image assets. Build a layout that fits this model instead of targeting CSS features the editor cannot represent.
 
 Use local relative paths for images. For `posters/result.poster.json`, a file at `figures/result.png` is referenced as `../figures/result.png`. Keep every image below 8 MiB, respect the review proposal limit, and verify the file exists. Avoid base64 images for Agent-generated posters.
 

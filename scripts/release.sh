@@ -12,13 +12,14 @@ if [ "$ARCH" = "arm64" ]; then
 else
   ARCH_SUFFIX="x64"
 fi
-PKG_PATH="$TAURI_DIR/target/release/bundle/pkg/Inkwell_${VERSION}_${ARCH_SUFFIX}.pkg"
-DMG_PATH="$TAURI_DIR/target/release/bundle/dmg/Inkwell_${VERSION}_${ARCH_SUFFIX}.dmg"
-APP_PATH="$TAURI_DIR/target/release/bundle/macos/Inkwell.app"
+PKG_PATH="$TAURI_DIR/target/release/bundle/pkg/Glossa_${VERSION}_${ARCH_SUFFIX}.pkg"
+DMG_PATH="$TAURI_DIR/target/release/bundle/dmg/Glossa_${VERSION}_${ARCH_SUFFIX}.dmg"
+APP_PATH="$TAURI_DIR/target/release/bundle/macos/Glossa.app"
 RELEASE_TAG="v${VERSION}"
-RELEASE_URL="https://github.com/EvolvingLMMs-Lab/inkwell/releases/tag/${RELEASE_TAG}"
-DMG_ASSET_NAME="Inkwell_${VERSION}_${ARCH_SUFFIX}.dmg"
-PKG_ASSET_NAME="Inkwell_${VERSION}_${ARCH_SUFFIX}.pkg"
+RELEASE_REPO="${GITHUB_RELEASE_REPO:-Weifeng2Wu/glossa}"
+RELEASE_URL="https://github.com/${RELEASE_REPO}/releases/tag/${RELEASE_TAG}"
+DMG_ASSET_NAME="Glossa_${VERSION}_${ARCH_SUFFIX}.dmg"
+PKG_ASSET_NAME="Glossa_${VERSION}_${ARCH_SUFFIX}.pkg"
 
 UPLOAD_GITHUB_RELEASE="${PUBLISH_GITHUB_RELEASE:-1}"
 CREATE_GITHUB_RELEASE="${CREATE_GITHUB_RELEASE:-0}"
@@ -49,7 +50,7 @@ while [ $# -gt 0 ]; do
 done
 
 echo "=========================================="
-echo "Inkwell Release Script"
+echo "Glossa Release Script"
 echo "=========================================="
 echo ""
 
@@ -99,8 +100,8 @@ echo "=========================================="
 echo ""
 echo "Downloads:"
 echo "  Release: ${RELEASE_URL}"
-echo "  DMG: https://github.com/EvolvingLMMs-Lab/inkwell/releases/download/${RELEASE_TAG}/${DMG_ASSET_NAME}"
-echo "  PKG: https://github.com/EvolvingLMMs-Lab/inkwell/releases/download/${RELEASE_TAG}/${PKG_ASSET_NAME}"
+echo "  DMG: https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${DMG_ASSET_NAME}"
+echo "  PKG: https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${PKG_ASSET_NAME}"
 echo "  Homebrew: brew install --cask EvolvingLMMs-Lab/tap/inkwell"
 echo ""
 echo "GitHub Release:"

@@ -2,9 +2,9 @@ import {
   POSTER_DEFAULTS,
   parsePosterCanvas,
   wrapPosterText,
-} from "@inkwell/academic-agent/poster-document";
+} from "@glossa/academic-agent/poster-document";
 
-export { POSTER_DEFAULTS, validImageSource } from "@inkwell/academic-agent/poster-document";
+export { POSTER_DEFAULTS, validImageSource } from "@glossa/academic-agent/poster-document";
 export const POSTER_SIZES = {
   A0: [841, 1189],
   A1: [594, 841],
